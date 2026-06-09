@@ -4,6 +4,10 @@
     <p class="text-xs text-zinc-500 mono">\l databases · \dn schemas · \du roles</p>
   </div>
 
+  {% if error %}
+    <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-2.5 text-sm text-red-200/90 mono">{{ error }}</div>
+  {% endif %}
+
   <!-- Databases: the \l view -->
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
     <div class="px-5 py-2.5 border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
@@ -31,10 +35,22 @@
     </table>
   </section>
 
-  <!-- Schemas: the \dn view -->
+  <!-- Schemas: the \dn view, now with create / drop -->
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
-      Schemas <span class="mono lowercase text-zinc-600">\dn</span>
+    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-zinc-500">
+        Schemas <span class="mono lowercase text-zinc-600">\dn</span>
+      </span>
+      <form hx-post="{% url 'schema_create' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            hx-disabled-elt="find button" class="flex items-center gap-2">
+        <input name="name" placeholder="new_schema" autocomplete="off"
+               class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm mono w-40
+                      text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
+        <button type="submit"
+                class="bg-emerald-400 text-zinc-950 font-medium text-sm rounded px-3 py-1 hover:bg-emerald-300">
+          + Create
+        </button>
+      </form>
     </div>
     {% if schemas %}
       <table class="w-full text-sm">
@@ -42,6 +58,7 @@
           <tr class="border-b border-zinc-800">
             <th class="px-5 py-2 font-medium">Name</th>
             <th class="px-5 py-2 font-medium">Owner</th>
+            <th class="px-5 py-2 font-medium w-px"></th>
           </tr>
         </thead>
         <tbody>
@@ -49,12 +66,19 @@
             <tr class="border-b border-zinc-800/60">
               <td class="px-5 py-2 mono">{{ s.name }}</td>
               <td class="px-5 py-2 text-zinc-400 mono">{{ s.owner }}</td>
+              <td class="px-5 py-2 text-right whitespace-nowrap">
+                <form hx-post="{% url 'schema_delete' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                      hx-confirm="Drop schema &quot;{{ s.name }}&quot;? This only works if it's empty.">
+                  <input type="hidden" name="name" value="{{ s.name }}">
+                  <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
+                </form>
+              </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-500 text-sm">No user schemas.</p>
+      <p class="px-5 py-8 text-center text-zinc-500 text-sm">No user schemas yet — create one above.</p>
     {% endif %}
   </section>
 

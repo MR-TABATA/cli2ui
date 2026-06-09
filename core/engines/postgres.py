@@ -165,6 +165,27 @@ class PostgresEngine(Engine):
                 cur.execute(LIST_ROLES_SQL)
                 return [_role(row) for row in cur.fetchall()]
 
+    # --- catalog mutations -----------------------------------------------
+
+    def create_schema(self, name: str) -> None:
+        self._execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(name)))
+
+    def drop_schema(self, name: str, cascade: bool = False) -> None:
+        stmt = sql.SQL("DROP SCHEMA {}{}").format(
+            sql.Identifier(name),
+            sql.SQL(" CASCADE") if cascade else sql.SQL(""),
+        )
+        self._execute(stmt)
+
+    def _execute(self, statement) -> None:
+        """Run a composed DDL statement, mapping driver errors to EngineError."""
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                try:
+                    cur.execute(statement)
+                except psycopg2.Error as exc:
+                    raise EngineError(_clean(exc)) from exc
+
     # --- server configuration --------------------------------------------
 
     def list_settings(self, names=None, category=None) -> list[Setting]:
