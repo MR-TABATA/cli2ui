@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}cli2ui{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script>
+    tailwind.config = { darkMode: "class" }
+  </script>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+  <header class="border-b border-zinc-800 sticky top-0 bg-zinc-950/90 backdrop-blur z-10">
+    <div class="max-w-7xl mx-auto px-6 py-3.5 flex items-center gap-3">
+      <a href="/" class="text-lg font-semibold tracking-tight">
+        cli<span class="text-emerald-400">2</span>ui
+      </a>
+      <span class="text-zinc-500 text-sm hidden sm:inline">CLI database ops, as buttons.</span>
+    </div>
+  </header>
+  <main class="max-w-7xl mx-auto px-6 py-6">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

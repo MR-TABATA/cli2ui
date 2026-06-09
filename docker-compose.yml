@@ -1,0 +1,29 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      sampledb:
+        condition: service_healthy
+
+  # Bundled sample database so the app has something to show on first run.
+  # Connect to it with host=sampledb, db=shop, user=demo, password=demo
+  # (these are the pre-filled defaults on the connection form).
+  sampledb:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: demo
+      POSTGRES_DB: shop
+    volumes:
+      - ./seed/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5433:5432"  # exposed on 5433 to avoid clashing with a local Postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d shop"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
