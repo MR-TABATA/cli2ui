@@ -23,6 +23,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
 ]
 
 ROOT_URLCONF = "cli2ui.urls"
@@ -50,8 +51,11 @@ DATABASES = {
     }
 }
 
-# CSRF is disabled here because this is a single-user, local-only tool and we
-# post the connection form via htmx. Revisit before any multi-user deployment.
+# CSRF is enabled even though the tool is local-only: without it, any website
+# you visit could fire a cross-origin form POST at localhost and mutate (e.g.
+# DROP) your database. htmx sends the token via the X-CSRFToken header — see the
+# hx-headers on <body> in base.html — so no per-form {% csrf_token %} is needed.
+# Cookie-based CSRF works standalone here (no SessionMiddleware required).
 CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"]
 
 STATIC_URL = "static/"
