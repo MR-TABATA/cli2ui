@@ -1,0 +1,65 @@
+<div class="space-y-5">
+  <div>
+    <h2 class="text-lg font-semibold mono">{{ schema }}.{{ table }}</h2>
+    <p class="text-xs text-zinc-500">
+      {{ columns|length }} column{{ columns|length|pluralize }} ·
+      previewing up to {{ preview_rows|length }} row{{ preview_rows|length|pluralize }}
+    </p>
+  </div>
+
+  <!-- Columns: the \d table view -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
+      Columns
+    </div>
+    <table class="w-full text-sm">
+      <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+        <tr class="border-b border-zinc-800">
+          <th class="px-5 py-2 font-medium">Name</th>
+          <th class="px-5 py-2 font-medium">Type</th>
+          <th class="px-5 py-2 font-medium">Nullable</th>
+          <th class="px-5 py-2 font-medium">Default</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for col in columns %}
+          <tr class="border-b border-zinc-800/60">
+            <td class="px-5 py-2 mono">{{ col.name }}</td>
+            <td class="px-5 py-2 text-zinc-400 mono">{{ col.type }}</td>
+            <td class="px-5 py-2 text-zinc-400">{% if col.nullable %}yes{% else %}<span class="text-zinc-300">no</span>{% endif %}</td>
+            <td class="px-5 py-2 text-zinc-400 mono truncate max-w-[200px]">{{ col.default|default:"—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Data preview: the SELECT * ... LIMIT view -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
+      Data preview
+    </div>
+    {% if preview_rows %}
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+            <tr class="border-b border-zinc-800">
+              {% for c in preview_columns %}<th class="px-4 py-2 font-medium mono whitespace-nowrap">{{ c }}</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in preview_rows %}
+              <tr class="border-b border-zinc-800/60 hover:bg-zinc-800/40">
+                {% for v in row %}
+                  <td class="px-4 py-2 mono text-zinc-300 max-w-[260px] truncate whitespace-nowrap">{{ v }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-500 text-sm">This table is empty.</p>
+    {% endif %}
+  </section>
+</div>

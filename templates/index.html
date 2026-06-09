@@ -1,117 +1,77 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="grid lg:grid-cols-[340px_minmax(0,1fr)] gap-6 items-start">
+<div class="max-w-3xl mx-auto grid md:grid-cols-2 gap-8 items-start">
 
-  <!-- Sidebar: connect form + saved connections -->
-  <aside class="space-y-6 lg:sticky lg:top-20">
-    <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-5">
-      <h1 class="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-1">
-        New connection
-      </h1>
-      <p class="text-xs text-zinc-500 mb-4">Defaults point at the bundled sample DB.</p>
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-5">
+    <h1 class="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-1">
+      New connection
+    </h1>
+    <p class="text-xs text-zinc-500 mb-4">Defaults point at the bundled sample DB.</p>
 
-      <form hx-post="/connect" hx-target="#result" hx-swap="innerHTML"
-            hx-disabled-elt="find button" class="space-y-3">
-        <div class="grid grid-cols-2 gap-3">
-          <label class="block col-span-1">
-            <span class="lbl">Type</span>{{ form.kind }}
-          </label>
-          <label class="block col-span-1">
-            <span class="lbl">Name <span class="text-zinc-600">(optional)</span></span>{{ form.name }}
-          </label>
-        </div>
-        <div class="grid grid-cols-[1fr_88px] gap-3">
-          <label class="block">
-            <span class="lbl">Host</span>{{ form.host }}
-          </label>
-          <label class="block">
-            <span class="lbl">Port</span>{{ form.port }}
-          </label>
-        </div>
-        <label class="block">
-          <span class="lbl">Database</span>{{ form.dbname }}
-        </label>
-        <div class="grid grid-cols-2 gap-3">
-          <label class="block">
-            <span class="lbl">User</span>{{ form.user }}
-          </label>
-          <label class="block">
-            <span class="lbl">Password</span>{{ form.password }}
-          </label>
-        </div>
+    <form hx-post="/connect" hx-target="#form-error" hx-swap="innerHTML"
+          hx-disabled-elt="find button" class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block"><span class="lbl">Type</span>{{ form.kind }}</label>
+        <label class="block"><span class="lbl">Name <span class="text-zinc-600">(optional)</span></span>{{ form.name }}</label>
+      </div>
+      <div class="grid grid-cols-[1fr_88px] gap-3">
+        <label class="block"><span class="lbl">Host</span>{{ form.host }}</label>
+        <label class="block"><span class="lbl">Port</span>{{ form.port }}</label>
+      </div>
+      <label class="block"><span class="lbl">Database</span>{{ form.dbname }}</label>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block"><span class="lbl">User</span>{{ form.user }}</label>
+        <label class="block"><span class="lbl">Password</span>{{ form.password }}</label>
+      </div>
 
-        <button type="submit"
-                class="connect-btn w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950
-                       font-medium rounded-lg px-4 py-2.5 transition flex items-center
-                       justify-center gap-2">
-          <span class="label">Connect</span>
-          <span class="spinner items-center gap-2">
-            <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
-            Connecting…
-          </span>
-        </button>
-      </form>
-    </section>
+      <button type="submit"
+              class="connect-btn w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950
+                     font-medium rounded-lg px-4 py-2.5 transition flex items-center
+                     justify-center gap-2">
+        <span class="label">Connect</span>
+        <span class="spinner items-center gap-2">
+          <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+          </svg>
+          Connecting…
+        </span>
+      </button>
+      <div id="form-error"></div>
+    </form>
+  </section>
 
+  <section>
     {% if connections %}
-      <section>
-        <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2 px-1">
-          Saved connections
-        </h2>
-        <ul class="space-y-2">
-          {% for c in connections %}
-            <li>
-              <button hx-get="/c/{{ c.pk }}/tables" hx-target="#result" hx-swap="innerHTML"
-                      class="w-full text-left bg-zinc-900/60 border border-zinc-800 rounded-lg
-                             px-3.5 py-2.5 hover:border-zinc-600 transition">
-                <div class="font-medium text-sm">{{ c.display_name }}</div>
-                <div class="text-xs text-zinc-500 mono truncate">
-                  {{ c.host }}:{{ c.port }}/{{ c.dbname }}
-                </div>
-              </button>
-            </li>
-          {% endfor %}
-        </ul>
-      </section>
+      <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2 px-1">
+        Saved connections
+      </h2>
+      <ul class="space-y-2">
+        {% for c in connections %}
+          <li>
+            <a href="{% url 'workspace' c.pk %}"
+               class="block bg-zinc-900/60 border border-zinc-800 rounded-lg px-3.5 py-2.5
+                      hover:border-zinc-600 transition">
+              <div class="font-medium text-sm">{{ c.display_name }}</div>
+              <div class="text-xs text-zinc-500 mono truncate">{{ c.host }}:{{ c.port }}/{{ c.dbname }}</div>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-sm text-zinc-500 px-1">No saved connections yet.</p>
     {% endif %}
-  </aside>
-
-  <!-- Main: results land here, no scrolling needed -->
-  <section id="result">
-    {% include "partials/empty.html" %}
   </section>
 </div>
 
 <style>
-  .lbl {
-    display: block;
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #a1a1aa;
-    margin-bottom: 0.25rem;
-  }
-  aside input, aside select {
-    width: 100%;
-    background: #18181b;
-    border: 1px solid #3f3f46;
-    border-radius: 0.5rem;
-    padding: 0.45rem 0.6rem;
-    color: #fafafa;
-    font-size: 0.875rem;
-  }
-  aside input:focus, aside select:focus {
-    outline: none;
-    border-color: #34d399;
-  }
-  /* Connect button loading state, driven by htmx-request on the form */
-  .spinner { display: none; }
-  form.htmx-request .label { display: none; }
-  form.htmx-request .spinner { display: inline-flex; }
-  form.htmx-request .connect-btn { opacity: 0.7; cursor: progress; }
+  .lbl { display:block; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:#a1a1aa; margin-bottom:0.25rem; }
+  form input, form select { width:100%; background:#18181b; border:1px solid #3f3f46; border-radius:0.5rem; padding:0.45rem 0.6rem; color:#fafafa; font-size:0.875rem; }
+  form input:focus, form select:focus { outline:none; border-color:#34d399; }
+  .spinner { display:none; }
+  form.htmx-request .label { display:none; }
+  form.htmx-request .spinner { display:inline-flex; }
+  form.htmx-request .connect-btn { opacity:0.7; cursor:progress; }
 </style>
 {% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 items-start">
+
+  <!-- Sidebar: connection switcher + table list -->
+  <aside class="lg:sticky lg:top-20 space-y-4">
+
+    <div class="relative" x-data="{ menu: false }">
+      <button @click="menu = !menu" @click.outside="menu = false"
+              class="w-full flex items-center justify-between gap-2 bg-zinc-900/60
+                     border border-zinc-800 rounded-lg px-3.5 py-2.5 hover:border-zinc-600 transition">
+        <span class="min-w-0">
+          <span class="block font-medium text-sm truncate text-left">{{ connection.display_name }}</span>
+          <span class="block text-xs text-zinc-500 mono truncate text-left">{{ connection.host }}:{{ connection.port }}/{{ connection.dbname }}</span>
+        </span>
+        <svg class="h-4 w-4 text-zinc-500 shrink-0" :class="menu && 'rotate-180'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div x-show="menu" x-cloak style="display:none"
+           class="absolute z-20 mt-1 w-full bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl py-1">
+        {% for c in connections %}{% if c.pk != connection.pk %}
+          <a href="{% url 'workspace' c.pk %}" class="block px-3.5 py-2 text-sm hover:bg-zinc-800 truncate">{{ c.display_name }}</a>
+        {% endif %}{% endfor %}
+        <a href="/" class="block px-3.5 py-2 text-sm text-emerald-400 hover:bg-zinc-800 border-t border-zinc-800">+ New connection</a>
+      </div>
+    </div>
+
+    {% if error %}
+      <div class="bg-red-950/40 border border-red-900 rounded-xl px-4 py-3">
+        <p class="text-sm font-medium text-red-300 mb-1">Could not connect</p>
+        <p class="text-sm text-red-200/80 mono">{{ error }}</p>
+        <a href="/" class="text-xs text-red-300 underline mt-2 inline-block">back to connections</a>
+      </div>
+    {% else %}
+      <div x-data="{ q: '', sel: '' }" class="space-y-3">
+
+      <button hx-get="{% url 'settings' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+              @click="sel = '__config__'"
+              :class="sel === '__config__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
+              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
+                     hover:border-zinc-600 transition flex items-center gap-2">
+        <span>⚙</span><span class="text-sm font-medium mono">postgresql.conf</span>
+      </button>
+
+      <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+        <div class="px-3 py-2.5 border-b border-zinc-800">
+          <input type="text" x-model="q" placeholder="Filter tables…"
+                 class="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm
+                        text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
+        </div>
+        <ul class="py-1 max-h-[70vh] overflow-y-auto">
+          {% for t in tables %}
+            <li x-show="q === '' || '{{ t.qualified|lower|escapejs }}'.includes(q.toLowerCase())">
+              <button hx-get="{% url 'table_detail' connection.pk %}?schema={{ t.schema|urlencode }}&table={{ t.name|urlencode }}"
+                      hx-target="#detail" hx-swap="innerHTML"
+                      @click="sel = '{{ t.qualified|escapejs }}'"
+                      :class="sel === '{{ t.qualified|escapejs }}' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-300'"
+                      class="w-full text-left px-3.5 py-1.5 text-sm flex items-center justify-between gap-2 hover:bg-zinc-800/60 transition">
+                <span class="mono truncate">{{ t.name }}</span>
+                <span class="text-xs text-zinc-500 shrink-0">{{ t.rows }}</span>
+              </button>
+            </li>
+          {% endfor %}
+        </ul>
+        <div class="px-3.5 py-2 border-t border-zinc-800 text-xs text-zinc-500">
+          {{ tables|length }} table{{ tables|length|pluralize }}
+        </div>
+      </div><!-- /table box -->
+      </div><!-- /x-data wrapper -->
+    {% endif %}
+  </aside>
+
+  <!-- Main: table detail lands here -->
+  <section id="detail">
+    {% include "partials/detail_empty.html" %}
+  </section>
+</div>
+
+<style>[x-cloak]{display:none !important;}</style>
+{% endblock %}
