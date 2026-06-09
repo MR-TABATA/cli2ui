@@ -92,6 +92,10 @@ class Engine:
     def list_setting_categories(self) -> list[str]:
         raise NotImplementedError
 
+    def pending_restart_settings(self) -> list[Setting]:
+        """Parameters changed via ALTER SYSTEM that await a server restart."""
+        raise NotImplementedError
+
     def update_setting(self, name: str, value: str) -> Setting:
         """Set a parameter and reload. `ALTER SYSTEM SET` + `pg_reload_conf()`."""
         raise NotImplementedError

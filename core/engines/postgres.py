@@ -120,6 +120,12 @@ class PostgresEngine(Engine):
                 cur.execute("SELECT DISTINCT category FROM pg_settings ORDER BY category")
                 return [row[0] for row in cur.fetchall()]
 
+    def pending_restart_settings(self) -> list[Setting]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"{SETTINGS_SELECT} WHERE pending_restart ORDER BY name")
+                return [_setting(row) for row in cur.fetchall()]
+
     def update_setting(self, name: str, value: str) -> Setting:
         with self._connect() as conn:
             with conn.cursor() as cur:
