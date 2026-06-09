@@ -28,11 +28,14 @@ password) and connect.
 
 ## Status
 
-MVP, first vertical slice: `docker compose up` → connection form → table list.
+MVP. `docker compose up` → connect → browse your tables in a DB-client layout
+(table list in the sidebar, table detail in the main pane).
 
-- ✅ PostgreSQL: connect + list tables (with estimated row counts)
+- ✅ PostgreSQL: connect + list tables (estimated row counts)
+- ✅ Table detail: column definitions (`\d table`) + row preview (`SELECT * … LIMIT`)
+- ✅ `postgresql.conf` editor: read/edit parameters via `pg_settings` +
+  `ALTER SYSTEM SET` + `pg_reload_conf()`, with reload-vs-restart badges
 - ⬜ MySQL (the engine layer is ready for it)
-- ⬜ Table contents browser
 - ⬜ One-click ops (backup table, kill query, …) + safety net
 - ⬜ Command history
 

@@ -1,37 +1,49 @@
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 
 from .engines import EngineError, get_engine
 from .forms import ConnectionForm
 from .models import Connection
 
+# The parameters people actually reach for — connections, memory, WAL, logging.
+# Shown by default so the editor isn't a wall of 350 obscure GUCs.
+COMMON_SETTINGS = [
+    "max_connections", "shared_buffers", "effective_cache_size", "work_mem",
+    "maintenance_work_mem", "wal_buffers", "min_wal_size", "max_wal_size",
+    "checkpoint_completion_target", "random_page_cost", "effective_io_concurrency",
+    "default_statistics_target", "log_min_duration_statement", "log_statement",
+    "log_connections", "log_disconnections", "log_lock_waits",
+    "idle_in_transaction_session_timeout", "statement_timeout", "timezone",
+]
+
+SAMPLE_INITIAL = {
+    "name": "Sample shop",
+    "kind": Connection.KIND_POSTGRES,
+    "host": "sampledb",
+    "port": 5432,
+    "dbname": "shop",
+    "user": "demo",
+    "password": "demo",
+}
+
 
 def index(request):
-    """Landing page: saved connections + a new-connection form.
-
-    Form fields are pre-filled to point at the bundled sample DB, so a fresh
-    `docker compose up` lets you click straight through to a table list.
-    """
-    initial = {
-        "name": "Sample shop",
-        "kind": Connection.KIND_POSTGRES,
-        "host": "sampledb",
-        "port": 5432,
-        "dbname": "shop",
-        "user": "demo",
-        "password": "demo",
-    }
+    """Landing page: new-connection form (pre-filled for the sample DB) plus
+    links to any saved connections."""
     return render(
         request,
         "index.html",
         {
-            "form": ConnectionForm(initial=initial),
+            "form": ConnectionForm(initial=SAMPLE_INITIAL),
             "connections": Connection.objects.all(),
         },
     )
 
 
 def connect(request):
-    """Save a connection, test it, and render its table list (htmx partial)."""
+    """Validate + test a connection. On success, save it and send the client to
+    its workspace; on failure, render the error inline and keep the form open."""
     if request.method != "POST":
         return index(request)
 
@@ -39,29 +51,129 @@ def connect(request):
     if not form.is_valid():
         return render(request, "partials/error.html", {"errors": form.errors})
 
-    connection = form.save()
-    return _render_tables(request, connection)
-
-
-def tables(request, pk):
-    connection = get_object_or_404(Connection, pk=pk)
-    return _render_tables(request, connection)
-
-
-def _render_tables(request, connection):
+    connection = form.save(commit=False)  # don't persist a connection we can't reach
     try:
-        engine = get_engine(connection)
-        table_list = engine.list_tables()
+        get_engine(connection).test()
+    except EngineError as exc:
+        return render(request, "partials/error.html", {"message": str(exc)})
+
+    connection.save()
+    response = HttpResponse(status=204)
+    response["HX-Redirect"] = reverse("workspace", args=[connection.pk])
+    return response
+
+
+def workspace(request, pk):
+    """DB-client view: table list in the sidebar, table detail in the main pane."""
+    connection = get_object_or_404(Connection, pk=pk)
+    try:
+        tables = get_engine(connection).list_tables()
     except EngineError as exc:
         return render(
             request,
-            "partials/error.html",
-            {"message": str(exc), "connection": connection},
+            "workspace.html",
+            {"connection": connection, "tables": [], "error": str(exc),
+             "connections": Connection.objects.all()},
         )
-
-    template = "partials/tables.html" if request.headers.get("HX-Request") else "tables.html"
     return render(
         request,
-        template,
-        {"connection": connection, "tables": table_list},
+        "workspace.html",
+        {"connection": connection, "tables": tables,
+         "connections": Connection.objects.all()},
+    )
+
+
+def table_detail(request, pk):
+    """Columns + a row preview for one table (htmx partial into the main pane)."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.GET.get("schema", "")
+    table = request.GET.get("table", "")
+    try:
+        engine = get_engine(connection)
+        columns = engine.list_columns(schema, table)
+        preview = engine.preview_rows(schema, table)
+    except EngineError as exc:
+        return render(request, "partials/error.html", {"message": str(exc)})
+
+    # Blank out NULLs for a cleaner preview grid.
+    rows = [["" if v is None else v for v in row] for row in preview.rows]
+    return render(
+        request,
+        "partials/detail.html",
+        {
+            "connection": connection,
+            "schema": schema,
+            "table": table,
+            "columns": columns,
+            "preview_columns": preview.columns,
+            "preview_rows": rows,
+        },
+    )
+
+
+def settings(request, pk):
+    """postgresql.conf editor: read parameters via pg_settings (htmx partial)."""
+    connection = get_object_or_404(Connection, pk=pk)
+    category = request.GET.get("category") or ""
+    try:
+        engine = get_engine(connection)
+        if category:
+            rows = engine.list_settings(category=category)
+        else:
+            rows = engine.list_settings(names=COMMON_SETTINGS)
+        categories = engine.list_setting_categories()
+    except EngineError as exc:
+        return render(request, "partials/error.html", {"message": str(exc)})
+
+    return render(
+        request,
+        "partials/settings.html",
+        {
+            "connection": connection,
+            "settings": rows,
+            "categories": categories,
+            "category": category,
+            "needs_restart": any(s.pending_restart for s in rows),
+        },
+    )
+
+
+def settings_update(request, pk):
+    """Apply one parameter change (ALTER SYSTEM SET + reload), re-render its row."""
+    connection = get_object_or_404(Connection, pk=pk)
+    name = request.POST.get("name", "")
+    value = request.POST.get("value", "")
+    engine = get_engine(connection)
+    error = None
+    try:
+        setting = engine.update_setting(name, value)
+    except EngineError as exc:
+        error = str(exc)
+        try:
+            found = engine.list_settings(names=[name])
+        except EngineError:
+            found = []
+        if not found:
+            return render(request, "partials/error.html", {"message": error})
+        setting = found[0]
+
+    return render(
+        request,
+        "partials/settings_row.html",
+        {"connection": connection, "s": setting, "saved": error is None, "error": error},
+    )
+
+
+def settings_reset(request, pk):
+    """Revert one parameter to its default (ALTER SYSTEM RESET + reload)."""
+    connection = get_object_or_404(Connection, pk=pk)
+    name = request.POST.get("name", "")
+    try:
+        setting = get_engine(connection).reset_setting(name)
+    except EngineError as exc:
+        return render(request, "partials/error.html", {"message": str(exc)})
+    return render(
+        request,
+        "partials/settings_row.html",
+        {"connection": connection, "s": setting, "saved": True, "error": None},
     )

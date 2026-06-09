@@ -1,0 +1,64 @@
+<div class="space-y-5" x-data="{ q: '' }">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h2 class="text-lg font-semibold flex items-center gap-2"><span>⚙</span> postgresql.conf</h2>
+      <p class="text-xs text-zinc-500 mono">pg_settings → ALTER SYSTEM SET → pg_reload_conf()</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <input type="text" x-model="q" placeholder="Filter settings…" class="cfg-search">
+      <select name="category" hx-get="{% url 'settings' connection.pk %}" hx-target="#detail"
+              hx-swap="innerHTML" class="cfg-ctl">
+        <option value="" {% if not category %}selected{% endif %}>★ Commonly tuned</option>
+        {% for cat in categories %}
+          <option value="{{ cat }}" {% if cat == category %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  {% if needs_restart %}
+    <div class="bg-amber-950/40 border border-amber-900/60 rounded-lg px-4 py-2.5 text-sm text-amber-300">
+      Some changes are staged but need a <strong>server restart</strong> to take effect.
+    </div>
+  {% endif %}
+
+  <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    {% if settings %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">Setting</th>
+            <th class="px-5 py-2 font-medium">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in settings %}{% include "partials/settings_row.html" %}{% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-500 text-sm">No settings in this category.</p>
+    {% endif %}
+  </div>
+
+  <p class="text-xs text-zinc-600">
+    Changes use <span class="mono">ALTER SYSTEM</span> (writes postgresql.auto.conf) and reload
+    automatically. <span class="text-amber-400/80">restart</span>-tagged settings only take effect
+    after a server restart. Requires a superuser connection.
+  </p>
+</div>
+
+<style>
+  .cfg-ctl, .cfg-input, .cfg-search {
+    background:#18181b; border:1px solid #3f3f46; border-radius:0.4rem;
+    padding:0.3rem 0.55rem; color:#fafafa; font-size:0.8rem;
+  }
+  .cfg-input { width:9rem; font-family:ui-monospace,Menlo,monospace; }
+  .cfg-search { width:11rem; }
+  .cfg-ctl:focus, .cfg-input:focus, .cfg-search:focus { outline:none; border-color:#34d399; }
+  .cfg-set {
+    background:#34d399; color:#09090b; font-weight:500; font-size:0.8rem;
+    border-radius:0.4rem; padding:0.3rem 0.7rem;
+  }
+  .cfg-set:hover { background:#6ee7b7; }
+  form.htmx-request .cfg-set { opacity:0.6; cursor:progress; }
+</style>
