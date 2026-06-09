@@ -16,11 +16,7 @@
     </div>
   </div>
 
-  {% if needs_restart %}
-    <div class="bg-amber-950/40 border border-amber-900/60 rounded-lg px-4 py-2.5 text-sm text-amber-300">
-      Some changes are staged but need a <strong>server restart</strong> to take effect.
-    </div>
-  {% endif %}
+  {% include "partials/restart_banner.html" %}
 
   <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
     {% if settings %}

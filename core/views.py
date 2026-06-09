@@ -1,5 +1,6 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 
 from .engines import EngineError, get_engine
@@ -122,6 +123,7 @@ def settings(request, pk):
         else:
             rows = engine.list_settings(names=COMMON_SETTINGS)
         categories = engine.list_setting_categories()
+        pending = [s.name for s in engine.pending_restart_settings()]
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
 
@@ -133,7 +135,7 @@ def settings(request, pk):
             "settings": rows,
             "categories": categories,
             "category": category,
-            "needs_restart": any(s.pending_restart for s in rows),
+            "pending": pending,
         },
     )
 
@@ -157,23 +159,36 @@ def settings_update(request, pk):
             return render(request, "partials/error.html", {"message": error})
         setting = found[0]
 
-    return render(
-        request,
-        "partials/settings_row.html",
-        {"connection": connection, "s": setting, "saved": error is None, "error": error},
-    )
+    return _row_with_banner(request, connection, engine, setting, error is None, error)
 
 
 def settings_reset(request, pk):
     """Revert one parameter to its default (ALTER SYSTEM RESET + reload)."""
     connection = get_object_or_404(Connection, pk=pk)
     name = request.POST.get("name", "")
+    engine = get_engine(connection)
     try:
-        setting = get_engine(connection).reset_setting(name)
+        setting = engine.reset_setting(name)
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
-    return render(
-        request,
+    return _row_with_banner(request, connection, engine, setting, True, None)
+
+
+def _row_with_banner(request, connection, engine, setting, saved, error):
+    """Return the updated setting row plus an out-of-band refresh of the
+    restart banner, so staging a restart-only change updates both at once."""
+    row = render_to_string(
         "partials/settings_row.html",
-        {"connection": connection, "s": setting, "saved": True, "error": None},
+        {"connection": connection, "s": setting, "saved": saved, "error": error},
+        request=request,
     )
+    try:
+        pending = [s.name for s in engine.pending_restart_settings()]
+    except EngineError:
+        pending = []
+    banner = render_to_string(
+        "partials/restart_banner.html",
+        {"connection": connection, "pending": pending, "oob": True},
+        request=request,
+    )
+    return HttpResponse(row + banner)
