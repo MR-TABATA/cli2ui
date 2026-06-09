@@ -112,6 +112,29 @@ def table_detail(request, pk):
     )
 
 
+def objects(request, pk):
+    """Catalog browser: databases (\\l), schemas (\\dn), roles (\\du) — htmx partial."""
+    connection = get_object_or_404(Connection, pk=pk)
+    try:
+        engine = get_engine(connection)
+        databases = engine.list_databases()
+        schemas = engine.list_schemas()
+        roles = engine.list_roles()
+    except EngineError as exc:
+        return render(request, "partials/error.html", {"message": str(exc)})
+
+    return render(
+        request,
+        "partials/objects.html",
+        {
+            "connection": connection,
+            "databases": databases,
+            "schemas": schemas,
+            "roles": roles,
+        },
+    )
+
+
 def settings(request, pk):
     """postgresql.conf editor: read parameters via pg_settings (htmx partial)."""
     connection = get_object_or_404(Connection, pk=pk)
