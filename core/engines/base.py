@@ -35,6 +35,33 @@ class Preview:
 
 
 @dataclass
+class Database:
+    """One database on the server. The Web equivalent of a `\\l` row."""
+
+    name: str
+    owner: str
+    encoding: str
+    size: str | None  # pretty-printed, or None if we can't connect to size it
+
+
+@dataclass
+class Schema:
+    """One schema. The Web equivalent of a `\\dn` row."""
+
+    name: str
+    owner: str
+
+
+@dataclass
+class Role:
+    """One login/group role. The Web equivalent of a `\\du` row."""
+
+    name: str
+    attributes: list[str]  # human labels: "Superuser", "Create DB", …
+    can_login: bool
+
+
+@dataclass
 class Setting:
     """One server configuration parameter (a row of pg_settings)."""
 
@@ -81,6 +108,20 @@ class Engine:
 
     def preview_rows(self, schema: str, table: str, limit: int = 50) -> Preview:
         """First rows of a table. The Web equivalent of `SELECT * ... LIMIT n`."""
+        raise NotImplementedError
+
+    # --- catalog browsing (psql backslash commands) ------------------------
+
+    def list_databases(self) -> list[Database]:
+        """Databases on the server. The Web equivalent of `\\l`."""
+        raise NotImplementedError
+
+    def list_schemas(self) -> list[Schema]:
+        """User schemas in the current database. The Web equivalent of `\\dn`."""
+        raise NotImplementedError
+
+    def list_roles(self) -> list[Role]:
+        """Login/group roles. The Web equivalent of `\\du`."""
         raise NotImplementedError
 
     # --- server configuration (postgresql.conf, via SQL) -------------------

@@ -4,7 +4,17 @@ import contextlib
 import psycopg2
 from psycopg2 import sql
 
-from .base import Column, Engine, EngineError, Preview, Setting, Table
+from .base import (
+    Column,
+    Database,
+    Engine,
+    EngineError,
+    Preview,
+    Role,
+    Schema,
+    Setting,
+    Table,
+)
 
 # The Web equivalent of `\dt`: every user table plus an estimated row count
 # (pg_stat lags reality but is free; an exact COUNT(*) per table would be slow).
@@ -25,6 +35,39 @@ SELECT column_name, data_type, is_nullable, column_default
 FROM information_schema.columns
 WHERE table_schema = %s AND table_name = %s
 ORDER BY ordinal_position;
+"""
+
+# The Web equivalent of `\l`: every database with owner, encoding and size.
+# pg_database_size() needs CONNECT, so guard it — shared/locked-down databases
+# show a blank size rather than erroring the whole list.
+LIST_DATABASES_SQL = """
+SELECT d.datname,
+       pg_catalog.pg_get_userbyid(d.datdba) AS owner,
+       pg_catalog.pg_encoding_to_char(d.encoding) AS encoding,
+       CASE WHEN pg_catalog.has_database_privilege(d.datname, 'CONNECT')
+            THEN pg_catalog.pg_size_pretty(pg_catalog.pg_database_size(d.datname))
+            END AS size
+FROM pg_catalog.pg_database d
+WHERE NOT d.datistemplate
+ORDER BY d.datname;
+"""
+
+# The Web equivalent of `\dn`: user schemas (psql hides pg_* / information_schema).
+LIST_SCHEMAS_SQL = """
+SELECT n.nspname AS name,
+       pg_catalog.pg_get_userbyid(n.nspowner) AS owner
+FROM pg_catalog.pg_namespace n
+WHERE n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'
+ORDER BY n.nspname;
+"""
+
+# The Web equivalent of `\du`: roles, minus the internal pg_* ones.
+LIST_ROLES_SQL = """
+SELECT r.rolname, r.rolsuper, r.rolcreaterole, r.rolcreatedb,
+       r.rolreplication, r.rolcanlogin, r.rolconnlimit
+FROM pg_catalog.pg_roles r
+WHERE r.rolname !~ '^pg_'
+ORDER BY r.rolname;
 """
 
 # Configuration parameters. current_setting() gives the human form ("128MB",
@@ -99,6 +142,28 @@ class PostgresEngine(Engine):
                 rows = cur.fetchall()
         return Preview(columns=columns, rows=rows)
 
+    # --- catalog browsing ------------------------------------------------
+
+    def list_databases(self) -> list[Database]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(LIST_DATABASES_SQL)
+                return [
+                    Database(name=row[0], owner=row[1], encoding=row[2], size=row[3])
+                    for row in cur.fetchall()
+                ]
+
+    def list_schemas(self) -> list[Schema]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(LIST_SCHEMAS_SQL)
+                return [Schema(name=row[0], owner=row[1]) for row in cur.fetchall()]
+
+    def list_roles(self) -> list[Role]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(LIST_ROLES_SQL)
+                return [_role(row) for row in cur.fetchall()]
 
     # --- server configuration --------------------------------------------
 
@@ -176,6 +241,25 @@ def _setting(row) -> Setting:
         default=row[10],
         pending_restart=row[11],
     )
+
+
+def _role(row) -> Role:
+    """Turn pg_roles flags into the attribute labels psql prints for `\\du`."""
+    super_, createrole, createdb, replication, canlogin, connlimit = row[1:]
+    attrs = []
+    if super_:
+        attrs.append("Superuser")
+    if createrole:
+        attrs.append("Create role")
+    if createdb:
+        attrs.append("Create DB")
+    if replication:
+        attrs.append("Replication")
+    if not canlogin:
+        attrs.append("Cannot login")
+    if connlimit >= 0:
+        attrs.append(f"{connlimit} connections")
+    return Role(name=row[0], attributes=attrs, can_login=canlogin)
 
 
 def _clean(exc: psycopg2.Error) -> str:
