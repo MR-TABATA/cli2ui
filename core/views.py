@@ -115,6 +115,39 @@ def table_detail(request, pk):
 def objects(request, pk):
     """Catalog browser: databases (\\l), schemas (\\dn), roles (\\du) — htmx partial."""
     connection = get_object_or_404(Connection, pk=pk)
+    return _render_objects(request, connection)
+
+
+def schema_create(request, pk):
+    """Create a schema (CREATE SCHEMA), then re-render the objects panel."""
+    connection = get_object_or_404(Connection, pk=pk)
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        return _render_objects(request, connection, error="Schema name is required.")
+    try:
+        get_engine(connection).create_schema(name)
+    except EngineError as exc:
+        return _render_objects(request, connection, error=str(exc))
+    return _render_objects(request, connection)
+
+
+def schema_delete(request, pk):
+    """Drop a schema (DROP SCHEMA), then re-render the objects panel."""
+    connection = get_object_or_404(Connection, pk=pk)
+    name = request.POST.get("name", "")
+    try:
+        get_engine(connection).drop_schema(name)
+    except EngineError as exc:
+        return _render_objects(request, connection, error=str(exc))
+    return _render_objects(request, connection)
+
+
+def _render_objects(request, connection, error=None):
+    """Gather databases / schemas / roles and render the objects panel.
+
+    A connection-level failure falls back to the error partial; a per-action
+    failure (passed in as `error`) re-renders the panel with the list intact
+    plus an inline message, so the user keeps their place."""
     try:
         engine = get_engine(connection)
         databases = engine.list_databases()
@@ -131,6 +164,7 @@ def objects(request, pk):
             "databases": databases,
             "schemas": schemas,
             "roles": roles,
+            "error": error,
         },
     )
 

@@ -124,6 +124,16 @@ class Engine:
         """Login/group roles. The Web equivalent of `\\du`."""
         raise NotImplementedError
 
+    # --- catalog mutations (CREATE / DROP) ---------------------------------
+
+    def create_schema(self, name: str) -> None:
+        """Create a schema. The Web equivalent of `CREATE SCHEMA name`."""
+        raise NotImplementedError
+
+    def drop_schema(self, name: str, cascade: bool = False) -> None:
+        """Drop a schema. The Web equivalent of `DROP SCHEMA name [CASCADE]`."""
+        raise NotImplementedError
+
     # --- server configuration (postgresql.conf, via SQL) -------------------
 
     def list_settings(self, names=None, category=None) -> list[Setting]:
