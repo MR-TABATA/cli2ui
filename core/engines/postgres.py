@@ -177,6 +177,33 @@ class PostgresEngine(Engine):
         )
         self._execute(stmt)
 
+    def create_role(
+        self,
+        name: str,
+        *,
+        login: bool = False,
+        password: str | None = None,
+        superuser: bool = False,
+        createdb: bool = False,
+        createrole: bool = False,
+    ) -> None:
+        opts = [sql.SQL("LOGIN") if login else sql.SQL("NOLOGIN")]
+        if superuser:
+            opts.append(sql.SQL("SUPERUSER"))
+        if createdb:
+            opts.append(sql.SQL("CREATEDB"))
+        if createrole:
+            opts.append(sql.SQL("CREATEROLE"))
+        if password:
+            opts.append(sql.SQL("PASSWORD {}").format(sql.Literal(password)))
+        stmt = sql.SQL("CREATE ROLE {} WITH {}").format(
+            sql.Identifier(name), sql.SQL(" ").join(opts)
+        )
+        self._execute(stmt)
+
+    def drop_role(self, name: str) -> None:
+        self._execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(name)))
+
     def _execute(self, statement) -> None:
         """Run a composed DDL statement, mapping driver errors to EngineError."""
         with self._connect() as conn:

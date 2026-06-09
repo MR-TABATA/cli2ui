@@ -134,6 +134,23 @@ class Engine:
         """Drop a schema. The Web equivalent of `DROP SCHEMA name [CASCADE]`."""
         raise NotImplementedError
 
+    def create_role(
+        self,
+        name: str,
+        *,
+        login: bool = False,
+        password: str | None = None,
+        superuser: bool = False,
+        createdb: bool = False,
+        createrole: bool = False,
+    ) -> None:
+        """Create a role. The Web equivalent of `CREATE ROLE name WITH …`."""
+        raise NotImplementedError
+
+    def drop_role(self, name: str) -> None:
+        """Drop a role. The Web equivalent of `DROP ROLE name`."""
+        raise NotImplementedError
+
     # --- server configuration (postgresql.conf, via SQL) -------------------
 
     def list_settings(self, names=None, category=None) -> list[Setting]:

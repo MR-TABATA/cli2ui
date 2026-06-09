@@ -142,6 +142,37 @@ def schema_delete(request, pk):
     return _render_objects(request, connection)
 
 
+def role_create(request, pk):
+    """Create a role (CREATE ROLE), then re-render the objects panel."""
+    connection = get_object_or_404(Connection, pk=pk)
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        return _render_objects(request, connection, error="Role name is required.")
+    try:
+        get_engine(connection).create_role(
+            name,
+            login=request.POST.get("login") == "on",
+            password=(request.POST.get("password") or "").strip() or None,
+            superuser=request.POST.get("superuser") == "on",
+            createdb=request.POST.get("createdb") == "on",
+            createrole=request.POST.get("createrole") == "on",
+        )
+    except EngineError as exc:
+        return _render_objects(request, connection, error=str(exc))
+    return _render_objects(request, connection)
+
+
+def role_delete(request, pk):
+    """Drop a role (DROP ROLE), then re-render the objects panel."""
+    connection = get_object_or_404(Connection, pk=pk)
+    name = request.POST.get("name", "")
+    try:
+        get_engine(connection).drop_role(name)
+    except EngineError as exc:
+        return _render_objects(request, connection, error=str(exc))
+    return _render_objects(request, connection)
+
+
 def _render_objects(request, connection, error=None):
     """Gather databases / schemas / roles and render the objects panel.
 

@@ -82,16 +82,36 @@
     {% endif %}
   </section>
 
-  <!-- Roles: the \du view -->
+  <!-- Roles: the \du view, now with create / drop -->
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
     <div class="px-5 py-2.5 border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
       Roles <span class="mono lowercase text-zinc-600">\du</span>
+    </div>
+    <div class="px-5 py-3 border-b border-zinc-800/60">
+      <form hx-post="{% url 'role_create' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            hx-disabled-elt="find button" class="flex flex-wrap items-center gap-2 text-sm">
+        <input name="name" placeholder="role_name" autocomplete="off"
+               class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono w-36
+                      text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
+        <input name="password" type="password" placeholder="password (optional)" autocomplete="new-password"
+               class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 w-44
+                      text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
+        <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="login" class="accent-emerald-400"> login</label>
+        <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="superuser" class="accent-emerald-400"> superuser</label>
+        <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="createdb" class="accent-emerald-400"> createdb</label>
+        <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="createrole" class="accent-emerald-400"> createrole</label>
+        <button type="submit"
+                class="bg-emerald-400 text-zinc-950 font-medium rounded px-3 py-1 hover:bg-emerald-300">
+          + Create
+        </button>
+      </form>
     </div>
     <table class="w-full text-sm">
       <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
         <tr class="border-b border-zinc-800">
           <th class="px-5 py-2 font-medium">Role</th>
           <th class="px-5 py-2 font-medium">Attributes</th>
+          <th class="px-5 py-2 font-medium w-px"></th>
         </tr>
       </thead>
       <tbody>
@@ -102,6 +122,13 @@
               {% for a in r.attributes %}
                 <span class="inline-block text-xs text-zinc-400 bg-zinc-800/70 rounded px-1.5 py-0.5 mr-1 mb-1">{{ a }}</span>
               {% empty %}<span class="text-zinc-600">—</span>{% endfor %}
+            </td>
+            <td class="px-5 py-2 text-right whitespace-nowrap">
+              <form hx-post="{% url 'role_delete' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                    hx-confirm="Drop role &quot;{{ r.name }}&quot;? This fails if it owns objects or is connected.">
+                <input type="hidden" name="name" value="{{ r.name }}">
+                <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
+              </form>
             </td>
           </tr>
         {% endfor %}
