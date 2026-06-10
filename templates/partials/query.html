@@ -18,7 +18,7 @@
               placeholder="SELECT * FROM …   —   ⌘/Ctrl + Enter to run"
               class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mono text-sm
                      text-zinc-100 leading-relaxed focus:outline-none focus:border-emerald-400 resize-y">{{ sql }}</textarea>
-    <div class="flex items-center gap-3 mt-2">
+    <div class="flex flex-wrap items-center gap-2 mt-2">
       <button type="submit"
               class="sql-run bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-medium
                      rounded-lg px-5 py-2 text-sm transition flex items-center gap-2">
@@ -30,7 +30,15 @@
           </svg>Running…
         </span>
       </button>
-      <span class="text-xs text-zinc-600">⌘/Ctrl + Enter</span>
+      <button type="button" hx-post="{% url 'explain_run' connection.pk %}"
+              hx-target="#query-result" hx-swap="innerHTML"
+              class="border border-zinc-700 hover:border-zinc-500 text-zinc-200 rounded-lg
+                     px-4 py-2 text-sm transition">Explain</button>
+      <button type="button" hx-post="{% url 'explain_run' connection.pk %}"
+              hx-vals='{"analyze": "1"}' hx-target="#query-result" hx-swap="innerHTML"
+              class="border border-zinc-700 hover:border-zinc-500 text-zinc-200 rounded-lg
+                     px-4 py-2 text-sm transition">Explain analyze</button>
+      <span class="text-xs text-zinc-600 ml-1">⌘/Ctrl + Enter to run</span>
     </div>
   </form>
 

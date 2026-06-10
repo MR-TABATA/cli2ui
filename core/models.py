@@ -35,3 +35,23 @@ class Connection(models.Model):
     @property
     def display_name(self):
         return self.name or f"{self.dbname}@{self.host}"
+
+
+class PlanSnapshot(models.Model):
+    """A saved EXPLAIN plan, so you can diff "before vs after an index" instead
+    of copy-pasting plans into a scratch file. Stored in the management DB."""
+
+    connection = models.ForeignKey(
+        Connection, on_delete=models.CASCADE, related_name="snapshots"
+    )
+    label = models.CharField(max_length=200)
+    sql = models.TextField()
+    plan_text = models.TextField()
+    analyzed = models.BooleanField(default=False)  # EXPLAIN ANALYZE (real timings)?
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.label

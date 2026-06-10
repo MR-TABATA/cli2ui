@@ -125,6 +125,12 @@ class Engine:
         result is capped + time-limited so a stray query can't take anything down."""
         raise NotImplementedError
 
+    def explain(self, sql: str, *, analyze: bool = False,
+                timeout_ms: int = 15000) -> str:
+        """Return the query plan as text. ANALYZE runs the query for real
+        timings (still inside a read-only transaction, so writes are rejected)."""
+        raise NotImplementedError
+
     # --- catalog browsing (psql backslash commands) ------------------------
 
     def list_databases(self) -> list[Database]:

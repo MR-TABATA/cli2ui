@@ -178,6 +178,26 @@ class PostgresEngine(Engine):
             truncated=truncated, duration_ms=duration_ms,
         )
 
+    def explain(self, sql_text: str, *, analyze: bool = False,
+                timeout_ms: int = 15000) -> str:
+        opts = "ANALYZE, " if analyze else ""
+        prefix = f"EXPLAIN ({opts}FORMAT TEXT) "
+        with self._connect() as conn:
+            conn.autocommit = False
+            try:
+                with conn.cursor() as cur:
+                    # Read-only even for ANALYZE: explaining a write executes it,
+                    # so the read-only transaction is what keeps ANALYZE safe.
+                    cur.execute("SET TRANSACTION READ ONLY")
+                    cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
+                    cur.execute(prefix + sql_text)
+                    lines = [row[0] for row in cur.fetchall()]
+            except psycopg2.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+            conn.rollback()
+        return "\n".join(lines)
+
     # --- catalog browsing ------------------------------------------------
 
     def list_databases(self) -> list[Database]:
