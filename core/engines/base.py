@@ -62,6 +62,15 @@ class Role:
 
 
 @dataclass
+class QueryResult:
+    columns: list[str]
+    rows: list[tuple]
+    rowcount: int    # rows returned (after the cap)
+    truncated: bool  # more rows existed beyond the cap
+    duration_ms: int
+
+
+@dataclass
 class Setting:
     """One server configuration parameter (a row of pg_settings)."""
 
@@ -108,6 +117,12 @@ class Engine:
 
     def preview_rows(self, schema: str, table: str, limit: int = 50) -> Preview:
         """First rows of a table. The Web equivalent of `SELECT * ... LIMIT n`."""
+        raise NotImplementedError
+
+    def run_query(self, sql: str, *, max_rows: int = 1000,
+                  timeout_ms: int = 15000, read_only: bool = True) -> QueryResult:
+        """Run ad-hoc SQL. Read-only by default; the DB enforces it, and the
+        result is capped + time-limited so a stray query can't take anything down."""
         raise NotImplementedError
 
     # --- catalog browsing (psql backslash commands) ------------------------

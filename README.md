@@ -33,6 +33,8 @@ MVP. `docker compose up` → connect → browse your tables in a DB-client layou
 
 - ✅ PostgreSQL: connect + list tables (estimated row counts)
 - ✅ Table detail: column definitions (`\d table`) + row preview (`SELECT * … LIMIT`)
+- ✅ SQL runner: read-only ad-hoc queries — `SET TRANSACTION READ ONLY` +
+  `statement_timeout` + 1000-row cap (writes wait for the safety net)
 - ✅ Objects browser: databases (`\l`), schemas (`\dn`), roles (`\du`) — read-only
 - ✅ `postgresql.conf` editor: read/edit parameters via `pg_settings` +
   `ALTER SYSTEM SET` + `pg_reload_conf()`, with reload-vs-restart badges

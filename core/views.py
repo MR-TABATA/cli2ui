@@ -108,7 +108,37 @@ def table_detail(request, pk):
             "columns": columns,
             "preview_columns": preview.columns,
             "preview_rows": rows,
+            "query_sql": f'SELECT * FROM "{schema}"."{table}" LIMIT 100',
         },
+    )
+
+
+def query(request, pk):
+    """SQL runner: render the read-only editor panel (htmx partial)."""
+    connection = get_object_or_404(Connection, pk=pk)
+    return render(
+        request,
+        "partials/query.html",
+        {"connection": connection, "sql": request.GET.get("sql", "")},
+    )
+
+
+def query_run(request, pk):
+    """Execute ad-hoc SQL read-only and render the result grid."""
+    connection = get_object_or_404(Connection, pk=pk)
+    sql_text = (request.POST.get("sql") or "").strip()
+    if not sql_text:
+        return render(request, "partials/query_result.html", {"empty": True})
+    try:
+        result = get_engine(connection).run_query(sql_text)
+    except EngineError as exc:
+        return render(request, "partials/query_result.html", {"error": str(exc)})
+
+    rows = [["" if v is None else v for v in row] for row in result.rows]
+    return render(
+        request,
+        "partials/query_result.html",
+        {"result": result, "rows": rows},
     )
 
 

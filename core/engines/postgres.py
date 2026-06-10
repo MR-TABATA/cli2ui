@@ -1,5 +1,6 @@
 """PostgreSQL engine — psycopg2 under the hood."""
 import contextlib
+import time
 
 import psycopg2
 from psycopg2 import sql
@@ -10,6 +11,7 @@ from .base import (
     Engine,
     EngineError,
     Preview,
+    QueryResult,
     Role,
     Schema,
     Setting,
@@ -141,6 +143,40 @@ class PostgresEngine(Engine):
                 columns = [d.name for d in cur.description]
                 rows = cur.fetchall()
         return Preview(columns=columns, rows=rows)
+
+    def run_query(self, sql_text: str, *, max_rows: int = 1000,
+                  timeout_ms: int = 15000, read_only: bool = True) -> QueryResult:
+        with self._connect() as conn:
+            # Need a real transaction to scope READ ONLY + statement_timeout.
+            conn.autocommit = False
+            try:
+                with conn.cursor() as cur:
+                    if read_only:
+                        # Must be the first statement in the transaction. The DB
+                        # then rejects any write itself — no fragile SQL scanning.
+                        cur.execute("SET TRANSACTION READ ONLY")
+                    cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
+                    t0 = time.perf_counter()
+                    cur.execute(sql_text)
+                    duration_ms = int((time.perf_counter() - t0) * 1000)
+                    if cur.description is not None:
+                        # Fetch one extra to know whether more rows existed.
+                        fetched = cur.fetchmany(max_rows + 1)
+                        truncated = len(fetched) > max_rows
+                        rows = fetched[:max_rows]
+                        columns = [d.name for d in cur.description]
+                        rowcount = len(rows)
+                    else:
+                        columns, rows, truncated, rowcount = [], [], False, cur.rowcount
+            except psycopg2.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+            # Read-only: never persist, even for a statement that slipped through.
+            conn.rollback()
+        return QueryResult(
+            columns=columns, rows=rows, rowcount=rowcount,
+            truncated=truncated, duration_ms=duration_ms,
+        )
 
     # --- catalog browsing ------------------------------------------------
 
