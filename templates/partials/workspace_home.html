@@ -1,0 +1,48 @@
+<div class="space-y-5">
+  <div>
+    <h2 class="text-xl font-semibold">Connected to {{ connection.display_name }}</h2>
+    <p class="text-sm text-zinc-400 mt-1">Run and tune PostgreSQL from your browser. Pick a section to start:</p>
+  </div>
+
+  <div class="grid sm:grid-cols-2 gap-3">
+    <button hx-get="{% url 'query' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            class="text-left bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition">
+      <div class="flex items-center gap-2 font-medium"><span>▷</span> SQL</div>
+      <p class="text-xs text-zinc-500 mt-1">Run read-only queries, EXPLAIN a plan, and save it. ⌘/Ctrl+Enter to run.</p>
+    </button>
+
+    <button hx-get="{% url 'activity' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            class="text-left bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition">
+      <div class="flex items-center gap-2 font-medium"><span>⚡</span> Activity</div>
+      <p class="text-xs text-zinc-500 mt-1">See running queries and connections; cancel or kill a stuck one.</p>
+    </button>
+
+    <button hx-get="{% url 'snapshots' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            class="text-left bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition">
+      <div class="flex items-center gap-2 font-medium"><span>◫</span> Snapshots</div>
+      <p class="text-xs text-zinc-500 mt-1">Saved EXPLAIN plans. Diff two to compare before vs after an index.</p>
+    </button>
+
+    <button hx-get="{% url 'objects' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            class="text-left bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition">
+      <div class="flex items-center gap-2 font-medium"><span>🗄</span> Objects</div>
+      <p class="text-xs text-zinc-500 mt-1">Browse databases, schemas and roles; create or drop schemas/roles.</p>
+    </button>
+
+    <button hx-get="{% url 'settings' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            class="text-left bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition">
+      <div class="flex items-center gap-2 font-medium"><span>⚙</span> postgresql.conf</div>
+      <p class="text-xs text-zinc-500 mt-1">Read and edit server parameters; see what needs a reload vs a restart.</p>
+    </button>
+
+    <div class="bg-zinc-950/40 border border-dashed border-zinc-800 rounded-xl p-4">
+      <div class="flex items-center gap-2 font-medium text-zinc-300"><span>▤</span> Tables</div>
+      <p class="text-xs text-zinc-500 mt-1">Click any table in the left sidebar to see its columns and a data preview.</p>
+    </div>
+  </div>
+
+  <p class="text-xs text-zinc-600">
+    Read-only by default — changes are always explicit. cli2ui runs locally; your DB
+    credentials never leave this machine.
+  </p>
+</div>

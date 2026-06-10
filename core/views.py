@@ -116,6 +116,12 @@ def table_detail(request, pk):
     )
 
 
+def overview(request, pk):
+    """The workspace home: what each section is and where to start."""
+    connection = get_object_or_404(Connection, pk=pk)
+    return render(request, "partials/workspace_home.html", {"connection": connection})
+
+
 def query(request, pk):
     """SQL runner: render the read-only editor panel (htmx partial)."""
     connection = get_object_or_404(Connection, pk=pk)
@@ -241,6 +247,61 @@ def snapshot_diff(request, pk):
         "partials/snapshot_diff.html",
         {"connection": connection, "a": a, "b": b, "lines": lines,
          "identical": not lines},
+    )
+
+
+# A readable version of pg_stat_activity for the "open in SQL" link.
+ACTIVITY_SHOW_SQL = (
+    "SELECT pid, usename, state, wait_event_type, query,\n"
+    "       now() - query_start AS running_for, pg_blocking_pids(pid) AS blocked_by\n"
+    "FROM pg_stat_activity\n"
+    "WHERE backend_type = 'client backend'\n"
+    "ORDER BY state = 'active' DESC, query_start;"
+)
+
+
+def activity(request, pk):
+    """Running queries + connections from pg_stat_activity (htmx partial)."""
+    connection = get_object_or_404(Connection, pk=pk)
+    return _render_activity(request, connection)
+
+
+def activity_cancel(request, pk):
+    """Cancel a session's query (pg_cancel_backend), then refresh the panel."""
+    connection = get_object_or_404(Connection, pk=pk)
+    return _activity_signal(request, connection, "cancel")
+
+
+def activity_kill(request, pk):
+    """Force-close a session (pg_terminate_backend), then refresh the panel."""
+    connection = get_object_or_404(Connection, pk=pk)
+    return _activity_signal(request, connection, "kill")
+
+
+def _activity_signal(request, connection, action):
+    pid = request.POST.get("pid")
+    try:
+        engine = get_engine(connection)
+        if pid:
+            if action == "kill":
+                engine.terminate_backend(int(pid))
+            else:
+                engine.cancel_backend(int(pid))
+    except (EngineError, ValueError) as exc:
+        return _render_activity(request, connection, error=str(exc))
+    return _render_activity(request, connection)
+
+
+def _render_activity(request, connection, error=None):
+    try:
+        sessions = get_engine(connection).list_activity()
+    except EngineError as exc:
+        return render(request, "partials/error.html", {"message": str(exc)})
+    return render(
+        request,
+        "partials/activity.html",
+        {"connection": connection, "sessions": sessions,
+         "query_sql": ACTIVITY_SHOW_SQL, "error": error},
     )
 
 

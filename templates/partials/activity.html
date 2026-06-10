@@ -1,0 +1,96 @@
+<div class="space-y-4">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h2 class="text-lg font-semibold flex items-center gap-2"><span>⚡</span> Activity</h2>
+      <p class="text-xs text-zinc-500">
+        <span class="mono">pg_stat_activity</span> — running queries and connections
+      </p>
+    </div>
+    <button hx-get="{% url 'activity' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            class="text-xs text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1.5
+                   hover:border-zinc-600 transition">↻ Refresh</button>
+  </div>
+
+  {% if error %}
+    <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-2.5 text-sm text-red-200/90 mono">{{ error }}</div>
+  {% endif %}
+
+  {% if sessions %}
+    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+      <div>
+        <table class="w-full text-sm table-fixed">
+          <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+            <tr class="border-b border-zinc-800">
+              <th class="px-4 py-2 font-medium w-16">PID</th>
+              <th class="px-4 py-2 font-medium w-24">User</th>
+              <th class="px-4 py-2 font-medium w-44">State</th>
+              <th class="px-4 py-2 font-medium w-20">Running</th>
+              <th class="px-4 py-2 font-medium">Query</th>
+              <th class="px-4 py-2 font-medium text-right w-28">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in sessions %}
+              <tr class="border-b border-zinc-800/60 align-top hover:bg-zinc-800/30">
+                <td class="px-4 py-2 mono text-zinc-400">{{ s.pid }}</td>
+                <td class="px-4 py-2 mono text-zinc-300 whitespace-nowrap">{{ s.user|default:"—" }}</td>
+                <td class="px-4 py-2 whitespace-nowrap">
+                  {% if s.state == 'active' %}
+                    <span class="text-[11px] px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/60">active</span>
+                  {% elif s.state == 'idle in transaction' %}
+                    <span class="text-[11px] px-1.5 py-0.5 rounded bg-amber-950/50 text-amber-400 border border-amber-900/60">idle in txn</span>
+                  {% else %}
+                    <span class="text-[11px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">{{ s.state|default:"—" }}</span>
+                  {% endif %}
+                  {% if s.blocked %}
+                    <span class="text-[11px] px-1.5 py-0.5 rounded bg-red-950/50 text-red-400 border border-red-900/60 whitespace-nowrap">blocked by {{ s.blocked_by|join:", " }}</span>
+                  {% endif %}
+                  {% if s.wait %}<span class="text-[11px] text-zinc-500 mono">{{ s.wait }}</span>{% endif %}
+                </td>
+                <td class="px-4 py-2 mono text-zinc-400 whitespace-nowrap">{% if s.state == 'active' and s.query_secs is not None %}{{ s.query_secs }}s{% else %}—{% endif %}</td>
+                <td class="px-4 py-2 mono text-xs truncate" title="{{ s.query }}">
+                  {% if s.is_self %}<span class="text-zinc-500">— cli2ui (this request) —</span>{% else %}<span class="text-zinc-300">{{ s.query|default:"—" }}</span>{% endif %}
+                </td>
+                <td class="px-4 py-2 text-right whitespace-nowrap space-x-3">
+                  {% if s.is_self %}
+                    <span class="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">this tool</span>
+                  {% else %}
+                    <button hx-post="{% url 'activity_cancel' connection.pk %}" hx-vals='{"pid": "{{ s.pid }}"}'
+                            hx-target="#detail" hx-swap="innerHTML"
+                            hx-confirm="Cancel the running query on PID {{ s.pid }}?"
+                            class="text-xs text-amber-400 hover:text-amber-300 underline">cancel</button>
+                    <button hx-post="{% url 'activity_kill' connection.pk %}" hx-vals='{"pid": "{{ s.pid }}"}'
+                            hx-target="#detail" hx-swap="innerHTML"
+                            hx-confirm="Force-close session PID {{ s.pid }}? Its transaction will be rolled back."
+                            class="text-xs text-red-400 hover:text-red-300 underline">kill</button>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-2 border-t border-zinc-800 text-xs text-zinc-500">
+        {{ sessions|length }} client session{{ sessions|length|pluralize }} ·
+        <span class="text-amber-400/80">cancel</span> stops the query,
+        <span class="text-red-400/80">kill</span> drops the connection
+      </div>
+    </div>
+  {% else %}
+    <div class="border border-dashed border-zinc-800 rounded-xl py-12 px-6 text-center">
+      <p class="text-zinc-300 font-medium">No client sessions</p>
+      <p class="text-zinc-500 text-sm mt-1">Nothing is connected to this database right now.</p>
+    </div>
+  {% endif %}
+
+  <div>
+    <div class="flex items-center justify-between mb-1.5">
+      <p class="text-xs text-zinc-500">The query behind this view</p>
+      <button hx-get="{% url 'query' connection.pk %}?sql={{ query_sql|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML"
+              class="text-xs text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1
+                     hover:border-zinc-600 transition">open in SQL →</button>
+    </div>
+    <pre class="bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs mono text-zinc-400 overflow-x-auto whitespace-pre">{{ query_sql }}</pre>
+  </div>
+</div>

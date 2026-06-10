@@ -71,6 +71,27 @@ class QueryResult:
 
 
 @dataclass
+class Activity:
+    """One server session (a row of pg_stat_activity)."""
+
+    pid: int
+    user: str | None
+    database: str | None
+    app: str | None
+    client: str | None
+    state: str | None
+    wait: str | None            # "Lock: relation" etc., or None
+    blocked_by: list[int]       # pids blocking this one (pg_blocking_pids)
+    query_secs: int | None      # how long the current query has run
+    query: str
+    is_self: bool = False       # this is cli2ui's own connection
+
+    @property
+    def blocked(self) -> bool:
+        return bool(self.blocked_by)
+
+
+@dataclass
 class Setting:
     """One server configuration parameter (a row of pg_settings)."""
 
@@ -129,6 +150,21 @@ class Engine:
                 timeout_ms: int = 15000) -> str:
         """Return the query plan as text. ANALYZE runs the query for real
         timings (still inside a read-only transaction, so writes are rejected)."""
+        raise NotImplementedError
+
+    # --- activity / sessions (pg_stat_activity) ----------------------------
+
+    def list_activity(self) -> list[Activity]:
+        """Running queries and connections. The Web equivalent of querying
+        `pg_stat_activity` / `SHOW PROCESSLIST`."""
+        raise NotImplementedError
+
+    def cancel_backend(self, pid: int) -> bool:
+        """Cancel the running query in a session. `pg_cancel_backend(pid)`."""
+        raise NotImplementedError
+
+    def terminate_backend(self, pid: int) -> bool:
+        """Force-close a session. `pg_terminate_backend(pid)`."""
         raise NotImplementedError
 
     # --- catalog browsing (psql backslash commands) ------------------------

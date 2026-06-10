@@ -6,6 +6,7 @@ import psycopg2
 from psycopg2 import sql
 
 from .base import (
+    Activity,
     Column,
     Database,
     Engine,
@@ -70,6 +71,22 @@ SELECT r.rolname, r.rolsuper, r.rolcreaterole, r.rolcreatedb,
 FROM pg_catalog.pg_roles r
 WHERE r.rolname !~ '^pg_'
 ORDER BY r.rolname;
+"""
+
+# The Web equivalent of querying pg_stat_activity: client sessions, what they're
+# running, how long, and whether they're blocked. Includes our own connection
+# (flagged is_self) so the list is never mysteriously empty; skips internal
+# backends (autovacuum, walwriter, …).
+ACTIVITY_SQL = """
+SELECT pid, usename, datname, application_name, client_addr::text, state,
+       NULLIF(concat_ws(': ', wait_event_type, wait_event), '') AS wait,
+       pg_blocking_pids(pid) AS blocked_by,
+       EXTRACT(EPOCH FROM (now() - query_start))::int AS query_secs,
+       query,
+       (pid = pg_backend_pid()) AS is_self
+FROM pg_stat_activity
+WHERE backend_type = 'client backend'
+ORDER BY (pid = pg_backend_pid()) ASC, (state = 'active') DESC, query_start ASC NULLS LAST;
 """
 
 # Configuration parameters. current_setting() gives the human form ("128MB",
@@ -197,6 +214,39 @@ class PostgresEngine(Engine):
                 raise EngineError(_clean(exc)) from exc
             conn.rollback()
         return "\n".join(lines)
+
+    # --- activity / sessions ---------------------------------------------
+
+    def list_activity(self) -> list[Activity]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(ACTIVITY_SQL)
+                return [
+                    Activity(
+                        pid=row[0], user=row[1], database=row[2], app=row[3],
+                        client=row[4], state=row[5], wait=row[6],
+                        blocked_by=row[7] or [], query_secs=row[8], query=row[9],
+                        is_self=row[10],
+                    )
+                    for row in cur.fetchall()
+                ]
+
+    def cancel_backend(self, pid: int) -> bool:
+        return self._signal("pg_cancel_backend", pid)
+
+    def terminate_backend(self, pid: int) -> bool:
+        return self._signal("pg_terminate_backend", pid)
+
+    def _signal(self, fn: str, pid: int) -> bool:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                try:
+                    cur.execute(
+                        sql.SQL("SELECT {}(%s)").format(sql.Identifier(fn)), [pid]
+                    )
+                    return bool(cur.fetchone()[0])
+                except psycopg2.Error as exc:
+                    raise EngineError(_clean(exc)) from exc
 
     # --- catalog browsing ------------------------------------------------
 
