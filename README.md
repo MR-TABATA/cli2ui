@@ -37,11 +37,14 @@ MVP. `docker compose up` → connect → browse your tables in a DB-client layou
   `statement_timeout` + 1000-row cap (writes wait for the safety net)
 - ✅ EXPLAIN snapshots + diff: save query plans and diff two (before/after an
   index) instead of copy-pasting plans into a scratch file
+- ✅ Activity: running queries + connections from `pg_stat_activity`, with
+  one-click cancel (`pg_cancel_backend`) / kill (`pg_terminate_backend`)
 - ✅ Objects browser: databases (`\l`), schemas (`\dn`), roles (`\du`) — read-only
 - ✅ `postgresql.conf` editor: read/edit parameters via `pg_settings` +
   `ALTER SYSTEM SET` + `pg_reload_conf()`, with reload-vs-restart badges
+- ⬜ More `pg_*` ops panels: locks/blocking, table health, sizes, replication
+- ⬜ Bento ops overview once a few panels exist
 - ⬜ MySQL (the engine layer is ready for it)
-- ⬜ One-click ops (backup table, kill query, …) + safety net
 - ⬜ Command history
 
 ## Stack
