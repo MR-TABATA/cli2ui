@@ -526,6 +526,18 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
         finally:
             self.engine.drop_index("public", name)
 
+    def test_vacuum_stats_report_counts_and_ratio(self):
+        stats = self.engine.vacuum_stats()
+        by_name = {v.name: v for v in stats}
+        self.assertIn("orders", by_name)
+        orders = by_name["orders"]
+        self.assertGreaterEqual(orders.live, 0)
+        self.assertGreaterEqual(orders.dead, 0)
+        self.assertTrue(0.0 <= orders.dead_ratio <= 1.0)
+        # Sorted by dead tuples, most first.
+        self.assertEqual([v.dead for v in stats],
+                         sorted((v.dead for v in stats), reverse=True))
+
     def test_create_index_preserves_column_order(self):
         # Composite index column order is significant and must follow the
         # order we pass, not the table's column order.
@@ -748,4 +760,5 @@ class HealthSmokeE2E(_BrowserE2E):
         detail = page.locator("#detail")
         expect(detail).to_contain_text("Table sizes")
         expect(detail).to_contain_text("Unused indexes")
+        expect(detail).to_contain_text("Dead rows")
         expect(detail).to_contain_text("public.orders")
