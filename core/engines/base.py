@@ -194,6 +194,36 @@ class Setting:
 
 
 @dataclass
+class TableSize:
+    """On-disk footprint of one table: heap + indexes + toast. The Web
+    equivalent of `\\dt+` / pg_total_relation_size()."""
+
+    schema: str
+    name: str
+    total_bytes: int      # heap + indexes + toast (for sorting / the bar)
+    total: str            # pretty: "12 MB"
+    table: str            # pretty: heap only
+    index: str            # pretty: indexes only
+
+    @property
+    def qualified(self) -> str:
+        return f"{self.schema}.{self.name}"
+
+
+@dataclass
+class UnusedIndex:
+    """A non-constraint index the planner has never used (idx_scan = 0 since the
+    last stats reset) — a candidate to drop. The inverse of the index lab."""
+
+    schema: str
+    table: str
+    name: str
+    scans: int
+    bytes: int
+    size: str             # pretty
+
+
+@dataclass
 class IndexPreview:
     """The result of a 'what-if' index trial: the same query EXPLAIN ANALYZE'd
     without and then with a hypothetical index, which is created and immediately
@@ -353,6 +383,16 @@ class Engine:
         running the query under ANALYZE) are never committed and are invisible to
         other sessions. Reuses the same CREATE INDEX builder as create_index, but
         non-concurrent so it can live inside the transaction."""
+        raise NotImplementedError
+
+    # --- health (sizes, unused indexes) ------------------------------------
+
+    def table_sizes(self, limit: int = 20) -> list[TableSize]:
+        """Largest tables by total on-disk size (heap + indexes + toast)."""
+        raise NotImplementedError
+
+    def unused_indexes(self) -> list[UnusedIndex]:
+        """Non-constraint indexes the planner has never used — drop candidates."""
         raise NotImplementedError
 
     # --- server configuration (postgresql.conf, via SQL) -------------------

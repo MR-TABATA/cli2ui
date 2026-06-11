@@ -1,0 +1,91 @@
+<div class="space-y-5">
+  <div>
+    <h2 class="text-lg font-semibold flex items-center gap-2"><span>🩺</span> Health</h2>
+    <p class="text-xs text-zinc-500 mono">disk usage · unused indexes</p>
+  </div>
+
+  <!-- Table sizes: \dt+ sorted by total on-disk footprint -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-zinc-500">
+        Table sizes <span class="mono lowercase text-zinc-600">heap + indexes + toast</span>
+      </span>
+      <button hx-get="{% url 'query' connection.pk %}?sql={{ sizes_sql|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML"
+              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
+                     hover:border-zinc-600 transition">open in SQL →</button>
+    </div>
+    {% if sizes %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">Table</th>
+            <th class="px-5 py-2 font-medium">Total</th>
+            <th class="px-5 py-2 font-medium text-right">Table</th>
+            <th class="px-5 py-2 font-medium text-right">Indexes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sizes %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono">{{ s.qualified }}</td>
+              <td class="px-5 py-2">
+                <div class="flex items-center gap-2">
+                  <div class="h-1.5 rounded bg-emerald-500/60" style="width: {% widthratio s.total_bytes max_bytes 120 %}px"></div>
+                  <span class="mono text-zinc-300 tabular-nums">{{ s.total }}</span>
+                </div>
+              </td>
+              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ s.table }}</td>
+              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ s.index }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-500 text-sm">No user tables.</p>
+    {% endif %}
+  </section>
+
+  <!-- Unused indexes: idx_scan = 0, the inverse of the index lab -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-zinc-500">
+        Unused indexes <span class="mono lowercase text-zinc-600">idx_scan = 0 since last stats reset</span>
+      </span>
+      <button hx-get="{% url 'query' connection.pk %}?sql={{ unused_sql|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML"
+              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
+                     hover:border-zinc-600 transition">open in SQL →</button>
+    </div>
+    {% if unused %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">Index</th>
+            <th class="px-5 py-2 font-medium">On table</th>
+            <th class="px-5 py-2 font-medium text-right">Scans</th>
+            <th class="px-5 py-2 font-medium text-right">Size</th>
+            <th class="px-5 py-2 font-medium w-px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in unused %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono">{{ u.name }}</td>
+              <td class="px-5 py-2 mono text-zinc-400">{{ u.schema }}.{{ u.table }}</td>
+              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ u.scans }}</td>
+              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ u.size }}</td>
+              <td class="px-5 py-2 text-right whitespace-nowrap">
+                <button hx-get="{% url 'table_detail' connection.pk %}?schema={{ u.schema|urlencode }}&table={{ u.table|urlencode }}"
+                        hx-target="#detail" hx-swap="innerHTML"
+                        class="text-xs text-zinc-400 hover:text-zinc-200">manage →</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-500 text-sm">No unused indexes — every index has been used. 🎉</p>
+    {% endif %}
+  </section>
+</div>

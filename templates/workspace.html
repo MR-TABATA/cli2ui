@@ -74,6 +74,14 @@
         <span>⚗</span><span class="text-sm font-medium mono">index lab</span>
       </button>
 
+      <button hx-get="{% url 'health' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+              @click="sel = '__health__'"
+              :class="sel === '__health__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
+              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
+                     hover:border-zinc-600 transition flex items-center gap-2">
+        <span>🩺</span><span class="text-sm font-medium mono">health</span>
+      </button>
+
       <button hx-get="{% url 'objects' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               @click="sel = '__objects__'"
               :class="sel === '__objects__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"

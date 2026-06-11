@@ -486,6 +486,51 @@ def _render_activity(request, connection, error=None):
     )
 
 
+# Readable versions of the health queries, for each card's "open in SQL" link.
+SIZES_SHOW_SQL = (
+    "SELECT n.nspname AS schema, c.relname AS name,\n"
+    "       pg_size_pretty(pg_total_relation_size(c.oid)) AS total,\n"
+    "       pg_size_pretty(pg_table_size(c.oid))   AS table_size,\n"
+    "       pg_size_pretty(pg_indexes_size(c.oid)) AS index_size\n"
+    "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace\n"
+    "WHERE c.relkind IN ('r','p')\n"
+    "  AND n.nspname NOT IN ('pg_catalog','information_schema')\n"
+    "ORDER BY pg_total_relation_size(c.oid) DESC LIMIT 20;"
+)
+UNUSED_SHOW_SQL = (
+    "SELECT s.schemaname, s.relname AS table, s.indexrelname AS index,\n"
+    "       s.idx_scan AS scans,\n"
+    "       pg_size_pretty(pg_relation_size(s.indexrelid)) AS size\n"
+    "FROM pg_stat_user_indexes s\n"
+    "JOIN pg_index i ON i.indexrelid = s.indexrelid\n"
+    "WHERE s.idx_scan = 0 AND NOT i.indisprimary AND NOT i.indisunique\n"
+    "ORDER BY pg_relation_size(s.indexrelid) DESC;"
+)
+
+
+def health(request, pk):
+    """Health panel: largest tables by size and never-used indexes (htmx partial)."""
+    connection = get_object_or_404(Connection, pk=pk)
+    try:
+        engine = get_engine(connection)
+        sizes = engine.table_sizes()
+        unused = engine.unused_indexes()
+    except EngineError as exc:
+        return render(request, "partials/error.html", {"message": str(exc)})
+    return render(
+        request,
+        "partials/health.html",
+        {
+            "connection": connection,
+            "sizes": sizes,
+            "max_bytes": max((s.total_bytes for s in sizes), default=0),
+            "unused": unused,
+            "sizes_sql": SIZES_SHOW_SQL,
+            "unused_sql": UNUSED_SHOW_SQL,
+        },
+    )
+
+
 def objects(request, pk):
     """Catalog browser: databases (\\l), schemas (\\dn), roles (\\du) — htmx partial."""
     connection = get_object_or_404(Connection, pk=pk)

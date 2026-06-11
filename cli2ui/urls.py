@@ -24,6 +24,7 @@ urlpatterns = [
     path("c/<int:pk>/activity", views.activity, name="activity"),
     path("c/<int:pk>/activity/cancel", views.activity_cancel, name="activity_cancel"),
     path("c/<int:pk>/activity/kill", views.activity_kill, name="activity_kill"),
+    path("c/<int:pk>/health", views.health, name="health"),
     path("c/<int:pk>/objects", views.objects, name="objects"),
     path("c/<int:pk>/schemas/create", views.schema_create, name="schema_create"),
     path("c/<int:pk>/schemas/delete", views.schema_delete, name="schema_delete"),

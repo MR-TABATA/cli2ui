@@ -501,6 +501,31 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
             self.engine.preview_index("SELECT * FROM orders", "public",
                                       "orders", ["no_such_col"])
 
+    def test_table_sizes_lists_sample_tables_with_pretty_sizes(self):
+        sizes = self.engine.table_sizes()
+        names = {s.name for s in sizes}
+        self.assertIn("orders", names)
+        orders = next(s for s in sizes if s.name == "orders")
+        self.assertGreater(orders.total_bytes, 0)
+        self.assertTrue(orders.total)  # pretty string like "X kB"
+        # Sorted largest-first.
+        self.assertEqual([s.total_bytes for s in sizes],
+                         sorted((s.total_bytes for s in sizes), reverse=True))
+
+    def test_unused_indexes_excludes_primary_and_reports_size(self):
+        # Create a secondary index nobody queries → it shows up as unused;
+        # the primary key never does (it backs a constraint).
+        name = "cli2ui_test_unused_idx"
+        self.engine.create_index("public", "orders", ["total"], name=name)
+        try:
+            unused = self.engine.unused_indexes()
+            by_name = {u.name: u for u in unused}
+            self.assertIn(name, by_name)
+            self.assertEqual(by_name[name].scans, 0)
+            self.assertNotIn("orders_pkey", by_name)  # primary excluded
+        finally:
+            self.engine.drop_index("public", name)
+
     def test_create_index_preserves_column_order(self):
         # Composite index column order is significant and must follow the
         # order we pass, not the table's column order.
@@ -709,3 +734,18 @@ class IndexLabSmokeE2E(_BrowserE2E):
         expect(result).to_contain_text("with index")
         expect(result).to_contain_text("ms")
         expect(result.get_by_role("button", name="Create for real ▸")).to_be_visible()
+
+
+@unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
+                     "needs playwright + chromium and a reachable sample DB")
+class HealthSmokeE2E(_BrowserE2E):
+    """The health panel renders its two cards against the sample DB."""
+
+    def test_health_panel_shows_sizes(self):
+        page = self.page
+        page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
+        page.get_by_role("button", name="🩺 health", exact=True).click()
+        detail = page.locator("#detail")
+        expect(detail).to_contain_text("Table sizes")
+        expect(detail).to_contain_text("Unused indexes")
+        expect(detail).to_contain_text("public.orders")

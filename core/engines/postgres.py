@@ -22,6 +22,8 @@ from .base import (
     Schema,
     Setting,
     Table,
+    TableSize,
+    UnusedIndex,
 )
 
 # The Web equivalent of `\dt`: every user table plus an estimated row count
@@ -119,6 +121,41 @@ JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace
 JOIN pg_catalog.pg_am am ON am.oid = i.relam
 WHERE n.nspname = %s AND t.relname = %s
 ORDER BY ix.indisprimary DESC, i.relname;
+"""
+
+# Health — largest tables by total on-disk size (heap + indexes + toast). The
+# Web equivalent of `\dt+` sorted by size.
+TABLE_SIZES_SQL = """
+SELECT n.nspname AS schema,
+       c.relname AS name,
+       pg_total_relation_size(c.oid) AS total_bytes,
+       pg_size_pretty(pg_total_relation_size(c.oid)) AS total,
+       pg_size_pretty(pg_table_size(c.oid))          AS table_size,
+       pg_size_pretty(pg_indexes_size(c.oid))        AS index_size
+FROM pg_catalog.pg_class c
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relkind IN ('r', 'p')
+  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+ORDER BY pg_total_relation_size(c.oid) DESC
+LIMIT %s;
+"""
+
+# Health — non-constraint indexes the planner has never used since the last
+# stats reset (idx_scan = 0). Primary/unique indexes are excluded: they back
+# constraints, so a zero scan count doesn't make them droppable.
+UNUSED_INDEXES_SQL = """
+SELECT s.schemaname AS schema,
+       s.relname    AS table,
+       s.indexrelname AS name,
+       s.idx_scan   AS scans,
+       pg_relation_size(s.indexrelid)             AS bytes,
+       pg_size_pretty(pg_relation_size(s.indexrelid)) AS size
+FROM pg_catalog.pg_stat_user_indexes s
+JOIN pg_catalog.pg_index i ON i.indexrelid = s.indexrelid
+WHERE s.idx_scan = 0
+  AND NOT i.indisprimary
+  AND NOT i.indisunique
+ORDER BY pg_relation_size(s.indexrelid) DESC;
 """
 
 # Index access methods we let the UI offer. A fixed allow-list because the
@@ -531,6 +568,28 @@ class PostgresEngine(Engine):
                     cur.execute(statement)
                 except psycopg2.Error as exc:
                     raise EngineError(_clean(exc)) from exc
+
+    # --- health ----------------------------------------------------------
+
+    def table_sizes(self, limit: int = 20) -> list[TableSize]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(TABLE_SIZES_SQL, [limit])
+                return [
+                    TableSize(schema=row[0], name=row[1], total_bytes=row[2],
+                              total=row[3], table=row[4], index=row[5])
+                    for row in cur.fetchall()
+                ]
+
+    def unused_indexes(self) -> list[UnusedIndex]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(UNUSED_INDEXES_SQL)
+                return [
+                    UnusedIndex(schema=row[0], table=row[1], name=row[2],
+                                scans=row[3], bytes=row[4], size=row[5])
+                    for row in cur.fetchall()
+                ]
 
     # --- server configuration --------------------------------------------
 
