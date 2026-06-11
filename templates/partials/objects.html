@@ -105,14 +105,32 @@
         </thead>
         <tbody>
           {% for s in schemas %}
-            <tr class="border-b border-zinc-800/60">
+            <tr x-data="{ ed: false }" class="border-b border-zinc-800/60">
               <td class="px-5 py-2 mono">{{ s.name }}</td>
               <td class="px-5 py-2 text-zinc-400 mono">{{ s.owner }}</td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
-                <form hx-post="{% url 'schema_delete' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                      hx-confirm="Drop schema &quot;{{ s.name }}&quot;? This only works if it's empty.">
-                  <input type="hidden" name="name" value="{{ s.name }}">
-                  <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
+                <div x-show="!ed" class="flex items-center gap-3 justify-end">
+                  <button @click="ed = true" type="button" class="text-xs text-zinc-400 hover:text-zinc-200">edit</button>
+                  <form hx-post="{% url 'schema_delete' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                        hx-confirm="Drop schema &quot;{{ s.name }}&quot;? This only works if it's empty.">
+                    <input type="hidden" name="name" value="{{ s.name }}">
+                    <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
+                  </form>
+                </div>
+                <form x-show="ed" x-cloak hx-post="{% url 'schema_alter' connection.pk %}"
+                      hx-target="#detail" hx-swap="innerHTML"
+                      class="flex items-center gap-1.5 justify-end">
+                  <input type="hidden" name="old" value="{{ s.name }}">
+                  <input type="hidden" name="cur_owner" value="{{ s.owner }}">
+                  <input name="new" value="{{ s.name }}" autocomplete="off"
+                         class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 text-xs mono w-28
+                                text-zinc-100 focus:outline-none focus:border-emerald-400">
+                  <select name="owner" title="Owner"
+                          class="bg-zinc-950 border border-zinc-700 rounded px-1 py-0.5 text-xs mono text-zinc-300 focus:outline-none focus:border-emerald-400">
+                    {% for r in roles %}<option value="{{ r.name }}" {% if r.name == s.owner %}selected{% endif %}>{{ r.name }}</option>{% endfor %}
+                  </select>
+                  <button type="submit" class="text-xs text-emerald-400 hover:text-emerald-300">save</button>
+                  <button @click="ed = false" type="button" class="text-xs text-zinc-500 hover:text-zinc-300">cancel</button>
                 </form>
               </td>
             </tr>
@@ -158,18 +176,38 @@
       </thead>
       <tbody>
         {% for r in roles %}
-          <tr class="border-b border-zinc-800/60">
-            <td class="px-5 py-2 mono">{{ r.name }}{% if not r.can_login %}<span class="text-zinc-600"> (group)</span>{% endif %}</td>
-            <td class="px-5 py-2">
+          <tr x-data="{ ed: false }" class="border-b border-zinc-800/60">
+            <td class="px-5 py-2 mono align-top">{{ r.name }}{% if not r.can_login %}<span class="text-zinc-600"> (group)</span>{% endif %}</td>
+            <td class="px-5 py-2 align-top">
               {% for a in r.attributes %}
                 <span class="inline-block text-xs text-zinc-400 bg-zinc-800/70 rounded px-1.5 py-0.5 mr-1 mb-1">{{ a }}</span>
               {% empty %}<span class="text-zinc-600">—</span>{% endfor %}
             </td>
-            <td class="px-5 py-2 text-right whitespace-nowrap">
-              <form hx-post="{% url 'role_delete' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                    hx-confirm="Drop role &quot;{{ r.name }}&quot;? This fails if it owns objects or is connected.">
-                <input type="hidden" name="name" value="{{ r.name }}">
-                <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
+            <td class="px-5 py-2 text-right whitespace-nowrap align-top">
+              <div x-show="!ed" class="flex items-center gap-3 justify-end">
+                <button @click="ed = true" type="button" class="text-xs text-zinc-400 hover:text-zinc-200">edit</button>
+                <form hx-post="{% url 'role_delete' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                      hx-confirm="Drop role &quot;{{ r.name }}&quot;? This fails if it owns objects or is connected.">
+                  <input type="hidden" name="name" value="{{ r.name }}">
+                  <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
+                </form>
+              </div>
+              <form x-show="ed" x-cloak hx-post="{% url 'role_alter' connection.pk %}"
+                    hx-target="#detail" hx-swap="innerHTML"
+                    class="flex flex-wrap items-center gap-2 justify-end text-xs">
+                <input type="hidden" name="old" value="{{ r.name }}">
+                <input name="new" value="{{ r.name }}" autocomplete="off"
+                       class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 mono w-28
+                              text-zinc-100 focus:outline-none focus:border-emerald-400">
+                <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="login" class="accent-emerald-400" {% if r.can_login %}checked{% endif %}> login</label>
+                <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="superuser" class="accent-emerald-400" {% if r.superuser %}checked{% endif %}> superuser</label>
+                <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="createdb" class="accent-emerald-400" {% if r.createdb %}checked{% endif %}> createdb</label>
+                <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="createrole" class="accent-emerald-400" {% if r.createrole %}checked{% endif %}> createrole</label>
+                <input name="password" type="password" placeholder="new password (optional)" autocomplete="new-password"
+                       class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 w-36
+                              text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
+                <button type="submit" class="text-emerald-400 hover:text-emerald-300">save</button>
+                <button @click="ed = false" type="button" class="text-zinc-500 hover:text-zinc-300">cancel</button>
               </form>
             </td>
           </tr>

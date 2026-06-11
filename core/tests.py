@@ -605,7 +605,56 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
         with self.assertRaises(EngineError):
             self.engine.rename_database(current, "something_else")
 
+    def test_rename_and_reown_schema(self):
+        a, b = "cli2ui_test_sch", "cli2ui_test_sch2"
+        for n in (a, b):
+            if self._has_schema(n):
+                self.engine.drop_schema(n, cascade=True)
+        self.engine.create_schema(a)
+        try:
+            owner = self.engine.connection.user  # a role that exists
+            self.engine.alter_schema_owner(a, owner)
+            self.engine.rename_schema(a, b)
+            names = {s.name for s in self.engine.list_schemas()}
+            self.assertIn(b, names)
+            self.assertNotIn(a, names)
+            renamed = next(s for s in self.engine.list_schemas() if s.name == b)
+            self.assertEqual(renamed.owner, owner)
+        finally:
+            for n in (a, b):
+                if self._has_schema(n):
+                    self.engine.drop_schema(n, cascade=True)
+
+    def test_alter_and_rename_role(self):
+        a, b = "cli2ui_test_role", "cli2ui_test_role2"
+        for n in (a, b):
+            if self._has_role(n):
+                self.engine.drop_role(n)
+        self.engine.create_role(a)
+        try:
+            self.engine.alter_role(a, login=True, superuser=False,
+                                   createdb=True, createrole=False)
+            role = next(r for r in self.engine.list_roles() if r.name == a)
+            self.assertTrue(role.can_login)
+            self.assertTrue(role.createdb)
+            self.assertFalse(role.superuser)
+            self.engine.rename_role(a, b)
+            names = {r.name for r in self.engine.list_roles()}
+            self.assertIn(b, names)
+            self.assertNotIn(a, names)
+        finally:
+            for n in (a, b):
+                if self._has_role(n):
+                    self.engine.drop_role(n)
+
+    def test_cannot_rename_connected_role(self):
+        with self.assertRaises(EngineError):
+            self.engine.rename_role(self.engine.connection.user, "someone_else")
+
     # helpers
+    def _has_role(self, name):
+        return any(r.name == name for r in self.engine.list_roles())
+
     def _db_names(self):
         return {d.name for d in self.engine.list_databases()}
 
@@ -818,6 +867,41 @@ class DatabaseManagementSmokeE2E(_BrowserE2E):
         page.on("dialog", lambda d: d.accept())
         row.get_by_role("button", name="drop").click()
         expect(page.locator("#detail")).not_to_contain_text(self.DB)
+
+
+@unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
+                     "needs playwright + chromium and a reachable sample DB")
+class SchemaAlterSmokeE2E(_BrowserE2E):
+    """Rename a schema through the Objects panel's inline edit toggle."""
+
+    SCH, SCH2 = "cli2ui_e2e_sch", "cli2ui_e2e_sch2"
+
+    def setUp(self):
+        super().setUp()
+        get_engine(self.conn).create_schema(self.SCH)
+
+    def tearDown(self):
+        eng = get_engine(self.conn)
+        for n in (self.SCH, self.SCH2):
+            try:
+                eng.drop_schema(n, cascade=True)
+            except EngineError:
+                pass
+        super().tearDown()
+
+    def test_rename_schema_inline(self):
+        page = self.page
+        page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
+        page.get_by_role("button", name="🗄 objects", exact=True).click()
+
+        row = page.locator("#detail tr", has_text=self.SCH)
+        row.get_by_role("button", name="edit").click()
+        row.locator("input[name=new]").fill(self.SCH2)
+        row.get_by_role("button", name="save").click()
+
+        objects = page.locator("#detail")
+        expect(objects).to_contain_text(self.SCH2)
+        expect(objects.get_by_text(self.SCH, exact=True)).to_have_count(0)
 
 
 @unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
