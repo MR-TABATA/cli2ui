@@ -35,7 +35,7 @@ SAMPLE_INITIAL = {
     "port": 5432,
     "dbname": "shop",
     "user": "demo",
-    "password": "demo",
+    "password": "demo",  # nosec B105 — not a secret: prefill for the bundled demo DB
 }
 
 
@@ -130,7 +130,10 @@ def _render_detail(request, connection, schema, table, error=None):
             "index_methods": INDEX_METHODS,
             "preview_columns": preview.columns,
             "preview_rows": rows,
-            "query_sql": f'SELECT * FROM "{schema}"."{table}" LIMIT 100',
+            # Display-only: prefilled into the SQL editor as a starting point,
+            # never executed server-side. The run path (run_query) is read-only
+            # enforced by the DB. nosec B608 — not a query we build and execute.
+            "query_sql": f'SELECT * FROM "{schema}"."{table}" LIMIT 100',  # nosec B608
             "error": error,
         },
     )
@@ -191,7 +194,9 @@ def index_lab(request, pk):
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
     if not sql_text and schema and table:
-        sql_text = f'SELECT * FROM "{schema}"."{table}"'
+        # Display-only starter query for the lab's editor (the user edits/runs
+        # it); not a server-executed query. nosec B608 — same as table_detail.
+        sql_text = f'SELECT * FROM "{schema}"."{table}"'  # nosec B608
     return render(
         request,
         "partials/index_lab.html",
