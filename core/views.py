@@ -602,6 +602,26 @@ def schema_create(request, pk):
     return _render_objects(request, connection)
 
 
+def schema_alter(request, pk):
+    """Rename a schema and/or change its owner (ALTER SCHEMA), then re-render."""
+    connection = get_object_or_404(Connection, pk=pk)
+    old = (request.POST.get("old") or "").strip()
+    new = (request.POST.get("new") or "").strip()
+    owner = (request.POST.get("owner") or "").strip()
+    cur_owner = request.POST.get("cur_owner", "")
+    if not old:
+        return _render_objects(request, connection, error="Schema name is required.")
+    try:
+        engine = get_engine(connection)
+        if owner and owner != cur_owner:
+            engine.alter_schema_owner(old, owner)   # on the current name
+        if new and new != old:
+            engine.rename_schema(old, new)
+    except EngineError as exc:
+        return _render_objects(request, connection, error=str(exc))
+    return _render_objects(request, connection)
+
+
 def schema_delete(request, pk):
     """Drop a schema (DROP SCHEMA), then re-render the objects panel."""
     connection = get_object_or_404(Connection, pk=pk)
@@ -630,6 +650,30 @@ def role_create(request, pk):
             createdb=request.POST.get("createdb") == "on",
             createrole=request.POST.get("createrole") == "on",
         )
+    except EngineError as exc:
+        return _render_objects(request, connection, error=str(exc))
+    return _render_objects(request, connection)
+
+
+def role_alter(request, pk):
+    """Change a role's attributes and/or rename it (ALTER ROLE), then re-render."""
+    connection = get_object_or_404(Connection, pk=pk)
+    old = (request.POST.get("old") or "").strip()
+    new = (request.POST.get("new") or "").strip()
+    if not old:
+        return _render_objects(request, connection, error="Role name is required.")
+    try:
+        engine = get_engine(connection)
+        engine.alter_role(
+            old,
+            login=request.POST.get("login") == "on",
+            superuser=request.POST.get("superuser") == "on",
+            createdb=request.POST.get("createdb") == "on",
+            createrole=request.POST.get("createrole") == "on",
+            password=(request.POST.get("password") or "").strip() or None,
+        )
+        if new and new != old:
+            engine.rename_role(old, new)
     except EngineError as exc:
         return _render_objects(request, connection, error=str(exc))
     return _render_objects(request, connection)

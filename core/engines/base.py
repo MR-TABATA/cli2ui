@@ -60,6 +60,9 @@ class Role:
     name: str
     attributes: list[str]  # human labels: "Superuser", "Create DB", …
     can_login: bool
+    superuser: bool = False   # raw flags, for prefilling the edit form
+    createdb: bool = False
+    createrole: bool = False
 
 
 @dataclass
@@ -383,6 +386,27 @@ class Engine:
 
     def drop_role(self, name: str) -> None:
         """Drop a role. The Web equivalent of `DROP ROLE name`."""
+        raise NotImplementedError
+
+    # --- catalog alterations (ALTER) ---------------------------------------
+
+    def rename_schema(self, old: str, new: str) -> None:
+        """`ALTER SCHEMA old RENAME TO new`."""
+        raise NotImplementedError
+
+    def alter_schema_owner(self, name: str, owner: str) -> None:
+        """`ALTER SCHEMA name OWNER TO owner`."""
+        raise NotImplementedError
+
+    def rename_role(self, old: str, new: str) -> None:
+        """`ALTER ROLE old RENAME TO new`."""
+        raise NotImplementedError
+
+    def alter_role(self, name: str, *, login: bool, superuser: bool,
+                   createdb: bool, createrole: bool,
+                   password: str | None = None) -> None:
+        """Set a role's attributes (`ALTER ROLE name WITH …`). The booleans are
+        the desired final state; password is set only when provided."""
         raise NotImplementedError
 
     def create_database(self, name: str, *, template: str | None = None,

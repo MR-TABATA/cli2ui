@@ -498,6 +498,37 @@ class PostgresEngine(Engine):
     def drop_role(self, name: str) -> None:
         self._execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(name)))
 
+    # --- catalog alterations ---------------------------------------------
+
+    def rename_schema(self, old: str, new: str) -> None:
+        self._execute(sql.SQL("ALTER SCHEMA {} RENAME TO {}").format(
+            sql.Identifier(old), sql.Identifier(new)))
+
+    def alter_schema_owner(self, name: str, owner: str) -> None:
+        self._execute(sql.SQL("ALTER SCHEMA {} OWNER TO {}").format(
+            sql.Identifier(name), sql.Identifier(owner)))
+
+    def rename_role(self, old: str, new: str) -> None:
+        if old == self.connection.user:
+            raise EngineError(
+                "Can't rename the role this connection is logged in as.")
+        self._execute(sql.SQL("ALTER ROLE {} RENAME TO {}").format(
+            sql.Identifier(old), sql.Identifier(new)))
+
+    def alter_role(self, name: str, *, login: bool, superuser: bool,
+                   createdb: bool, createrole: bool,
+                   password: str | None = None) -> None:
+        opts = [
+            sql.SQL("LOGIN") if login else sql.SQL("NOLOGIN"),
+            sql.SQL("SUPERUSER") if superuser else sql.SQL("NOSUPERUSER"),
+            sql.SQL("CREATEDB") if createdb else sql.SQL("NOCREATEDB"),
+            sql.SQL("CREATEROLE") if createrole else sql.SQL("NOCREATEROLE"),
+        ]
+        if password:
+            opts.append(sql.SQL("PASSWORD {}").format(sql.Literal(password)))
+        self._execute(sql.SQL("ALTER ROLE {} WITH {}").format(
+            sql.Identifier(name), sql.SQL(" ").join(opts)))
+
     # --- databases -------------------------------------------------------
 
     def create_database(self, name: str, *, template: str | None = None,
@@ -767,7 +798,8 @@ def _role(row) -> Role:
         attrs.append("Cannot login")
     if connlimit >= 0:
         attrs.append(f"{connlimit} connections")
-    return Role(name=row[0], attributes=attrs, can_login=canlogin)
+    return Role(name=row[0], attributes=attrs, can_login=canlogin,
+                superuser=super_, createdb=createdb, createrole=createrole)
 
 
 def _parse_plan(payload) -> PlanNode:
