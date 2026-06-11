@@ -503,7 +503,9 @@ def schema_create(request, pk):
 def schema_delete(request, pk):
     """Drop a schema (DROP SCHEMA), then re-render the objects panel."""
     connection = get_object_or_404(Connection, pk=pk)
-    name = request.POST.get("name", "")
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        return _render_objects(request, connection, error="Schema name is required.")
     try:
         get_engine(connection).drop_schema(name)
     except EngineError as exc:
@@ -534,7 +536,9 @@ def role_create(request, pk):
 def role_delete(request, pk):
     """Drop a role (DROP ROLE), then re-render the objects panel."""
     connection = get_object_or_404(Connection, pk=pk)
-    name = request.POST.get("name", "")
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        return _render_objects(request, connection, error="Role name is required.")
     try:
         get_engine(connection).drop_role(name)
     except EngineError as exc:
