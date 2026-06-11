@@ -1,0 +1,8 @@
+# Dev/test-only dependencies (kept out of requirements.txt to keep the runtime
+# image tiny). Install with:  pip install -r requirements-dev.txt
+#                             playwright install chromium
+#
+# Used by the Playwright smoke E2E in core/tests.py (LiveServerTestCase). That
+# test is skipped unless the sample DB is reachable, so the suite still runs
+# without these installed — `manage.py test` just skips the browser test.
+playwright==1.60.0

@@ -11,6 +11,7 @@ urlpatterns = [
     path("c/<int:pk>/query", views.query, name="query"),
     path("c/<int:pk>/query/run", views.query_run, name="query_run"),
     path("c/<int:pk>/explain", views.explain_run, name="explain_run"),
+    path("c/<int:pk>/scale", views.scale_run, name="scale_run"),
     path("c/<int:pk>/snapshots", views.snapshots, name="snapshots"),
     path("c/<int:pk>/snapshots/save", views.snapshot_save, name="snapshot_save"),
     path("c/<int:pk>/snapshots/plan", views.snapshot_plan, name="snapshot_plan"),

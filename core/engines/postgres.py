@@ -1,5 +1,6 @@
 """PostgreSQL engine — psycopg2 under the hood."""
 import contextlib
+import json
 import time
 
 import psycopg2
@@ -11,9 +12,11 @@ from .base import (
     Database,
     Engine,
     EngineError,
+    PlanNode,
     Preview,
     QueryResult,
     Role,
+    ScalePlan,
     Schema,
     Setting,
     Table,
@@ -95,6 +98,26 @@ SETTINGS_SELECT = """
 SELECT name, current_setting(name) AS value, unit, category, short_desc,
        vartype, context, enumvals, min_val, max_val, boot_val, pending_restart
 FROM pg_settings
+"""
+
+# Scale-simulation what-if: multiply the planner's row-count estimate for the
+# named tables (and their indexes) by a factor. We scale ONLY reltuples, not
+# relpages: the planner derives a tuple *density* (reltuples/relpages) and
+# multiplies it by the table's *actual* page count, so scaling both by N cancels
+# out and changes nothing — scaling reltuples alone is what makes it believe the
+# table grew. (Page-based I/O cost can't be inflated via the catalog this way;
+# this models row-count growth, which is what drives plan *shape*.) Run only
+# inside a transaction that is always rolled back.
+SCALE_PGCLASS_SQL = """
+UPDATE pg_class
+   SET reltuples = reltuples * %s
+ WHERE oid IN (
+   SELECT oid FROM pg_class WHERE relname = ANY(%s) AND relkind IN ('r', 'p')
+   UNION
+   SELECT indexrelid FROM pg_index
+    WHERE indrelid IN (SELECT oid FROM pg_class
+                        WHERE relname = ANY(%s) AND relkind IN ('r', 'p'))
+ )
 """
 
 
@@ -214,6 +237,62 @@ class PostgresEngine(Engine):
                 raise EngineError(_clean(exc)) from exc
             conn.rollback()
         return "\n".join(lines)
+
+    def explain_json(self, sql_text: str, *, analyze: bool = False,
+                     timeout_ms: int = 15000) -> PlanNode:
+        opts = "ANALYZE, " if analyze else ""
+        prefix = f"EXPLAIN ({opts}FORMAT JSON) "
+        with self._connect() as conn:
+            conn.autocommit = False
+            try:
+                with conn.cursor() as cur:
+                    # Same read-only guard as explain(): ANALYZE would run the
+                    # query, so the read-only transaction is what keeps it safe.
+                    cur.execute("SET TRANSACTION READ ONLY")
+                    cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
+                    cur.execute(prefix + sql_text)
+                    payload = cur.fetchone()[0]
+            except psycopg2.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+            conn.rollback()
+        return _parse_plan(payload)
+
+    def simulate_scale(self, sql_text: str, *, factors=(1, 100, 10000),
+                       timeout_ms: int = 15000) -> list[ScalePlan]:
+        # The factor-1 plan is the real one; it also tells us which tables the
+        # query touches, so we scale exactly those (not the whole database).
+        base = self.explain_json(sql_text, timeout_ms=timeout_ms)
+        relnames = sorted(_relation_names(base))
+        plans = [ScalePlan(factor=1, plan=base)]
+        for n in factors:
+            if n == 1:
+                continue
+            plans.append(ScalePlan(
+                factor=n,
+                plan=self._explain_scaled(sql_text, n, relnames, timeout_ms),
+            ))
+        return plans
+
+    def _explain_scaled(self, sql_text: str, factor: int,
+                        relnames: list[str], timeout_ms: int) -> PlanNode:
+        with self._connect() as conn:
+            # NOT read-only: we UPDATE pg_class. But plain EXPLAIN (no ANALYZE)
+            # never runs the user's query, and we ROLLBACK unconditionally — the
+            # catalog edit is never committed and is invisible to other sessions.
+            conn.autocommit = False
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
+                    cur.execute("SET LOCAL lock_timeout = '2s'")  # don't hang on catalog locks
+                    cur.execute(SCALE_PGCLASS_SQL, [factor, relnames, relnames])
+                    cur.execute("EXPLAIN (FORMAT JSON) " + sql_text)
+                    payload = cur.fetchone()[0]
+            except psycopg2.Error as exc:
+                conn.rollback()
+                raise EngineError(_scale_error(exc)) from exc
+            conn.rollback()  # never persist the what-if catalog edit
+        return _parse_plan(payload)
 
     # --- activity / sessions ---------------------------------------------
 
@@ -414,6 +493,64 @@ def _role(row) -> Role:
     if connlimit >= 0:
         attrs.append(f"{connlimit} connections")
     return Role(name=row[0], attributes=attrs, can_login=canlogin)
+
+
+def _parse_plan(payload) -> PlanNode:
+    """Turn EXPLAIN (FORMAT JSON) output into a PlanNode tree. psycopg2 decodes
+    json columns to Python objects, but accept a raw string too, just in case."""
+    if isinstance(payload, (str, bytes)):
+        payload = json.loads(payload)
+    return _plan_node(payload[0]["Plan"])
+
+
+def _plan_node(d: dict) -> PlanNode:
+    return PlanNode(
+        node_type=d.get("Node Type", "?"),
+        relation=d.get("Relation Name"),
+        index=d.get("Index Name"),
+        plan_rows=d.get("Plan Rows", 0),
+        total_cost=d.get("Total Cost", 0.0),
+        plan_width=d.get("Plan Width", 0),
+        actual_rows=d.get("Actual Rows"),
+        actual_ms=d.get("Actual Total Time"),
+        loops=d.get("Actual Loops"),
+        detail=_plan_detail(d),
+        children=[_plan_node(c) for c in d.get("Plans", [])],
+    )
+
+
+def _plan_detail(d: dict) -> str | None:
+    """The context psql prints under a node: join kind, aggregate strategy, and
+    the conditions/filters. Display-only — the diff aligns on node summaries, not
+    this — so it's safe to make it rich."""
+    bits = []
+    if d.get("Join Type"):
+        bits.append(f"{d['Join Type']} join")
+    if d.get("Strategy"):
+        bits.append(d["Strategy"])
+    if d.get("Parallel Aware"):
+        bits.append("parallel")
+    for key in ("Index Cond", "Recheck Cond", "Hash Cond", "Merge Cond", "Filter"):
+        if d.get(key):
+            bits.append(f"{key}: {d[key]}")
+    return ", ".join(bits) or None
+
+
+def _relation_names(node: PlanNode, acc: set[str] | None = None) -> set[str]:
+    """Every table the plan reads — what the scale simulation grows."""
+    acc = set() if acc is None else acc
+    if node.relation:
+        acc.add(node.relation)
+    for child in node.children:
+        _relation_names(child, acc)
+    return acc
+
+
+def _scale_error(exc: psycopg2.Error) -> str:
+    msg = _clean(exc)
+    if "pg_class" in msg and "permission" in msg.lower():
+        return "Scale simulation needs a superuser connection (it edits pg_class)."
+    return msg
 
 
 def _clean(exc: psycopg2.Error) -> str:
