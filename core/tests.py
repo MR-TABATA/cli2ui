@@ -572,7 +572,47 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
                 "public", "t", ['weird"name']).as_string(conn)
             self.assertIn('"weird""name"', quoted)
 
+    def test_create_rename_drop_database_roundtrip(self):
+        a, b = "cli2ui_test_db", "cli2ui_test_db_renamed"
+        self._drop_db_if_exists(a)
+        self._drop_db_if_exists(b)
+        self.engine.create_database(a)
+        try:
+            self.assertIn(a, self._db_names())
+            self.engine.rename_database(a, b)
+            names = self._db_names()
+            self.assertIn(b, names)
+            self.assertNotIn(a, names)
+        finally:
+            self._drop_db_if_exists(a)
+            self._drop_db_if_exists(b)
+        self.assertNotIn(b, self._db_names())
+
+    def test_clone_database_via_template(self):
+        name = "cli2ui_test_clone"
+        self._drop_db_if_exists(name)
+        # template0 has no connections ever, so it's the reliable clone source.
+        self.engine.create_database(name, template="template0")
+        try:
+            self.assertIn(name, self._db_names())
+        finally:
+            self._drop_db_if_exists(name)
+
+    def test_cannot_drop_or_rename_connected_database(self):
+        current = self.engine.connection.dbname
+        with self.assertRaises(EngineError):
+            self.engine.drop_database(current)
+        with self.assertRaises(EngineError):
+            self.engine.rename_database(current, "something_else")
+
     # helpers
+    def _db_names(self):
+        return {d.name for d in self.engine.list_databases()}
+
+    def _drop_db_if_exists(self, name):
+        if name in self._db_names():
+            self.engine.drop_database(name, force=True)
+
     def _has_schema(self, name):
         return any(s.name == name for s in self.engine.list_schemas())
 
@@ -746,6 +786,38 @@ class IndexLabSmokeE2E(_BrowserE2E):
         expect(result).to_contain_text("with index")
         expect(result).to_contain_text("ms")
         expect(result.get_by_role("button", name="Create for real ▸")).to_be_visible()
+
+
+@unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
+                     "needs playwright + chromium and a reachable sample DB")
+class DatabaseManagementSmokeE2E(_BrowserE2E):
+    """Create a database from the Objects panel, see it listed, then drop it."""
+
+    DB = "cli2ui_e2e_db"
+
+    def tearDown(self):
+        try:
+            get_engine(self.conn).drop_database(self.DB, force=True)
+        except EngineError:
+            pass
+        super().tearDown()
+
+    def test_create_then_drop_database(self):
+        page = self.page
+        page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
+        page.get_by_role("button", name="🗄 objects", exact=True).click()
+
+        create = page.locator('form[hx-post*="databases/create"]')
+        create.wait_for()
+        create.locator("input[name=name]").fill(self.DB)
+        create.get_by_role("button", name="Create").click()
+
+        row = page.locator("#detail tr", has_text=self.DB)
+        expect(row).to_be_visible()
+
+        page.on("dialog", lambda d: d.accept())
+        row.get_by_role("button", name="drop").click()
+        expect(page.locator("#detail")).not_to_contain_text(self.DB)
 
 
 @unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),

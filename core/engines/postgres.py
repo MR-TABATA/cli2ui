@@ -232,13 +232,13 @@ UPDATE pg_class
 
 class PostgresEngine(Engine):
     @contextlib.contextmanager
-    def _connect(self):
+    def _connect(self, dbname=None):
         c = self.connection
         try:
             conn = psycopg2.connect(
                 host=c.host,
                 port=c.port,
-                dbname=c.dbname,
+                dbname=dbname or c.dbname,
                 user=c.user,
                 password=c.password,
                 connect_timeout=5,
@@ -497,6 +497,67 @@ class PostgresEngine(Engine):
 
     def drop_role(self, name: str) -> None:
         self._execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(name)))
+
+    # --- databases -------------------------------------------------------
+
+    def create_database(self, name: str, *, template: str | None = None,
+                        owner: str | None = None,
+                        encoding: str | None = None) -> None:
+        opts = []
+        if owner:
+            opts.append(sql.SQL("OWNER {}").format(sql.Identifier(owner)))
+        if template:
+            opts.append(sql.SQL("TEMPLATE {}").format(sql.Identifier(template)))
+        if encoding:
+            opts.append(sql.SQL("ENCODING {}").format(sql.Literal(encoding)))
+        stmt = sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name))
+        if opts:
+            stmt = stmt + sql.SQL(" WITH ") + sql.SQL(" ").join(opts)
+        self._execute_admin(stmt)
+
+    def drop_database(self, name: str, *, force: bool = False) -> None:
+        if name == self.connection.dbname:
+            raise EngineError(
+                "Can't drop the database this connection is using — "
+                "connect to another database first.")
+        stmt = sql.SQL("DROP DATABASE {}{}").format(
+            sql.Identifier(name),
+            sql.SQL(" WITH (FORCE)") if force else sql.SQL(""),
+        )
+        self._execute_admin(stmt)
+
+    def rename_database(self, old: str, new: str) -> None:
+        if old == self.connection.dbname:
+            raise EngineError(
+                "Can't rename the database this connection is using — "
+                "connect to another database first.")
+        self._execute_admin(sql.SQL("ALTER DATABASE {} RENAME TO {}").format(
+            sql.Identifier(old), sql.Identifier(new)))
+
+    def _maintenance_dbname(self) -> str:
+        """A database to connect to for database-level admin: never the target,
+        so CREATE/DROP/ALTER DATABASE (and TEMPLATE copies) aren't blocked by our
+        own connection. 'postgres' exists on virtually every server; template1 is
+        the fallback."""
+        for db in ("postgres", "template1"):
+            try:
+                with self._connect(dbname=db):
+                    return db
+            except EngineError:
+                continue
+        raise EngineError(
+            "Cannot reach a maintenance database (postgres / template1) to "
+            "run database-level commands.")
+
+    def _execute_admin(self, statement) -> None:
+        """Run a database-level statement from a maintenance DB. These can't run
+        inside a transaction; _connect is autocommit, so each runs standalone."""
+        with self._connect(dbname=self._maintenance_dbname()) as conn:
+            with conn.cursor() as cur:
+                try:
+                    cur.execute(statement)
+                except psycopg2.Error as exc:
+                    raise EngineError(_clean(exc)) from exc
 
     # --- indexes ---------------------------------------------------------
 
