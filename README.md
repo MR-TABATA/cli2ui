@@ -73,3 +73,7 @@ python manage.py runserver
 
 You'll need a PostgreSQL to connect to (the `sampledb` service in
 `docker-compose.yml` is one option, exposed on `localhost:5433`).
+
+## License
+
+[MIT](LICENSE) © TABATA Hitoshi
