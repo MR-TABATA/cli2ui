@@ -506,15 +506,23 @@ UNUSED_SHOW_SQL = (
     "WHERE s.idx_scan = 0 AND NOT i.indisprimary AND NOT i.indisunique\n"
     "ORDER BY pg_relation_size(s.indexrelid) DESC;"
 )
+VACUUM_SHOW_SQL = (
+    "SELECT schemaname, relname, n_live_tup, n_dead_tup,\n"
+    "       GREATEST(last_vacuum, last_autovacuum)   AS last_vacuum,\n"
+    "       GREATEST(last_analyze, last_autoanalyze) AS last_analyze\n"
+    "FROM pg_stat_user_tables\n"
+    "ORDER BY n_dead_tup DESC;"
+)
 
 
 def health(request, pk):
-    """Health panel: largest tables by size and never-used indexes (htmx partial)."""
+    """Health panel: table sizes, unused indexes, dead-tuple/vacuum stats."""
     connection = get_object_or_404(Connection, pk=pk)
     try:
         engine = get_engine(connection)
         sizes = engine.table_sizes()
         unused = engine.unused_indexes()
+        vacuum = engine.vacuum_stats()
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
     return render(
@@ -525,8 +533,10 @@ def health(request, pk):
             "sizes": sizes,
             "max_bytes": max((s.total_bytes for s in sizes), default=0),
             "unused": unused,
+            "vacuum": vacuum,
             "sizes_sql": SIZES_SHOW_SQL,
             "unused_sql": UNUSED_SHOW_SQL,
+            "vacuum_sql": VACUUM_SHOW_SQL,
         },
     )
 

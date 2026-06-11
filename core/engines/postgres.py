@@ -24,6 +24,7 @@ from .base import (
     Table,
     TableSize,
     UnusedIndex,
+    VacuumStat,
 )
 
 # The Web equivalent of `\dt`: every user table plus an estimated row count
@@ -156,6 +157,16 @@ WHERE s.idx_scan = 0
   AND NOT i.indisprimary
   AND NOT i.indisunique
 ORDER BY pg_relation_size(s.indexrelid) DESC;
+"""
+
+# Health — dead tuples + last (auto)vacuum/analyze per table. GREATEST ignores
+# NULLs, so it yields the most recent of the manual/auto pair (or NULL if both).
+VACUUM_STATS_SQL = """
+SELECT schemaname, relname, n_live_tup, n_dead_tup,
+       GREATEST(last_vacuum, last_autovacuum)   AS last_vacuum,
+       GREATEST(last_analyze, last_autoanalyze) AS last_analyze
+FROM pg_catalog.pg_stat_user_tables
+ORDER BY n_dead_tup DESC, schemaname, relname;
 """
 
 # Index access methods we let the UI offer. A fixed allow-list because the
@@ -588,6 +599,16 @@ class PostgresEngine(Engine):
                 return [
                     UnusedIndex(schema=row[0], table=row[1], name=row[2],
                                 scans=row[3], bytes=row[4], size=row[5])
+                    for row in cur.fetchall()
+                ]
+
+    def vacuum_stats(self) -> list[VacuumStat]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(VACUUM_STATS_SQL)
+                return [
+                    VacuumStat(schema=row[0], name=row[1], live=row[2],
+                               dead=row[3], last_vacuum=row[4], last_analyze=row[5])
                     for row in cur.fetchall()
                 ]
 

@@ -1,5 +1,6 @@
 """Engine interface shared by all database backends."""
 from dataclasses import dataclass
+from datetime import datetime
 
 
 class EngineError(Exception):
@@ -224,6 +225,34 @@ class UnusedIndex:
 
 
 @dataclass
+class VacuumStat:
+    """Dead-tuple / vacuum health for one table (from pg_stat_user_tables). Dead
+    tuples are the raw material of bloat; the last-vacuum times say whether
+    (auto)vacuum is keeping up."""
+
+    schema: str
+    name: str
+    live: int
+    dead: int
+    last_vacuum: datetime | None    # most recent manual OR auto vacuum
+    last_analyze: datetime | None   # most recent manual OR auto analyze
+
+    @property
+    def qualified(self) -> str:
+        return f"{self.schema}.{self.name}"
+
+    @property
+    def dead_ratio(self) -> float:
+        """Dead / (live + dead), 0..1 — the headline bloat signal."""
+        total = self.live + self.dead
+        return self.dead / total if total else 0.0
+
+    @property
+    def dead_pct(self) -> int:
+        return round(self.dead_ratio * 100)
+
+
+@dataclass
 class IndexPreview:
     """The result of a 'what-if' index trial: the same query EXPLAIN ANALYZE'd
     without and then with a hypothetical index, which is created and immediately
@@ -393,6 +422,10 @@ class Engine:
 
     def unused_indexes(self) -> list[UnusedIndex]:
         """Non-constraint indexes the planner has never used — drop candidates."""
+        raise NotImplementedError
+
+    def vacuum_stats(self) -> list[VacuumStat]:
+        """Dead-tuple counts and last (auto)vacuum/analyze times per table."""
         raise NotImplementedError
 
     # --- server configuration (postgresql.conf, via SQL) -------------------

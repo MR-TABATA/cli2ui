@@ -1,7 +1,7 @@
 <div class="space-y-5">
   <div>
     <h2 class="text-lg font-semibold flex items-center gap-2"><span>🩺</span> Health</h2>
-    <p class="text-xs text-zinc-500 mono">disk usage · unused indexes</p>
+    <p class="text-xs text-zinc-500 mono">disk usage · unused indexes · dead rows</p>
   </div>
 
   <!-- Table sizes: \dt+ sorted by total on-disk footprint -->
@@ -86,6 +86,52 @@
       </table>
     {% else %}
       <p class="px-5 py-8 text-center text-zinc-500 text-sm">No unused indexes — every index has been used. 🎉</p>
+    {% endif %}
+  </section>
+
+  <!-- Dead rows / vacuum: bloat signal + whether (auto)vacuum keeps up -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-zinc-500">
+        Dead rows <span class="mono lowercase text-zinc-600">n_dead_tup · last (auto)vacuum</span>
+      </span>
+      <button hx-get="{% url 'query' connection.pk %}?sql={{ vacuum_sql|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML"
+              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
+                     hover:border-zinc-600 transition">open in SQL →</button>
+    </div>
+    {% if vacuum %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">Table</th>
+            <th class="px-5 py-2 font-medium text-right">Live</th>
+            <th class="px-5 py-2 font-medium text-right">Dead</th>
+            <th class="px-5 py-2 font-medium text-right">Dead %</th>
+            <th class="px-5 py-2 font-medium text-right">Last vacuum</th>
+            <th class="px-5 py-2 font-medium text-right">Last analyze</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in vacuum %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono">{{ v.qualified }}</td>
+              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ v.live }}</td>
+              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ v.dead }}</td>
+              <td class="px-5 py-2 text-right tabular-nums">
+                <span class="mono px-1.5 py-0.5 rounded
+                  {% if v.dead_pct >= 50 %}bg-red-500/15 text-red-300
+                  {% elif v.dead_pct >= 20 %}bg-amber-500/15 text-amber-300
+                  {% else %}text-zinc-500{% endif %}">{{ v.dead_pct }}%</span>
+              </td>
+              <td class="px-5 py-2 mono text-zinc-500 text-right">{% if v.last_vacuum %}{{ v.last_vacuum|timesince }} ago{% else %}never{% endif %}</td>
+              <td class="px-5 py-2 mono text-zinc-500 text-right">{% if v.last_analyze %}{{ v.last_analyze|timesince }} ago{% else %}never{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-500 text-sm">No table statistics yet.</p>
     {% endif %}
   </section>
 </div>
