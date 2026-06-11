@@ -24,6 +24,10 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    # X-Frame-Options: DENY. There's no reason to frame cli2ui, and refusing to
+    # be framed stops a clickjacking page from tricking you into clicking its
+    # destructive buttons (drop schema/role/index) inside a hidden iframe.
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 ROOT_URLCONF = "cli2ui.urls"
