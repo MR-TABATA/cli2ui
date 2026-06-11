@@ -253,16 +253,30 @@ class BuildCreateIndexSqlValidationTests(SimpleTestCase):
 
 
 class IndexColumnsTextTests(SimpleTestCase):
+    def _ix(self, definition):
+        return Index(name="i", method="btree", unique=False, primary=False,
+                     definition=definition, size="16 kB")
+
     def test_pulls_columns_from_definition(self):
-        ix = Index(name="i", method="btree", unique=False, primary=False,
-                   definition='CREATE INDEX i ON public.t USING btree (a, b)',
-                   size="16 kB")
-        self.assertEqual(ix.columns_text, "a, b")
+        self.assertEqual(
+            self._ix("CREATE INDEX i ON public.t USING btree (a, b)").columns_text,
+            "a, b")
+
+    def test_partial_index_stops_at_matching_paren(self):
+        # The WHERE (…) clause must not leak into the column list.
+        self.assertEqual(
+            self._ix("CREATE INDEX i ON public.t USING btree (a) "
+                     "WHERE (b > 0)").columns_text,
+            "a")
+
+    def test_expression_index_keeps_nested_parens(self):
+        self.assertEqual(
+            self._ix("CREATE INDEX i ON public.t USING btree "
+                     "(lower(name))").columns_text,
+            "lower(name)")
 
     def test_blank_when_no_parens(self):
-        ix = Index(name="i", method="btree", unique=False, primary=False,
-                   definition="weird", size=None)
-        self.assertEqual(ix.columns_text, "")
+        self.assertEqual(self._ix("weird").columns_text, "")
 
 
 class RoleMappingTests(SimpleTestCase):
@@ -459,10 +473,25 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
         with self.assertRaises(EngineError):
             self.engine.create_index("public", "orders", ["no_such_col"])
 
-    def test_list_indexes_marks_primary_key(self):
-        # orders has a primary key; its backing index should be flagged.
+    def test_list_indexes_marks_primary_key_and_validity(self):
+        # orders has a primary key; its backing index should be flagged, and
+        # every existing index should report as valid.
         idx = self.engine.list_indexes("public", "orders")
         self.assertTrue(any(i.primary for i in idx))
+        self.assertTrue(all(i.valid for i in idx))
+
+    def test_create_index_preserves_column_order(self):
+        # Composite index column order is significant and must follow the
+        # order we pass, not the table's column order.
+        name = "cli2ui_test_order_idx"
+        self.engine.create_index("public", "orders", ["total", "customer_id"],
+                                 name=name)
+        try:
+            ix = next(i for i in self.engine.list_indexes("public", "orders")
+                      if i.name == name)
+            self.assertEqual(ix.columns_text, "total, customer_id")
+        finally:
+            self.engine.drop_index("public", name)
 
     def test_build_create_index_sql_renders(self):
         # Identifier quoting needs a real connection; assert the composed DDL
@@ -613,20 +642,19 @@ class IndexManagementSmokeE2E(_BrowserE2E):
         create = page.locator('form[hx-post*="indexes/create"]')
         create.wait_for()
 
-        # Create a named btree index on customer_id.
-        create.locator('input[name=columns][value="customer_id"]').check()
+        # Pick two columns in the REVERSE of their table order (orders is
+        # …, customer_id, total, …) to prove the ordered picker controls the
+        # composite index's column order — not the DOM/checkbox order.
+        create.get_by_role("button", name="total", exact=True).click()
+        create.get_by_role("button", name="customer_id", exact=True).click()
         create.locator('input[name=name]').fill(self.IDX)
         create.get_by_role("button", name="Create").click()
 
-        # It shows up in the index list, with its column.
-        rows = page.locator("#detail")
-        expect(rows).to_contain_text(self.IDX)
-        drop_form = page.locator(
-            'form[hx-post*="indexes/drop"]',
-            has=page.locator(f'input[name=name][value="{self.IDX}"]'))
-        expect(drop_form).to_contain_text("drop")
+        # It shows up in the index list, with its columns in the chosen order.
+        row = page.locator("#detail tr", has_text=self.IDX)
+        expect(row).to_contain_text("total, customer_id")
 
         # Drop it (htmx hx-confirm fires window.confirm — auto-accept).
         page.on("dialog", lambda d: d.accept())
-        drop_form.get_by_role("button", name="drop").click()
+        row.get_by_role("button", name="drop").click()
         expect(page.locator("#detail")).not_to_contain_text(self.IDX)
