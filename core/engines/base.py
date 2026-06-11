@@ -62,6 +62,28 @@ class Role:
 
 
 @dataclass
+class Index:
+    """One index on a table. The Web equivalent of a `\\d table` index row."""
+
+    name: str
+    method: str          # access method: btree, hash, gin, …
+    unique: bool
+    primary: bool        # backs a PRIMARY KEY constraint
+    definition: str      # the full CREATE INDEX … statement (pg_get_indexdef)
+    size: str | None     # pretty-printed on-disk size
+
+    @property
+    def columns_text(self) -> str:
+        """The indexed columns/expressions, pulled from the definition's
+        parentheses — e.g. 'customer_id, created_at' — for a compact display."""
+        start = self.definition.find("(")
+        end = self.definition.rfind(")")
+        if start == -1 or end <= start:
+            return ""
+        return self.definition[start + 1:end].strip()
+
+
+@dataclass
 class QueryResult:
     columns: list[str]
     rows: list[tuple]
@@ -262,6 +284,23 @@ class Engine:
 
     def drop_role(self, name: str) -> None:
         """Drop a role. The Web equivalent of `DROP ROLE name`."""
+        raise NotImplementedError
+
+    # --- indexes (CREATE / DROP INDEX) -------------------------------------
+
+    def list_indexes(self, schema: str, table: str) -> list[Index]:
+        """Indexes on one table. The Web equivalent of `\\d table`'s index list."""
+        raise NotImplementedError
+
+    def create_index(self, schema: str, table: str, columns: list[str], *,
+                     method: str = "btree", unique: bool = False,
+                     name: str | None = None) -> None:
+        """Create an index. The Web equivalent of `CREATE INDEX … ON table (…)`.
+        Built CONCURRENTLY so it doesn't lock out writes on a live table."""
+        raise NotImplementedError
+
+    def drop_index(self, schema: str, name: str) -> None:
+        """Drop an index. The Web equivalent of `DROP INDEX name`."""
         raise NotImplementedError
 
     # --- server configuration (postgresql.conf, via SQL) -------------------

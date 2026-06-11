@@ -12,6 +12,7 @@ from .base import (
     Database,
     Engine,
     EngineError,
+    Index,
     PlanNode,
     Preview,
     QueryResult,
@@ -99,6 +100,60 @@ SELECT name, current_setting(name) AS value, unit, category, short_desc,
        vartype, context, enumvals, min_val, max_val, boot_val, pending_restart
 FROM pg_settings
 """
+
+# The Web equivalent of the index list in `\d table`: name, access method,
+# uniqueness, whether it backs the primary key, the full definition and size.
+LIST_INDEXES_SQL = """
+SELECT i.relname AS name,
+       am.amname AS method,
+       ix.indisunique AS is_unique,
+       ix.indisprimary AS is_primary,
+       pg_catalog.pg_get_indexdef(ix.indexrelid) AS definition,
+       pg_catalog.pg_size_pretty(pg_catalog.pg_relation_size(ix.indexrelid)) AS size
+FROM pg_catalog.pg_index ix
+JOIN pg_catalog.pg_class i ON i.oid = ix.indexrelid
+JOIN pg_catalog.pg_class t ON t.oid = ix.indrelid
+JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace
+JOIN pg_catalog.pg_am am ON am.oid = i.relam
+WHERE n.nspname = %s AND t.relname = %s
+ORDER BY ix.indisprimary DESC, i.relname;
+"""
+
+# Index access methods we let the UI offer. A fixed allow-list because the
+# chosen method is interpolated into the DDL as a bare keyword (it can't be a
+# bound parameter), so it must never come straight from user input.
+INDEX_METHODS = ("btree", "hash", "gin", "gist", "spgist", "brin")
+
+
+def build_create_index_sql(schema, table, columns, *, method="btree",
+                           unique=False, name=None, concurrently=False):
+    """Compose a CREATE INDEX statement from a spec. The shared core for both
+    real index creation (CONCURRENTLY, outside a transaction) and — later — the
+    "what-if" index lab (plain, inside a rolled-back transaction): same spec, the
+    only difference is the CONCURRENTLY flag.
+
+    Identifiers go through sql.Identifier (safe quoting); the method is checked
+    against INDEX_METHODS so the one piece interpolated as raw SQL can't inject.
+    """
+    if method not in INDEX_METHODS:
+        raise EngineError(f"Unsupported index method: {method}")
+    if not columns:
+        raise EngineError("Select at least one column to index.")
+    parts = [sql.SQL("CREATE")]
+    if unique:
+        parts.append(sql.SQL("UNIQUE"))
+    parts.append(sql.SQL("INDEX"))
+    if concurrently:
+        parts.append(sql.SQL("CONCURRENTLY"))
+    if name:
+        parts.append(sql.Identifier(name))
+    parts.append(sql.SQL("ON {}.{}").format(
+        sql.Identifier(schema), sql.Identifier(table)))
+    parts.append(sql.SQL("USING ") + sql.SQL(method))
+    parts.append(sql.SQL("({})").format(
+        sql.SQL(", ").join(sql.Identifier(c) for c in columns)))
+    return sql.SQL(" ").join(parts)
+
 
 # Scale-simulation what-if: multiply the planner's row-count estimate for the
 # named tables (and their indexes) by a factor. We scale ONLY reltuples, not
@@ -388,6 +443,39 @@ class PostgresEngine(Engine):
 
     def drop_role(self, name: str) -> None:
         self._execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(name)))
+
+    # --- indexes ---------------------------------------------------------
+
+    def list_indexes(self, schema: str, table: str) -> list[Index]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(LIST_INDEXES_SQL, (schema, table))
+                return [
+                    Index(name=row[0], method=row[1], unique=row[2],
+                          primary=row[3], definition=row[4], size=row[5])
+                    for row in cur.fetchall()
+                ]
+
+    def create_index(self, schema: str, table: str, columns: list[str], *,
+                     method: str = "btree", unique: bool = False,
+                     name: str | None = None) -> None:
+        # Whitelist the requested columns against the table's real columns:
+        # column names are identifiers (can't be bound), so verify they exist
+        # rather than splice an unknown name into DDL.
+        valid = {c.name for c in self.list_columns(schema, table)}
+        unknown = [c for c in columns if c not in valid]
+        if unknown:
+            raise EngineError(f"No such column(s): {', '.join(unknown)}")
+        # CONCURRENTLY can't run inside a transaction — fine here, _connect()
+        # is autocommit, so _execute() runs it as a standalone statement.
+        self._execute(build_create_index_sql(
+            schema, table, columns, method=method, unique=unique,
+            name=name, concurrently=True,
+        ))
+
+    def drop_index(self, schema: str, name: str) -> None:
+        self._execute(sql.SQL("DROP INDEX CONCURRENTLY {}.{}").format(
+            sql.Identifier(schema), sql.Identifier(name)))
 
     def _execute(self, statement) -> None:
         """Run a composed DDL statement, mapping driver errors to EngineError."""

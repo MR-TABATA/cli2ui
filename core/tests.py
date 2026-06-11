@@ -14,14 +14,16 @@ import psycopg2
 from django.test import SimpleTestCase, TestCase
 
 from core.engines import EngineError, get_engine
-from core.engines.base import Activity, PlanNode, Setting, Table
+from core.engines.base import Activity, Index, PlanNode, Setting, Table
 from core.engines.postgres import (
+    INDEX_METHODS,
     _clean,
     _parse_plan,
     _relation_names,
     _role,
     _scale_error,
     _setting,
+    build_create_index_sql,
 )
 from core.forms import ConnectionForm
 from core.models import Connection, PlanSnapshot
@@ -229,6 +231,40 @@ class ScaleErrorTests(SimpleTestCase):
         self.assertEqual(_scale_error(exc), 'syntax error at or near "SELCT"')
 
 
+class BuildCreateIndexSqlValidationTests(SimpleTestCase):
+    """The shared spec→SQL core's validation — pure, no DB. (Rendering the
+    composed statement needs a connection for identifier quoting, so the
+    string-output checks live in the integration tests.) The future index lab
+    will reuse this builder with concurrently=False."""
+
+    def test_unknown_method_rejected(self):
+        # The method is the one piece spliced as raw SQL — must be allow-listed.
+        with self.assertRaises(EngineError):
+            build_create_index_sql("public", "t", ["a"],
+                                   method="btree; DROP TABLE t")
+
+    def test_methods_are_a_fixed_allow_list(self):
+        self.assertIn("btree", INDEX_METHODS)
+        self.assertNotIn("'; DROP", " ".join(INDEX_METHODS))
+
+    def test_no_columns_rejected(self):
+        with self.assertRaises(EngineError):
+            build_create_index_sql("public", "t", [])
+
+
+class IndexColumnsTextTests(SimpleTestCase):
+    def test_pulls_columns_from_definition(self):
+        ix = Index(name="i", method="btree", unique=False, primary=False,
+                   definition='CREATE INDEX i ON public.t USING btree (a, b)',
+                   size="16 kB")
+        self.assertEqual(ix.columns_text, "a, b")
+
+    def test_blank_when_no_parens(self):
+        ix = Index(name="i", method="btree", unique=False, primary=False,
+                   definition="weird", size=None)
+        self.assertEqual(ix.columns_text, "")
+
+
 class RoleMappingTests(SimpleTestCase):
     # Row order matches LIST_ROLES_SQL:
     # rolname, rolsuper, rolcreaterole, rolcreatedb, rolreplication, rolcanlogin, rolconnlimit
@@ -406,6 +442,48 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
         finally:
             self.engine.drop_schema(name)
         self.assertFalse(self._has_schema(name))
+
+    def test_create_and_drop_index_roundtrip(self):
+        name = "cli2ui_test_idx"
+        self.engine.create_index("public", "orders", ["customer_id"], name=name)
+        try:
+            names = {i.name for i in self.engine.list_indexes("public", "orders")}
+            self.assertIn(name, names)
+        finally:
+            self.engine.drop_index("public", name)
+        after = {i.name for i in self.engine.list_indexes("public", "orders")}
+        self.assertNotIn(name, after)
+
+    def test_create_index_rejects_unknown_column(self):
+        # Whitelisting catches a bad column before any DDL runs.
+        with self.assertRaises(EngineError):
+            self.engine.create_index("public", "orders", ["no_such_col"])
+
+    def test_list_indexes_marks_primary_key(self):
+        # orders has a primary key; its backing index should be flagged.
+        idx = self.engine.list_indexes("public", "orders")
+        self.assertTrue(any(i.primary for i in idx))
+
+    def test_build_create_index_sql_renders(self):
+        # Identifier quoting needs a real connection; assert the composed DDL
+        # (keyword order, CONCURRENTLY/UNIQUE placement, quoted identifiers).
+        with self.engine._connect() as conn:
+            simple = build_create_index_sql(
+                "public", "orders", ["customer_id"]).as_string(conn)
+            self.assertEqual(
+                simple,
+                'CREATE INDEX ON "public"."orders" USING btree ("customer_id")')
+            full = build_create_index_sql(
+                "public", "orders", ["a", "b"], unique=True, method="gin",
+                name="orders_ab_idx", concurrently=True).as_string(conn)
+            self.assertEqual(
+                full,
+                'CREATE UNIQUE INDEX CONCURRENTLY "orders_ab_idx" '
+                'ON "public"."orders" USING gin ("a", "b")')
+            # A quote in an identifier is escaped, never an injection point.
+            quoted = build_create_index_sql(
+                "public", "t", ['weird"name']).as_string(conn)
+            self.assertIn('"weird""name"', quoted)
 
     # helpers
     def _has_schema(self, name):

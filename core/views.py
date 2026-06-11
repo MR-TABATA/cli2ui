@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .engines import EngineError, get_engine
+from .engines.postgres import INDEX_METHODS
 from .forms import ConnectionForm
 from .models import Connection, PlanSnapshot
 from .plan_diff import diff_plans, node_from_dict, node_to_dict, to_text
@@ -98,9 +99,19 @@ def table_detail(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     schema = request.GET.get("schema", "")
     table = request.GET.get("table", "")
+    return _render_detail(request, connection, schema, table)
+
+
+def _render_detail(request, connection, schema, table, error=None):
+    """Render the table-detail panel: columns, indexes and a row preview.
+
+    A connection-level failure falls back to the error partial; a per-action
+    failure (passed in as `error`) re-renders the panel with everything intact
+    plus an inline message, so an index create/drop keeps the user in place."""
     try:
         engine = get_engine(connection)
         columns = engine.list_columns(schema, table)
+        indexes = engine.list_indexes(schema, table)
         preview = engine.preview_rows(schema, table)
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
@@ -115,11 +126,48 @@ def table_detail(request, pk):
             "schema": schema,
             "table": table,
             "columns": columns,
+            "indexes": indexes,
+            "index_methods": INDEX_METHODS,
             "preview_columns": preview.columns,
             "preview_rows": rows,
             "query_sql": f'SELECT * FROM "{schema}"."{table}" LIMIT 100',
+            "error": error,
         },
     )
+
+
+def index_create(request, pk):
+    """Create an index on a table (CREATE INDEX CONCURRENTLY), then re-render
+    the table detail so the new index shows."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    columns = request.POST.getlist("columns")
+    if not columns:
+        return _render_detail(request, connection, schema, table,
+                              error="Select at least one column to index.")
+    try:
+        get_engine(connection).create_index(
+            schema, table, columns,
+            method=request.POST.get("method", "btree"),
+            unique=request.POST.get("unique") == "on",
+            name=(request.POST.get("name") or "").strip() or None,
+        )
+    except EngineError as exc:
+        return _render_detail(request, connection, schema, table, error=str(exc))
+    return _render_detail(request, connection, schema, table)
+
+
+def index_drop(request, pk):
+    """Drop an index (DROP INDEX), then re-render the table detail."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    try:
+        get_engine(connection).drop_index(schema, request.POST.get("name", ""))
+    except EngineError as exc:
+        return _render_detail(request, connection, schema, table, error=str(exc))
+    return _render_detail(request, connection, schema, table)
 
 
 def overview(request, pk):
