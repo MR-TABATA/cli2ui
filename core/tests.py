@@ -514,12 +514,10 @@ except ImportError:
 from django.test import LiveServerTestCase  # noqa: E402
 
 
-@unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
-                     "needs playwright + chromium and a reachable sample DB")
-class ExplainDiffSmokeE2E(LiveServerTestCase):
-    """One end-to-end pass of the headline feature: EXPLAIN a query, save it,
-    EXPLAIN a different one, save it, and diff the two — expecting the structured
-    node diff with its 'plan changed' badge to render in the page."""
+class _BrowserE2E(LiveServerTestCase):
+    """Shared scaffolding for the Playwright smoke tests: launch chromium once,
+    seed a connection to the sample DB, and hand each test a fresh page. No test
+    methods of its own, so it's never collected as a suite."""
 
     @classmethod
     def setUpClass(cls):
@@ -545,6 +543,14 @@ class ExplainDiffSmokeE2E(LiveServerTestCase):
 
     def tearDown(self):
         self.page.close()
+
+
+@unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
+                     "needs playwright + chromium and a reachable sample DB")
+class ExplainDiffSmokeE2E(_BrowserE2E):
+    """One end-to-end pass of the headline feature: EXPLAIN a query, save it,
+    EXPLAIN a different one, save it, and diff the two — expecting the structured
+    node diff with its 'plan changed' badge to render in the page."""
 
     def _explain_and_save(self, sql, label, plan_token):
         # plan_token is a string unique to THIS query's plan; waiting for it
@@ -579,3 +585,48 @@ class ExplainDiffSmokeE2E(LiveServerTestCase):
         expect(diff.get_by_text("plan changed")).to_be_visible()
         expect(diff).to_contain_text("Seq Scan on orders")
         expect(diff).to_contain_text("Sort")
+
+
+@unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
+                     "needs playwright + chromium and a reachable sample DB")
+class IndexManagementSmokeE2E(_BrowserE2E):
+    """One end-to-end pass of index management: open a table, create an index
+    from the column picker, see it listed, then drop it — driving the real htmx
+    swaps and the hx-confirm dialog on drop."""
+
+    IDX = "e2e_orders_cust_idx"
+
+    def tearDown(self):
+        # Leave the sample DB clean even if an assertion fails mid-flow.
+        try:
+            get_engine(self.conn).drop_index("public", self.IDX)
+        except EngineError:
+            pass
+        super().tearDown()
+
+    def test_create_then_drop_index(self):
+        page = self.page
+        page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
+
+        # Open the orders table detail (the trailing match avoids order_items).
+        page.locator('button[hx-get$="table=orders"]').click()
+        create = page.locator('form[hx-post*="indexes/create"]')
+        create.wait_for()
+
+        # Create a named btree index on customer_id.
+        create.locator('input[name=columns][value="customer_id"]').check()
+        create.locator('input[name=name]').fill(self.IDX)
+        create.get_by_role("button", name="Create").click()
+
+        # It shows up in the index list, with its column.
+        rows = page.locator("#detail")
+        expect(rows).to_contain_text(self.IDX)
+        drop_form = page.locator(
+            'form[hx-post*="indexes/drop"]',
+            has=page.locator(f'input[name=name][value="{self.IDX}"]'))
+        expect(drop_form).to_contain_text("drop")
+
+        # Drop it (htmx hx-confirm fires window.confirm — auto-accept).
+        page.on("dialog", lambda d: d.accept())
+        drop_form.get_by_role("button", name="drop").click()
+        expect(page.locator("#detail")).not_to_contain_text(self.IDX)
