@@ -48,8 +48,17 @@
 
   <!-- Indexes: the index list from \d table, now with create / drop -->
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
-      Indexes <span class="mono lowercase text-zinc-600">\d {{ table }}</span>
+    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-zinc-500">
+        Indexes <span class="mono lowercase text-zinc-600">\d {{ table }}</span>
+      </span>
+      <button hx-get="{% url 'index_lab' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML"
+              title="Try an index and measure it before creating it for real"
+              class="text-xs text-amber-200/90 border border-amber-800/60 rounded-lg px-3 py-1.5
+                     hover:border-amber-500 transition flex items-center gap-1.5">
+        <span>⚗</span> Try an index
+      </button>
     </div>
     {% if indexes %}
       <table class="w-full text-sm">

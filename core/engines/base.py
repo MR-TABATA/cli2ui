@@ -193,6 +193,33 @@ class Setting:
         return self.context == "internal"
 
 
+@dataclass
+class IndexPreview:
+    """The result of a 'what-if' index trial: the same query EXPLAIN ANALYZE'd
+    without and then with a hypothetical index, which is created and immediately
+    rolled back. Real measured timing, zero persistence."""
+
+    ddl: str             # the CREATE INDEX you'd run for real (display)
+    before: PlanNode     # plan + real timing without the index
+    after: PlanNode      # plan + real timing with the hypothetical index
+    used: bool           # did the planner actually choose the hypothetical index?
+
+    @property
+    def before_ms(self) -> float | None:
+        return self.before.actual_ms
+
+    @property
+    def after_ms(self) -> float | None:
+        return self.after.actual_ms
+
+    @property
+    def speedup(self) -> float | None:
+        """before / after — >1 means the index made the query faster."""
+        if self.before_ms and self.after_ms and self.after_ms > 0:
+            return self.before_ms / self.after_ms
+        return None
+
+
 class Engine:
     """Base class. One Engine wraps one saved Connection."""
 
@@ -314,6 +341,18 @@ class Engine:
 
     def drop_index(self, schema: str, name: str) -> None:
         """Drop an index. The Web equivalent of `DROP INDEX name`."""
+        raise NotImplementedError
+
+    def preview_index(self, sql: str, schema: str, table: str,
+                      columns: list[str], *, method: str = "btree",
+                      unique: bool = False,
+                      timeout_ms: int = 15000) -> "IndexPreview":
+        """What-if index trial: EXPLAIN ANALYZE the query without, then with, a
+        hypothetical index built inside a transaction that is always rolled back.
+        Real timing, zero persistence — the index (and any side effects of
+        running the query under ANALYZE) are never committed and are invisible to
+        other sessions. Reuses the same CREATE INDEX builder as create_index, but
+        non-concurrent so it can live inside the transaction."""
         raise NotImplementedError
 
     # --- server configuration (postgresql.conf, via SQL) -------------------

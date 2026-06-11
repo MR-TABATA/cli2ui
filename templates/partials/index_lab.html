@@ -1,0 +1,93 @@
+<div id="lab" class="space-y-5">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h2 class="text-lg font-semibold flex items-center gap-2"><span>⚗</span> Index lab</h2>
+      <p class="text-xs text-zinc-500 mono">
+        what-if · the index is built then rolled back — real EXPLAIN ANALYZE timing, nothing persisted
+      </p>
+    </div>
+    <span class="text-[10px] uppercase tracking-wide px-2 py-1 rounded
+                 bg-amber-950/50 text-amber-300 border border-amber-900/60">preview · reversible</span>
+  </div>
+
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-5 space-y-4">
+    <!-- Target table: choosing one loads its columns (preserves the query). -->
+    <div class="flex flex-wrap items-center gap-2 text-sm">
+      <label class="text-zinc-400">Table</label>
+      <select hx-get="{% url 'index_lab' connection.pk %}" hx-target="#lab" hx-swap="outerHTML"
+              hx-include="[name='sql']" name="qualified"
+              class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono text-zinc-100
+                     focus:outline-none focus:border-emerald-400">
+        <option value="">— pick a table —</option>
+        {% for t in tables %}
+          <option value="{{ t.schema }}.{{ t.name }}"
+                  {% if t.schema == schema and t.name == table %}selected{% endif %}>{{ t.qualified }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    {% if schema and table %}
+      <form hx-post="{% url 'index_lab_preview' connection.pk %}" hx-target="#lab-result" hx-swap="innerHTML"
+            hx-disabled-elt="find button[type=submit]"
+            x-data="{
+              picked: [],
+              toggle(c) { const i = this.picked.indexOf(c); i >= 0 ? this.picked.splice(i, 1) : this.picked.push(c); },
+              pos(c) { return this.picked.indexOf(c); }
+            }"
+            @keydown.meta.enter.prevent="$el.requestSubmit()"
+            @keydown.ctrl.enter.prevent="$el.requestSubmit()"
+            class="space-y-3">
+        <input type="hidden" name="schema" value="{{ schema }}">
+        <input type="hidden" name="table" value="{{ table }}">
+        <template x-for="c in picked" :key="c"><input type="hidden" name="columns" :value="c"></template>
+
+        <div>
+          <div class="text-xs uppercase tracking-wide text-zinc-500 mb-1.5">
+            Index to try <span class="normal-case text-zinc-600">— click columns in order</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            {% for col in columns %}
+              <button type="button" @click="toggle('{{ col.name|escapejs }}')"
+                      :class="pos('{{ col.name|escapejs }}') >= 0 ? 'border-emerald-400 text-emerald-300 bg-emerald-950/40' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'"
+                      class="flex items-center gap-1.5 border rounded px-2 py-1 text-sm mono transition">
+                <span x-show="pos('{{ col.name|escapejs }}') >= 0" x-text="pos('{{ col.name|escapejs }}') + 1"
+                      class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-400 text-zinc-950 text-[10px] font-bold"></span>
+                {{ col.name }}
+              </button>
+            {% endfor %}
+          </div>
+          <div class="flex items-center gap-2 mt-2 text-sm">
+            <select name="method"
+                    class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono text-zinc-100 focus:outline-none focus:border-emerald-400">
+              {% for m in index_methods %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+            </select>
+            <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="unique" class="accent-emerald-400"> unique</label>
+          </div>
+        </div>
+
+        <div>
+          <div class="text-xs uppercase tracking-wide text-zinc-500 mb-1.5">
+            Target query <span class="normal-case text-zinc-600">— measured with EXPLAIN ANALYZE (read query)</span>
+          </div>
+          <textarea name="sql" rows="4" spellcheck="false" autocomplete="off"
+                    placeholder="SELECT … the query you want this index to speed up"
+                    class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mono text-sm
+                           text-zinc-100 leading-relaxed focus:outline-none focus:border-emerald-400 resize-y">{{ sql }}</textarea>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button type="submit" :disabled="picked.length === 0"
+                  class="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-medium rounded-lg px-5 py-2 text-sm
+                         transition disabled:opacity-40 disabled:cursor-not-allowed">
+            Preview index ▸
+          </button>
+          <span class="text-xs text-zinc-600">⌘/Ctrl + Enter</span>
+        </div>
+      </form>
+    {% else %}
+      <p class="text-sm text-zinc-500">Pick a table to choose which columns to index.</p>
+    {% endif %}
+  </section>
+
+  <div id="lab-result"></div>
+</div>

@@ -43,6 +43,11 @@
               title="EXPLAIN at 1× / 100× / 10000× row counts — see where the plan breaks as data grows"
               class="border border-amber-700/60 hover:border-amber-500 text-amber-200 rounded-lg
                      px-4 py-2 text-sm transition">Scale ▸</button>
+      <button type="button" hx-get="{% url 'index_lab' connection.pk %}"
+              hx-target="#detail" hx-swap="innerHTML" hx-include="[name='sql']"
+              title="Try an index against this query and measure it before creating it"
+              class="border border-amber-700/60 hover:border-amber-500 text-amber-200 rounded-lg
+                     px-4 py-2 text-sm transition">Try an index ▸</button>
       <span class="text-xs text-zinc-600 ml-1">⌘/Ctrl + Enter to run</span>
     </div>
   </form>

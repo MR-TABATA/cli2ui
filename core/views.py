@@ -170,6 +170,83 @@ def index_drop(request, pk):
     return _render_detail(request, connection, schema, table)
 
 
+def index_lab(request, pk):
+    """The what-if index lab panel. Optionally prefilled (schema/table/sql) from
+    an entry point — a table's "Try an index", the SQL runner, or empty from the
+    nav. When a table is chosen its columns load so you can pick what to index."""
+    connection = get_object_or_404(Connection, pk=pk)
+    # The table dropdown sends one "schema.table" value; everything else carries
+    # schema/table separately. partition() keeps the first dot as the boundary.
+    qualified = request.GET.get("qualified")
+    if qualified:
+        schema, _, table = qualified.partition(".")
+    else:
+        schema = request.GET.get("schema", "")
+        table = request.GET.get("table", "")
+    sql_text = request.GET.get("sql", "")
+    try:
+        engine = get_engine(connection)
+        tables = engine.list_tables()
+        columns = engine.list_columns(schema, table) if schema and table else []
+    except EngineError as exc:
+        return render(request, "partials/error.html", {"message": str(exc)})
+    if not sql_text and schema and table:
+        sql_text = f'SELECT * FROM "{schema}"."{table}"'
+    return render(
+        request,
+        "partials/index_lab.html",
+        {
+            "connection": connection, "tables": tables,
+            "schema": schema, "table": table, "columns": columns,
+            "index_methods": INDEX_METHODS, "sql": sql_text,
+        },
+    )
+
+
+def index_lab_preview(request, pk):
+    """Run the what-if trial and render the before/after timing + plan diff."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    sql_text = (request.POST.get("sql") or "").strip()
+    columns = request.POST.getlist("columns")
+    method = request.POST.get("method", "btree")
+    unique = request.POST.get("unique") == "on"
+    if not sql_text or not columns:
+        return render(request, "partials/index_lab_result.html",
+                      {"error": "Pick a target query and at least one column."})
+    try:
+        preview = get_engine(connection).preview_index(
+            sql_text, schema, table, columns, method=method, unique=unique)
+    except EngineError as exc:
+        return render(request, "partials/index_lab_result.html",
+                      {"error": str(exc)})
+    diff = diff_plans(preview.before, preview.after)
+    return render(
+        request,
+        "partials/index_lab_result.html",
+        {
+            "connection": connection, "preview": preview, "diff": diff,
+            "verdict": _index_verdict(preview),
+            "schema": schema, "table": table, "columns": columns,
+            "method": method, "unique": unique,
+        },
+    )
+
+
+def _index_verdict(preview):
+    """A plain-language headline for a what-if trial, based on the real timing
+    and whether the planner actually used the hypothetical index."""
+    if not preview.used:
+        return {"label": "index not used — wouldn't help this query", "tone": "muted"}
+    s = preview.speedup
+    if s and s >= 1.5:
+        return {"label": f"▼ {s:.1f}× faster", "tone": "good"}
+    if s and s <= 0.67:
+        return {"label": f"▲ {1 / s:.1f}× slower", "tone": "bad"}
+    return {"label": "≈ no measurable change", "tone": "muted"}
+
+
 def overview(request, pk):
     """The workspace home: what each section is and where to start."""
     connection = get_object_or_404(Connection, pk=pk)

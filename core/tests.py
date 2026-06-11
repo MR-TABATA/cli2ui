@@ -16,6 +16,7 @@ from django.test import SimpleTestCase, TestCase
 from core.engines import EngineError, get_engine
 from core.engines.base import Activity, Index, PlanNode, Setting, Table
 from core.engines.postgres import (
+    HYPO_INDEX_NAME,
     INDEX_METHODS,
     _clean,
     _parse_plan,
@@ -480,6 +481,26 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
         self.assertTrue(any(i.primary for i in idx))
         self.assertTrue(all(i.valid for i in idx))
 
+    def test_preview_index_measures_and_leaves_no_trace(self):
+        # The what-if trial returns real before/after timing and the real DDL,
+        # and — the safety core — leaves nothing behind (the hypothetical index
+        # was rolled back, exactly like the scale simulation's catalog edit).
+        before_idx = {i.name for i in self.engine.list_indexes("public", "orders")}
+        preview = self.engine.preview_index(
+            "SELECT * FROM orders WHERE customer_id = 1",
+            "public", "orders", ["customer_id"])
+        self.assertIsNotNone(preview.before.actual_ms)
+        self.assertIsNotNone(preview.after.actual_ms)
+        self.assertIn("CONCURRENTLY", preview.ddl)
+        after_idx = {i.name for i in self.engine.list_indexes("public", "orders")}
+        self.assertEqual(before_idx, after_idx)
+        self.assertNotIn(HYPO_INDEX_NAME, after_idx)
+
+    def test_preview_index_rejects_unknown_column(self):
+        with self.assertRaises(EngineError):
+            self.engine.preview_index("SELECT * FROM orders", "public",
+                                      "orders", ["no_such_col"])
+
     def test_create_index_preserves_column_order(self):
         # Composite index column order is significant and must follow the
         # order we pass, not the table's column order.
@@ -658,3 +679,33 @@ class IndexManagementSmokeE2E(_BrowserE2E):
         page.on("dialog", lambda d: d.accept())
         row.get_by_role("button", name="drop").click()
         expect(page.locator("#detail")).not_to_contain_text(self.IDX)
+
+
+@unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
+                     "needs playwright + chromium and a reachable sample DB")
+class IndexLabSmokeE2E(_BrowserE2E):
+    """One end-to-end pass of the what-if index lab: open it, pick a table and a
+    column, preview a hypothetical index, and see the real before/after timing
+    and plan diff render — without creating anything."""
+
+    def test_preview_hypothetical_index(self):
+        page = self.page
+        page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
+        page.get_by_role("button", name="⚗ index lab", exact=True).click()
+
+        # Choose the orders table; its columns load (htmx swaps #lab).
+        page.locator("#lab select[name=qualified]").wait_for()
+        page.locator("#lab select[name=qualified]").select_option("public.orders")
+
+        # Pick a column to index, then preview against the prefilled query.
+        form = page.locator('form[hx-post*="lab/preview"]')
+        form.get_by_role("button", name="customer_id", exact=True).click()
+        form.locator("textarea[name=sql]").fill(
+            "SELECT * FROM orders WHERE customer_id = 1")
+        form.get_by_role("button", name="Preview index ▸").click()
+
+        # Real timing + the create-for-real affordance show up; nothing created.
+        result = page.locator("#lab-result")
+        expect(result).to_contain_text("with index")
+        expect(result).to_contain_text("ms")
+        expect(result.get_by_role("button", name="Create for real ▸")).to_be_visible()

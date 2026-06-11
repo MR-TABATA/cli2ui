@@ -13,6 +13,7 @@ from .base import (
     Engine,
     EngineError,
     Index,
+    IndexPreview,
     PlanNode,
     Preview,
     QueryResult,
@@ -124,6 +125,10 @@ ORDER BY ix.indisprimary DESC, i.relname;
 # chosen method is interpolated into the DDL as a bare keyword (it can't be a
 # bound parameter), so it must never come straight from user input.
 INDEX_METHODS = ("btree", "hash", "gin", "gist", "spgist", "brin")
+
+# Name given to the throwaway index created during a what-if trial, so we can
+# tell whether the planner actually chose it (it's rolled back regardless).
+HYPO_INDEX_NAME = "_cli2ui_hypothetical_idx"
 
 
 def build_create_index_sql(schema, table, columns, *, method="btree",
@@ -479,6 +484,45 @@ class PostgresEngine(Engine):
         self._execute(sql.SQL("DROP INDEX CONCURRENTLY {}.{}").format(
             sql.Identifier(schema), sql.Identifier(name)))
 
+    def preview_index(self, sql_text: str, schema: str, table: str,
+                      columns: list[str], *, method: str = "btree",
+                      unique: bool = False,
+                      timeout_ms: int = 15000) -> IndexPreview:
+        valid = {c.name for c in self.list_columns(schema, table)}
+        unknown = [c for c in columns if c not in valid]
+        if unknown:
+            raise EngineError(f"No such column(s): {', '.join(unknown)}")
+        # The throwaway index we actually build (named so we can detect use);
+        # plain (not CONCURRENTLY) so it can live inside the transaction.
+        hypo = build_create_index_sql(schema, table, columns, method=method,
+                                      unique=unique, name=HYPO_INDEX_NAME,
+                                      concurrently=False)
+        # The statement the user would run for real (what we display).
+        real = build_create_index_sql(schema, table, columns, method=method,
+                                      unique=unique, concurrently=True)
+        explain = "EXPLAIN (ANALYZE, FORMAT JSON) " + sql_text
+        with self._connect() as conn:
+            # NOT read-only: we CREATE INDEX. Safety is the unconditional
+            # ROLLBACK — the index, and any side effects of running the query
+            # under ANALYZE, are never committed and are invisible to others.
+            conn.autocommit = False
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
+                    cur.execute("SET LOCAL lock_timeout = '2s'")
+                    cur.execute(explain)
+                    before = _parse_plan(cur.fetchone()[0])
+                    cur.execute(hypo)  # visible to the next EXPLAIN in this tx
+                    cur.execute(explain)
+                    after = _parse_plan(cur.fetchone()[0])
+                    ddl = real.as_string(cur)
+            except psycopg2.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+            conn.rollback()  # never persist the hypothetical index
+        return IndexPreview(ddl=ddl, before=before, after=after,
+                            used=_uses_index(after, HYPO_INDEX_NAME))
+
     def _execute(self, statement) -> None:
         """Run a composed DDL statement, mapping driver errors to EngineError."""
         with self._connect() as conn:
@@ -634,6 +678,14 @@ def _relation_names(node: PlanNode, acc: set[str] | None = None) -> set[str]:
     for child in node.children:
         _relation_names(child, acc)
     return acc
+
+
+def _uses_index(node: PlanNode, name: str) -> bool:
+    """Whether any scan in the plan tree uses the named index — i.e. did the
+    planner actually pick the hypothetical index we offered it?"""
+    if node.index == name:
+        return True
+    return any(_uses_index(c, name) for c in node.children)
 
 
 def _scale_error(exc: psycopg2.Error) -> str:
