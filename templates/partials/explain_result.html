@@ -15,6 +15,7 @@
     <input type="hidden" name="analyzed" value="{% if analyzed %}1{% else %}0{% endif %}">
     <textarea name="sql" class="hidden">{{ sql }}</textarea>
     <textarea name="plan_text" class="hidden">{{ plan }}</textarea>
+    <textarea name="plan_json" class="hidden">{{ plan_json }}</textarea>
     <input name="label" placeholder="Snapshot name (e.g. before index)" autocomplete="off"
            class="bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-100
                   w-64 focus:outline-none focus:border-emerald-400">

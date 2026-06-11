@@ -1,4 +1,5 @@
 import difflib
+import json
 
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
@@ -9,6 +10,11 @@ from django.utils import timezone
 from .engines import EngineError, get_engine
 from .forms import ConnectionForm
 from .models import Connection, PlanSnapshot
+from .plan_diff import diff_plans, node_from_dict, node_to_dict, to_text
+
+# Row-count multipliers for the scale simulation: now, 100×, 10000×. Enough
+# spread to make the planner cross its Seq→Index / NestedLoop→Hash thresholds.
+SCALE_FACTORS = (1, 100, 10000)
 
 # The parameters people actually reach for — connections, memory, WAL, logging.
 # Shown by default so the editor isn't a wall of 350 obscure GUCs.
@@ -159,14 +165,21 @@ def explain_run(request, pk):
     if not sql_text:
         return render(request, "partials/query_result.html", {"empty": True})
     try:
-        plan = get_engine(connection).explain(sql_text, analyze=analyze)
+        node = get_engine(connection).explain_json(sql_text, analyze=analyze)
     except EngineError as exc:
         return render(request, "partials/query_result.html", {"error": str(exc)})
 
+    # Render the plan from the parsed tree (so the saved snapshot carries the
+    # structured form for node-level diffs, no second EXPLAIN at save time).
     return render(
         request,
         "partials/explain_result.html",
-        {"connection": connection, "sql": sql_text, "plan": plan, "analyzed": analyze},
+        {
+            "connection": connection, "sql": sql_text,
+            "plan": to_text(node),
+            "plan_json": json.dumps(node_to_dict(node)),
+            "analyzed": analyze,
+        },
     )
 
 
@@ -181,6 +194,7 @@ def snapshot_save(request, pk):
         label=label,
         sql=request.POST.get("sql", ""),
         plan_text=request.POST.get("plan_text", ""),
+        plan_json=request.POST.get("plan_json", ""),
         analyzed=request.POST.get("analyzed") == "1",
     )
     return render(request, "partials/snapshot_saved.html",
@@ -218,12 +232,23 @@ def snapshot_delete(request, pk):
 
 
 def snapshot_diff(request, pk):
-    """Unified text diff between two saved plans (A → B)."""
+    """Diff two saved plans (A → B). Structured node-level diff when both plans
+    have the JSON form; falls back to a text diff for older snapshots."""
     connection = get_object_or_404(Connection, pk=pk)
     a = connection.snapshots.filter(pk=request.GET.get("a")).first()
     b = connection.snapshots.filter(pk=request.GET.get("b")).first()
     if not a or not b:
         return render(request, "partials/snapshot_diff.html", {"missing": True})
+
+    if a.plan_json and b.plan_json:
+        diff = diff_plans(node_from_dict(json.loads(a.plan_json)),
+                          node_from_dict(json.loads(b.plan_json)))
+        return render(
+            request,
+            "partials/snapshot_diff.html",
+            {"connection": connection, "a": a, "b": b,
+             "structured": diff, "identical": diff.identical},
+        )
 
     lines = []
     for line in difflib.unified_diff(
@@ -247,6 +272,32 @@ def snapshot_diff(request, pk):
         "partials/snapshot_diff.html",
         {"connection": connection, "a": a, "b": b, "lines": lines,
          "identical": not lines},
+    )
+
+
+def scale_run(request, pk):
+    """Scale simulation: EXPLAIN the editor's query at 1× / 100× / 10000× the
+    real row counts, then structurally diff adjacent plans so you can see where
+    the plan shape breaks as the data grows."""
+    connection = get_object_or_404(Connection, pk=pk)
+    sql_text = (request.POST.get("sql") or "").strip()
+    if not sql_text:
+        return render(request, "partials/query_result.html", {"empty": True})
+    try:
+        plans = get_engine(connection).simulate_scale(sql_text, factors=SCALE_FACTORS)
+    except EngineError as exc:
+        return render(request, "partials/query_result.html", {"error": str(exc)})
+
+    # Diff each factor against the previous one — the jump that flips a scan or
+    # join is the headline.
+    steps = [
+        {"a": prev, "b": cur, "diff": diff_plans(prev.plan, cur.plan)}
+        for prev, cur in zip(plans, plans[1:])
+    ]
+    return render(
+        request,
+        "partials/scale_result.html",
+        {"connection": connection, "sql": sql_text, "plans": plans, "steps": steps},
     )
 
 

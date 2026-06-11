@@ -71,6 +71,46 @@ class QueryResult:
 
 
 @dataclass
+class PlanNode:
+    """One node of an EXPLAIN plan tree (parsed from FORMAT JSON).
+
+    The structured form behind the raw plan text: it lets us diff plans node by
+    node (Seq Scan → Index Scan, cost/row blow-ups) instead of as flat text, and
+    it's the unit the scale simulation compares across row-count multipliers.
+    """
+
+    node_type: str            # "Seq Scan", "Hash Join", "Sort", …
+    relation: str | None      # "Relation Name" — the table, if a scan
+    index: str | None         # "Index Name" — if an index scan
+    plan_rows: float          # estimated rows out of this node (the headline)
+    total_cost: float         # estimated cumulative cost
+    plan_width: int
+    actual_rows: float | None  # ANALYZE only: real rows
+    actual_ms: float | None    # ANALYZE only: real total time (ms, all loops)
+    loops: int | None
+    detail: str | None         # join type / strategy / scan direction hint
+    children: list["PlanNode"]
+
+    @property
+    def summary(self) -> str:
+        """The one-line label psql prints, e.g. 'Index Scan using pk on orders'."""
+        s = self.node_type
+        if self.index:
+            s += f" using {self.index}"
+        if self.relation:
+            s += f" on {self.relation}"
+        return s
+
+
+@dataclass
+class ScalePlan:
+    """One EXPLAIN plan produced at a given row-count multiplier (what-if)."""
+
+    factor: int        # 1 = real stats, 100 = "what if every table were 100× bigger"
+    plan: PlanNode
+
+
+@dataclass
 class Activity:
     """One server session (a row of pg_stat_activity)."""
 
@@ -150,6 +190,22 @@ class Engine:
                 timeout_ms: int = 15000) -> str:
         """Return the query plan as text. ANALYZE runs the query for real
         timings (still inside a read-only transaction, so writes are rejected)."""
+        raise NotImplementedError
+
+    def explain_json(self, sql: str, *, analyze: bool = False,
+                     timeout_ms: int = 15000) -> "PlanNode":
+        """Return the query plan as a parsed tree (EXPLAIN FORMAT JSON), so it
+        can be diffed structurally instead of as text. Same read-only safety."""
+        raise NotImplementedError
+
+    def simulate_scale(self, sql: str, *, factors=(1, 100, 10000),
+                       timeout_ms: int = 15000) -> "list[ScalePlan]":
+        """What-if planning: temporarily scale the involved tables' row-count
+        stats by each factor and EXPLAIN, so you can see *where the plan shape
+        breaks* as data grows — without any real data. The catalog edit is made
+        inside a transaction that is always rolled back (never committed, and
+        invisible to other sessions via MVCC). Plan shape only, not real time;
+        requires a superuser connection."""
         raise NotImplementedError
 
     # --- activity / sessions (pg_stat_activity) ----------------------------

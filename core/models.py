@@ -47,6 +47,9 @@ class PlanSnapshot(models.Model):
     label = models.CharField(max_length=200)
     sql = models.TextField()
     plan_text = models.TextField()
+    # Serialized PlanNode tree (see plan_diff.node_to_dict). Blank for snapshots
+    # saved before structured diff existed — those fall back to a text diff.
+    plan_json = models.TextField(blank=True, default="")
     analyzed = models.BooleanField(default=False)  # EXPLAIN ANALYZE (real timings)?
     created_at = models.DateTimeField(auto_now_add=True)
 

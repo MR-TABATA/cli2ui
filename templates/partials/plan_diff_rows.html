@@ -1,0 +1,41 @@
+{% comment %}Renders a PlanDiff (context var `diff`) as indented node rows. Shared by the snapshot A/B compare and the scale simulation.{% endcomment %}
+<div class="text-xs mono leading-relaxed py-1 overflow-x-auto">
+  {% for r in diff.rows %}
+    <div class="px-3 py-1 border-b border-zinc-800/40
+      {% if r.kind == 'changed' %}bg-amber-950/20
+      {% elif r.kind == 'added' %}bg-emerald-950/20
+      {% elif r.kind == 'removed' %}bg-red-950/20{% endif %}">
+      <div class="flex items-baseline justify-between gap-4"
+           style="padding-left: {% widthratio r.depth 1 18 %}px">
+        <span class="min-w-0 truncate">
+          {% if r.kind == 'changed' %}
+            <span class="text-red-300/70 line-through">{{ r.summary_before }}</span>
+            <span class="text-zinc-600">→</span>
+            <span class="text-amber-200">{{ r.summary }}</span>
+          {% elif r.kind == 'added' %}
+            <span class="text-emerald-500 mr-1">+</span><span class="text-emerald-200">{{ r.summary }}</span>
+          {% elif r.kind == 'removed' %}
+            <span class="text-red-500 mr-1">−</span><span class="text-red-300/80 line-through">{{ r.summary }}</span>
+          {% else %}
+            <span class="text-zinc-400">{{ r.summary }}</span>
+          {% endif %}
+        </span>
+        <span class="shrink-0 text-[11px] tabular-nums flex items-center gap-2">
+          {% if r.rows_before is not None and r.rows_after is not None %}
+            <span class="text-zinc-500">rows {{ r.rows_before|floatformat:0 }}→{{ r.rows_after|floatformat:0 }}</span>
+            {% if r.rows_factor and r.rows_factor >= 2 %}
+              <span class="px-1 rounded bg-amber-500/15 text-amber-300">×{{ r.rows_factor|floatformat:0 }}</span>
+            {% endif %}
+          {% elif r.rows_after is not None %}
+            <span class="text-emerald-400">rows {{ r.rows_after|floatformat:0 }}</span>
+          {% elif r.rows_before is not None %}
+            <span class="text-red-400">rows {{ r.rows_before|floatformat:0 }}</span>
+          {% endif %}
+          {% if r.cost_factor and r.cost_factor >= 2 %}
+            <span class="px-1 rounded bg-red-500/15 text-red-300">cost ×{{ r.cost_factor|floatformat:0 }}</span>
+          {% endif %}
+        </span>
+      </div>
+    </div>
+  {% endfor %}
+</div>
