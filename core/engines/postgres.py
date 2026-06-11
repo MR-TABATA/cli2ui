@@ -109,7 +109,8 @@ SELECT i.relname AS name,
        ix.indisunique AS is_unique,
        ix.indisprimary AS is_primary,
        pg_catalog.pg_get_indexdef(ix.indexrelid) AS definition,
-       pg_catalog.pg_size_pretty(pg_catalog.pg_relation_size(ix.indexrelid)) AS size
+       pg_catalog.pg_size_pretty(pg_catalog.pg_relation_size(ix.indexrelid)) AS size,
+       ix.indisvalid AS is_valid
 FROM pg_catalog.pg_index ix
 JOIN pg_catalog.pg_class i ON i.oid = ix.indexrelid
 JOIN pg_catalog.pg_class t ON t.oid = ix.indrelid
@@ -452,7 +453,8 @@ class PostgresEngine(Engine):
                 cur.execute(LIST_INDEXES_SQL, (schema, table))
                 return [
                     Index(name=row[0], method=row[1], unique=row[2],
-                          primary=row[3], definition=row[4], size=row[5])
+                          primary=row[3], definition=row[4], size=row[5],
+                          valid=row[6])
                     for row in cur.fetchall()
                 ]
 

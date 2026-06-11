@@ -69,6 +69,7 @@
                 {{ ix.name }}
                 {% if ix.primary %}<span class="inline-block text-xs text-amber-300/90 bg-amber-950/50 rounded px-1.5 py-0.5 ml-1">primary</span>
                 {% elif ix.unique %}<span class="inline-block text-xs text-sky-300/90 bg-sky-950/50 rounded px-1.5 py-0.5 ml-1">unique</span>{% endif %}
+                {% if not ix.valid %}<span class="inline-block text-xs text-red-300/90 bg-red-950/50 rounded px-1.5 py-0.5 ml-1" title="A concurrent build failed — this index is unusable; drop it.">invalid</span>{% endif %}
               </td>
               <td class="px-5 py-2 text-zinc-400 mono truncate max-w-[280px]">{{ ix.columns_text }}</td>
               <td class="px-5 py-2 text-zinc-400 mono">{{ ix.method }}</td>
@@ -94,19 +95,33 @@
       <p class="px-5 py-6 text-center text-zinc-500 text-sm">No indexes on this table yet.</p>
     {% endif %}
 
-    <!-- Create index: pick columns, access method, uniqueness -->
+    <!-- Create index: pick columns IN ORDER, access method, uniqueness.
+         Column order is significant for composite indexes, so we don't rely on
+         checkbox/DOM order — clicking builds an explicit ordered list (Alpine),
+         emitted as hidden inputs in that order. -->
     <form hx-post="{% url 'index_create' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          hx-disabled-elt="find button"
+          hx-disabled-elt="find button[type=submit]"
+          x-data="{
+            picked: [],
+            toggle(c) { const i = this.picked.indexOf(c); i >= 0 ? this.picked.splice(i, 1) : this.picked.push(c); },
+            pos(c) { return this.picked.indexOf(c); }
+          }"
           class="px-5 py-3 border-t border-zinc-800 space-y-2.5">
       <input type="hidden" name="schema" value="{{ schema }}">
       <input type="hidden" name="table" value="{{ table }}">
-      <div class="text-xs uppercase tracking-wide text-zinc-500">Create index</div>
-      <div class="flex flex-wrap gap-x-4 gap-y-1.5">
+      <template x-for="c in picked" :key="c"><input type="hidden" name="columns" :value="c"></template>
+      <div class="text-xs uppercase tracking-wide text-zinc-500">
+        Create index <span class="normal-case text-zinc-600">— click columns in the order you want them indexed</span>
+      </div>
+      <div class="flex flex-wrap gap-1.5">
         {% for col in columns %}
-          <label class="flex items-center gap-1.5 text-sm text-zinc-300 mono">
-            <input type="checkbox" name="columns" value="{{ col.name }}" class="accent-emerald-400">
+          <button type="button" @click="toggle('{{ col.name|escapejs }}')"
+                  :class="pos('{{ col.name|escapejs }}') >= 0 ? 'border-emerald-400 text-emerald-300 bg-emerald-950/40' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'"
+                  class="flex items-center gap-1.5 border rounded px-2 py-1 text-sm mono transition">
+            <span x-show="pos('{{ col.name|escapejs }}') >= 0" x-text="pos('{{ col.name|escapejs }}') + 1"
+                  class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-400 text-zinc-950 text-[10px] font-bold"></span>
             {{ col.name }}
-          </label>
+          </button>
         {% endfor %}
       </div>
       <div class="flex flex-wrap items-center gap-2 text-sm">
@@ -118,8 +133,9 @@
           {% for m in index_methods %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
         </select>
         <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="unique" class="accent-emerald-400"> unique</label>
-        <button type="submit"
-                class="bg-emerald-400 text-zinc-950 font-medium rounded px-3 py-1 hover:bg-emerald-300">
+        <button type="submit" :disabled="picked.length === 0"
+                class="bg-emerald-400 text-zinc-950 font-medium rounded px-3 py-1 hover:bg-emerald-300
+                       disabled:opacity-40 disabled:cursor-not-allowed">
           + Create
         </button>
         <span class="text-xs text-zinc-600">built CONCURRENTLY</span>

@@ -71,16 +71,29 @@ class Index:
     primary: bool        # backs a PRIMARY KEY constraint
     definition: str      # the full CREATE INDEX … statement (pg_get_indexdef)
     size: str | None     # pretty-printed on-disk size
+    valid: bool = True   # False = a failed CONCURRENTLY build left it unusable
 
     @property
     def columns_text(self) -> str:
         """The indexed columns/expressions, pulled from the definition's
-        parentheses — e.g. 'customer_id, created_at' — for a compact display."""
+        column list — e.g. 'customer_id, created_at' — for a compact display.
+
+        Reads to the close paren that *matches* the first open paren, so a
+        partial index's `WHERE (…)` or an expression index's nested parens
+        (e.g. `(lower(name))`) don't leak into the display."""
         start = self.definition.find("(")
-        end = self.definition.rfind(")")
-        if start == -1 or end <= start:
+        if start == -1:
             return ""
-        return self.definition[start + 1:end].strip()
+        depth = 0
+        for i in range(start, len(self.definition)):
+            ch = self.definition[i]
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0:
+                    return self.definition[start + 1:i].strip()
+        return ""
 
 
 @dataclass
