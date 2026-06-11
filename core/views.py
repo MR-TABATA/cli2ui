@@ -173,6 +173,69 @@ def index_drop(request, pk):
     return _render_detail(request, connection, schema, table)
 
 
+def _refresh_table_tree(response, request, connection):
+    """Out-of-band swap the sidebar table list into an existing response, so a
+    rename/truncate/drop updates the tree in the same round trip as the main
+    pane. Skipped silently if the connection can't be listed (the response
+    already carries the relevant error)."""
+    try:
+        tables = get_engine(connection).list_tables()
+    except EngineError:
+        return response
+    response.content += render_to_string(
+        "partials/table_list.html",
+        {"connection": connection, "tables": tables, "oob": True},
+        request=request,
+    ).encode()
+    return response
+
+
+def table_rename(request, pk):
+    """Rename a table (ALTER TABLE … RENAME TO), then show the renamed table and
+    refresh the sidebar tree."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    new_name = (request.POST.get("new_name") or "").strip()
+    if not new_name:
+        return _render_detail(request, connection, schema, table,
+                              error="Enter a new table name.")
+    try:
+        get_engine(connection).rename_table(schema, table, new_name)
+    except EngineError as exc:
+        return _render_detail(request, connection, schema, table, error=str(exc))
+    response = _render_detail(request, connection, schema, new_name)
+    return _refresh_table_tree(response, request, connection)
+
+
+def table_truncate(request, pk):
+    """Truncate a table (delete every row), then re-render its detail with the
+    now-empty preview and refresh the sidebar row count."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    try:
+        get_engine(connection).truncate_table(schema, table)
+    except EngineError as exc:
+        return _render_detail(request, connection, schema, table, error=str(exc))
+    response = _render_detail(request, connection, schema, table)
+    return _refresh_table_tree(response, request, connection)
+
+
+def table_drop(request, pk):
+    """Drop a table. Nothing left to show, so land on the overview and drop it
+    out of the sidebar tree."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    try:
+        get_engine(connection).drop_table(schema, table)
+    except EngineError as exc:
+        return _render_detail(request, connection, schema, table, error=str(exc))
+    response = overview(request, pk)
+    return _refresh_table_tree(response, request, connection)
+
+
 def index_lab(request, pk):
     """The what-if index lab panel. Optionally prefilled (schema/table/sql) from
     an entry point — a table's "Try an index", the SQL runner, or empty from the

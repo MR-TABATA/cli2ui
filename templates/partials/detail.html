@@ -1,4 +1,4 @@
-<div class="space-y-5">
+<div class="space-y-5" x-data="{ ren: false }">
   <div class="flex items-start justify-between gap-3">
     <div>
       <h2 class="text-lg font-semibold mono">{{ schema }}.{{ table }}</h2>
@@ -7,13 +7,53 @@
         previewing up to {{ preview_rows|length }} row{{ preview_rows|length|pluralize }}
       </p>
     </div>
-    <button hx-get="{% url 'query' connection.pk %}?sql={{ query_sql|urlencode }}"
-            hx-target="#detail" hx-swap="innerHTML"
-            class="shrink-0 text-xs text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1.5
-                   hover:border-zinc-600 transition flex items-center gap-1.5">
-      <span>▷</span> Open in SQL
-    </button>
+    <div class="shrink-0 flex items-center gap-1.5">
+      <button hx-get="{% url 'query' connection.pk %}?sql={{ query_sql|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML"
+              class="text-xs text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1.5
+                     hover:border-zinc-600 transition flex items-center gap-1.5">
+        <span>▷</span> Open in SQL
+      </button>
+      <button @click="ren = !ren"
+              :class="ren ? 'border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
+              class="text-xs border rounded-lg px-3 py-1.5 hover:border-zinc-600 transition">
+        rename
+      </button>
+      <form hx-post="{% url 'table_truncate' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            hx-confirm="Truncate &quot;{{ schema }}.{{ table }}&quot;? This permanently deletes every row.">
+        <input type="hidden" name="schema" value="{{ schema }}">
+        <input type="hidden" name="table" value="{{ table }}">
+        <button type="submit"
+                class="text-xs text-amber-300/80 border border-amber-900/60 rounded-lg px-3 py-1.5
+                       hover:border-amber-500 transition">truncate</button>
+      </form>
+      <form hx-post="{% url 'table_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            hx-confirm="Drop table &quot;{{ schema }}.{{ table }}&quot;? This cannot be undone.">
+        <input type="hidden" name="schema" value="{{ schema }}">
+        <input type="hidden" name="table" value="{{ table }}">
+        <button type="submit"
+                class="text-xs text-red-400/80 border border-red-900/60 rounded-lg px-3 py-1.5
+                       hover:border-red-500 transition">drop</button>
+      </form>
+    </div>
   </div>
+
+  <!-- Rename: inline, toggled from the header. ALTER TABLE … RENAME TO. -->
+  <form x-show="ren" x-cloak hx-post="{% url 'table_rename' connection.pk %}"
+        hx-target="#detail" hx-swap="innerHTML"
+        class="flex items-center gap-2 bg-zinc-900/60 border border-zinc-800 rounded-lg px-3 py-2">
+    <input type="hidden" name="schema" value="{{ schema }}">
+    <input type="hidden" name="table" value="{{ table }}">
+    <span class="text-xs text-zinc-500 shrink-0">Rename to</span>
+    <input name="new_name" value="{{ table }}" autocomplete="off" required
+           class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono text-sm w-56
+                  text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
+    <button type="submit"
+            class="bg-emerald-400 text-zinc-950 font-medium rounded px-3 py-1 text-sm hover:bg-emerald-300">
+      Rename
+    </button>
+    <button type="button" @click="ren = false" class="text-xs text-zinc-500 hover:text-zinc-300">cancel</button>
+  </form>
 
   {% if error %}
     <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-2.5 text-sm text-red-200/90 mono">{{ error }}</div>

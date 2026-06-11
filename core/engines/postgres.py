@@ -624,6 +624,24 @@ class PostgresEngine(Engine):
         self._execute(sql.SQL("DROP INDEX CONCURRENTLY {}.{}").format(
             sql.Identifier(schema), sql.Identifier(name)))
 
+    # --- table-level operations ------------------------------------------
+
+    def rename_table(self, schema: str, table: str, new_name: str) -> None:
+        self._execute(sql.SQL("ALTER TABLE {}.{} RENAME TO {}").format(
+            sql.Identifier(schema), sql.Identifier(table),
+            sql.Identifier(new_name)))
+
+    def truncate_table(self, schema: str, table: str) -> None:
+        self._execute(sql.SQL("TRUNCATE TABLE {}.{}").format(
+            sql.Identifier(schema), sql.Identifier(table)))
+
+    def drop_table(self, schema: str, table: str) -> None:
+        # Non-CASCADE on purpose: if anything depends on the table (views,
+        # foreign keys) the drop fails and we surface why, rather than quietly
+        # taking dependents down with it — same low-risk stance as DROP SCHEMA.
+        self._execute(sql.SQL("DROP TABLE {}.{}").format(
+            sql.Identifier(schema), sql.Identifier(table)))
+
     def preview_index(self, sql_text: str, schema: str, table: str,
                       columns: list[str], *, method: str = "btree",
                       unique: bool = False,
