@@ -385,6 +385,22 @@ class Engine:
         """Drop a role. The Web equivalent of `DROP ROLE name`."""
         raise NotImplementedError
 
+    def create_database(self, name: str, *, template: str | None = None,
+                        owner: str | None = None,
+                        encoding: str | None = None) -> None:
+        """Create a database, optionally copying an existing one as a TEMPLATE
+        (the Web equivalent of `createdb` / `CREATE DATABASE … TEMPLATE src`)."""
+        raise NotImplementedError
+
+    def drop_database(self, name: str, *, force: bool = False) -> None:
+        """Drop a database (`DROP DATABASE name [WITH (FORCE)]`). FORCE
+        disconnects other sessions first (PostgreSQL 13+)."""
+        raise NotImplementedError
+
+    def rename_database(self, old: str, new: str) -> None:
+        """Rename a database (`ALTER DATABASE old RENAME TO new`)."""
+        raise NotImplementedError
+
     # --- indexes (CREATE / DROP INDEX) -------------------------------------
 
     def list_indexes(self, schema: str, table: str) -> list[Index]:

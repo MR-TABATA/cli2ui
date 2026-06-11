@@ -547,6 +547,48 @@ def objects(request, pk):
     return _render_objects(request, connection)
 
 
+def database_create(request, pk):
+    """Create a database, optionally cloning one via TEMPLATE, then re-render."""
+    connection = get_object_or_404(Connection, pk=pk)
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        return _render_objects(request, connection, error="Database name is required.")
+    template = (request.POST.get("template") or "").strip() or None
+    try:
+        get_engine(connection).create_database(name, template=template)
+    except EngineError as exc:
+        return _render_objects(request, connection, error=str(exc))
+    return _render_objects(request, connection)
+
+
+def database_drop(request, pk):
+    """Drop a database (DROP DATABASE [WITH FORCE]), then re-render."""
+    connection = get_object_or_404(Connection, pk=pk)
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        return _render_objects(request, connection, error="Database name is required.")
+    try:
+        get_engine(connection).drop_database(
+            name, force=request.POST.get("force") == "on")
+    except EngineError as exc:
+        return _render_objects(request, connection, error=str(exc))
+    return _render_objects(request, connection)
+
+
+def database_rename(request, pk):
+    """Rename a database (ALTER DATABASE … RENAME TO), then re-render."""
+    connection = get_object_or_404(Connection, pk=pk)
+    old = (request.POST.get("old") or "").strip()
+    new = (request.POST.get("new") or "").strip()
+    if not old or not new:
+        return _render_objects(request, connection, error="Both names are required.")
+    try:
+        get_engine(connection).rename_database(old, new)
+    except EngineError as exc:
+        return _render_objects(request, connection, error=str(exc))
+    return _render_objects(request, connection)
+
+
 def schema_create(request, pk):
     """Create a schema (CREATE SCHEMA), then re-render the objects panel."""
     connection = get_object_or_404(Connection, pk=pk)
