@@ -12,6 +12,7 @@ from psycopg2 import sql
 from .base import (
     Activity,
     Blocker,
+    BloatEstimate,
     Column,
     Database,
     Dump,
@@ -237,6 +238,51 @@ SELECT schemaname, relname, n_live_tup, n_dead_tup,
        GREATEST(last_analyze, last_autoanalyze) AS last_analyze
 FROM pg_catalog.pg_stat_user_tables
 ORDER BY n_dead_tup DESC, schemaname, relname;
+"""
+
+# Health — estimated table bloat from pg_stats alone (no table scan, so it's
+# cheap but approximate). It compares each table's actual page count against the
+# "ideal" page count its average row width implies; the gap is wasted space.
+# Adapted from the long-standing PostgreSQL wiki bloat-estimation query, reduced
+# to heap (table) bloat only. Needs ANALYZE to have populated pg_stats.
+BLOAT_SQL = """
+SELECT schemaname, tablename, table_bytes,
+       CASE WHEN relpages < otta THEN 0
+            ELSE (bs * (relpages - otta))::bigint END AS wasted_bytes,
+       CASE WHEN otta = 0 THEN 1.0
+            ELSE round((relpages / otta)::numeric, 2) END AS bloat_ratio
+FROM (
+  SELECT schemaname, tablename, cc.relpages, bs,
+         pg_table_size(cc.oid) AS table_bytes,
+         ceil((cc.reltuples * ((datahdr + ma -
+              (CASE WHEN datahdr % ma = 0 THEN ma ELSE datahdr % ma END))
+              + nullhdr2 + 4)) / (bs - 20::float)) AS otta
+  FROM (
+    SELECT ma, bs, schemaname, tablename,
+           (datawidth + (hdr + ma -
+              (CASE WHEN hdr % ma = 0 THEN ma ELSE hdr % ma END)))::numeric AS datahdr,
+           (maxfracsum * (nullhdr + ma -
+              (CASE WHEN nullhdr % ma = 0 THEN ma ELSE nullhdr % ma END))) AS nullhdr2
+    FROM (
+      SELECT schemaname, tablename, hdr, ma, bs,
+             SUM((1 - null_frac) * avg_width) AS datawidth,
+             MAX(null_frac) AS maxfracsum,
+             hdr + (SELECT 1 + count(*) / 8 FROM pg_stats s2
+                    WHERE null_frac <> 0 AND s2.schemaname = s.schemaname
+                      AND s2.tablename = s.tablename) AS nullhdr
+      FROM pg_stats s,
+           (SELECT current_setting('block_size')::numeric AS bs, 23 AS hdr, 8 AS ma) AS constants
+      WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+      GROUP BY 1, 2, 3, 4, 5
+    ) AS foo
+  ) AS rs
+  JOIN pg_class cc ON cc.relname = rs.tablename
+  JOIN pg_namespace nn ON cc.relnamespace = nn.oid
+   AND nn.nspname = rs.schemaname
+  WHERE cc.relkind = 'r' AND cc.relpages > 0
+) AS sml
+ORDER BY wasted_bytes DESC
+LIMIT {limit};
 """
 
 # Index access methods we let the UI offer. A fixed allow-list because the
@@ -1051,6 +1097,20 @@ class PostgresEngine(Engine):
                 return [
                     VacuumStat(schema=row[0], name=row[1], live=row[2],
                                dead=row[3], last_vacuum=row[4], last_analyze=row[5])
+                    for row in cur.fetchall()
+                ]
+
+    def bloat_estimates(self, limit: int = 20) -> list[BloatEstimate]:
+        # The query is full of literal % (modulo operators), so it can't carry
+        # bound params without psycopg2 misreading them as placeholders. limit is
+        # a trusted int, so splice it directly and execute with no params.
+        sql_text = BLOAT_SQL.format(limit=int(limit))
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql_text)
+                return [
+                    BloatEstimate(schema=row[0], name=row[1], table_bytes=row[2],
+                                  wasted_bytes=row[3], bloat_ratio=float(row[4]))
                     for row in cur.fetchall()
                 ]
 

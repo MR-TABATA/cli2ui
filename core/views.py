@@ -834,16 +834,42 @@ VACUUM_SHOW_SQL = (
     "FROM pg_stat_user_tables\n"
     "ORDER BY n_dead_tup DESC;"
 )
+# Trimmed, runnable form of BLOAT_SQL (engine) for the card's "open in SQL".
+BLOAT_SHOW_SQL = (
+    "-- Estimated table bloat from pg_stats (no table scan; approximate).\n"
+    "SELECT schemaname, tablename, pg_size_pretty(table_bytes) AS size,\n"
+    "       pg_size_pretty(CASE WHEN relpages < otta THEN 0\n"
+    "                      ELSE (bs*(relpages-otta))::bigint END) AS wasted,\n"
+    "       CASE WHEN otta=0 THEN 1.0 ELSE round((relpages/otta)::numeric,2) END AS ratio\n"
+    "FROM (\n"
+    "  SELECT schemaname, tablename, cc.relpages, bs, pg_table_size(cc.oid) AS table_bytes,\n"
+    "    ceil((cc.reltuples*((datahdr+ma-(CASE WHEN datahdr%ma=0 THEN ma ELSE datahdr%ma END))\n"
+    "         +nullhdr2+4))/(bs-20::float)) AS otta\n"
+    "  FROM (SELECT ma,bs,schemaname,tablename,\n"
+    "          (datawidth+(hdr+ma-(CASE WHEN hdr%ma=0 THEN ma ELSE hdr%ma END)))::numeric AS datahdr,\n"
+    "          (maxfracsum*(nullhdr+ma-(CASE WHEN nullhdr%ma=0 THEN ma ELSE nullhdr%ma END))) AS nullhdr2\n"
+    "        FROM (SELECT schemaname,tablename,hdr,ma,bs,\n"
+    "                SUM((1-null_frac)*avg_width) AS datawidth, MAX(null_frac) AS maxfracsum,\n"
+    "                hdr+(SELECT 1+count(*)/8 FROM pg_stats s2 WHERE null_frac<>0\n"
+    "                     AND s2.schemaname=s.schemaname AND s2.tablename=s.tablename) AS nullhdr\n"
+    "              FROM pg_stats s,(SELECT current_setting('block_size')::numeric AS bs,23 AS hdr,8 AS ma) c\n"
+    "              WHERE schemaname NOT IN ('pg_catalog','information_schema') GROUP BY 1,2,3,4,5) foo) rs\n"
+    "  JOIN pg_class cc ON cc.relname=rs.tablename\n"
+    "  JOIN pg_namespace nn ON cc.relnamespace=nn.oid AND nn.nspname=rs.schemaname\n"
+    "  WHERE cc.relkind='r' AND cc.relpages>0) sml\n"
+    "ORDER BY wasted DESC LIMIT 20;"
+)
 
 
 def health(request, pk):
-    """Health panel: table sizes, unused indexes, dead-tuple/vacuum stats."""
+    """Health panel: table sizes, unused indexes, dead-tuple/vacuum, bloat."""
     connection = get_object_or_404(Connection, pk=pk)
     try:
         engine = get_engine(connection)
         sizes = engine.table_sizes()
         unused = engine.unused_indexes()
         vacuum = engine.vacuum_stats()
+        bloat = engine.bloat_estimates()
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
     return render(
@@ -855,9 +881,11 @@ def health(request, pk):
             "max_bytes": max((s.total_bytes for s in sizes), default=0),
             "unused": unused,
             "vacuum": vacuum,
+            "bloat": bloat,
             "sizes_sql": SIZES_SHOW_SQL,
             "unused_sql": UNUSED_SHOW_SQL,
             "vacuum_sql": VACUUM_SHOW_SQL,
+            "bloat_sql": BLOAT_SHOW_SQL,
         },
     )
 
