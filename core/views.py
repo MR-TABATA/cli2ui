@@ -686,6 +686,127 @@ def _render_activity(request, connection, error=None):
     )
 
 
+# Readable version of BLOCKING_SQL for the panel's "open in SQL" link.
+BLOCKING_SHOW_SQL = (
+    "SELECT a.pid, a.usename, a.query,\n"
+    "       now() - a.query_start AS waiting_for,\n"
+    "       l.locktype, l.mode, COALESCE(c.relname, l.locktype) AS object,\n"
+    "       pg_blocking_pids(a.pid) AS blocked_by\n"
+    "FROM pg_stat_activity a\n"
+    "JOIN pg_locks l ON l.pid = a.pid AND NOT l.granted\n"
+    "LEFT JOIN pg_class c ON c.oid = l.relation\n"
+    "WHERE cardinality(pg_blocking_pids(a.pid)) > 0\n"
+    "ORDER BY waiting_for DESC;"
+)
+
+
+def locks(request, pk):
+    """Locks/blocking panel: who is waiting on a lock and who holds it."""
+    connection = get_object_or_404(Connection, pk=pk)
+    return _render_locks(request, connection)
+
+
+def locks_cancel(request, pk):
+    """Cancel the blocker's query (pg_cancel_backend), then refresh the panel."""
+    connection = get_object_or_404(Connection, pk=pk)
+    return _locks_signal(request, connection, "cancel")
+
+
+def locks_kill(request, pk):
+    """Force-close the blocker (pg_terminate_backend), then refresh the panel."""
+    connection = get_object_or_404(Connection, pk=pk)
+    return _locks_signal(request, connection, "kill")
+
+
+def _locks_signal(request, connection, action):
+    pid = request.POST.get("pid")
+    try:
+        engine = get_engine(connection)
+        if pid:
+            if action == "kill":
+                engine.terminate_backend(int(pid))
+            else:
+                engine.cancel_backend(int(pid))
+    except (EngineError, ValueError) as exc:
+        return _render_locks(request, connection, error=str(exc))
+    return _render_locks(request, connection)
+
+
+def _render_locks(request, connection, error=None):
+    try:
+        waits = get_engine(connection).list_blocking()
+    except EngineError as exc:
+        return render(request, "partials/error.html", {"message": str(exc)})
+    return render(
+        request,
+        "partials/locks.html",
+        {"connection": connection, "waits": waits,
+         "query_sql": BLOCKING_SHOW_SQL, "error": error},
+    )
+
+
+# Readable versions of the replication queries, for each table's "open in SQL".
+STANDBYS_SHOW_SQL = (
+    "SELECT pid, usename, application_name, client_addr, state, sync_state,\n"
+    "       sent_lsn, replay_lsn,\n"
+    "       pg_wal_lsn_diff(sent_lsn, replay_lsn) AS lag_bytes\n"
+    "FROM pg_stat_replication ORDER BY pid;"
+)
+SLOTS_SHOW_SQL = (
+    "SELECT slot_name, slot_type, database, active, restart_lsn, wal_status\n"
+    "FROM pg_replication_slots ORDER BY slot_name;"
+)
+
+
+def replication(request, pk):
+    """Replication panel: readiness + WAL position, connected standbys, slots."""
+    connection = get_object_or_404(Connection, pk=pk)
+    return _render_replication(request, connection)
+
+
+def slot_create(request, pk):
+    """Create a physical replication slot, then refresh the panel."""
+    connection = get_object_or_404(Connection, pk=pk)
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        return _render_replication(request, connection, error="Slot name is required.")
+    try:
+        get_engine(connection).create_replication_slot(name)
+    except EngineError as exc:
+        return _render_replication(request, connection, error=str(exc))
+    return _render_replication(request, connection)
+
+
+def slot_drop(request, pk):
+    """Drop a replication slot (frees the WAL it pinned), then refresh."""
+    connection = get_object_or_404(Connection, pk=pk)
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        return _render_replication(request, connection, error="Slot name is required.")
+    try:
+        get_engine(connection).drop_replication_slot(name)
+    except EngineError as exc:
+        return _render_replication(request, connection, error=str(exc))
+    return _render_replication(request, connection)
+
+
+def _render_replication(request, connection, error=None):
+    try:
+        engine = get_engine(connection)
+        status = engine.replication_status()
+        standbys = engine.list_standbys()
+        slots = engine.list_replication_slots()
+    except EngineError as exc:
+        return render(request, "partials/error.html", {"message": str(exc)})
+    return render(
+        request,
+        "partials/replication.html",
+        {"connection": connection, "status": status, "standbys": standbys,
+         "slots": slots, "standbys_sql": STANDBYS_SHOW_SQL,
+         "slots_sql": SLOTS_SHOW_SQL, "error": error},
+    )
+
+
 # Readable versions of the health queries, for each card's "open in SQL" link.
 SIZES_SHOW_SQL = (
     "SELECT n.nspname AS schema, c.relname AS name,\n"

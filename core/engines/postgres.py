@@ -11,6 +11,7 @@ from psycopg2 import sql
 
 from .base import (
     Activity,
+    Blocker,
     Column,
     Database,
     Dump,
@@ -18,13 +19,17 @@ from .base import (
     EngineError,
     Index,
     IndexPreview,
+    LockWait,
     PlanNode,
     Preview,
     QueryResult,
+    ReplicationSlot,
+    ReplicationStatus,
     Role,
     ScalePlan,
     Schema,
     Setting,
+    Standby,
     Table,
     TableSize,
     UnusedIndex,
@@ -99,6 +104,67 @@ SELECT pid, usename, datname, application_name, client_addr::text, state,
 FROM pg_stat_activity
 WHERE backend_type = 'client backend'
 ORDER BY (pid = pg_backend_pid()) ASC, (state = 'active') DESC, query_start ASC NULLS LAST;
+"""
+
+# Blocked sessions: every backend stuck on a lock it can't get, plus how long
+# it's waited and the contended object. pg_blocking_pids() yields the holders;
+# the guard keeps only sessions actually blocked. A waiting backend has exactly
+# one ungranted lock (the one it wants), so this is one row per blocked session.
+BLOCKING_SQL = """
+SELECT a.pid,
+       a.usename,
+       a.query,
+       EXTRACT(EPOCH FROM (now() - a.query_start))::int AS wait_secs,
+       l.locktype,
+       l.mode,
+       COALESCE(c.relname, l.locktype) AS object,
+       pg_blocking_pids(a.pid) AS blocker_pids
+FROM pg_stat_activity a
+JOIN pg_locks l ON l.pid = a.pid AND NOT l.granted
+LEFT JOIN pg_class c ON c.oid = l.relation
+WHERE cardinality(pg_blocking_pids(a.pid)) > 0
+ORDER BY wait_secs DESC NULLS LAST;
+"""
+
+# pid → (user, state, query) for every client backend, so we can describe the
+# blocker sessions referenced by pg_blocking_pids without a second round-trip.
+ACTIVITY_MAP_SQL = """
+SELECT pid, usename, state, query
+FROM pg_stat_activity
+WHERE backend_type = 'client backend';
+"""
+
+# Replication posture in one row: the config knobs that decide whether a standby
+# can attach, plus the current WAL position. pg_current_wal_lsn() errors while in
+# recovery, so a standby reports its replay LSN instead.
+REPLICATION_STATUS_SQL = """
+SELECT current_setting('wal_level'),
+       current_setting('max_wal_senders')::int,
+       current_setting('max_replication_slots')::int,
+       current_setting('hot_standby'),
+       current_setting('archive_mode'),
+       (CASE WHEN pg_is_in_recovery()
+             THEN pg_last_wal_replay_lsn()
+             ELSE pg_current_wal_lsn() END)::text,
+       pg_is_in_recovery();
+"""
+
+# Connected replicas. lag is sent − replayed in bytes (how far the standby
+# trails what the primary has shipped it).
+STANDBYS_SQL = """
+SELECT pid, usename, application_name, client_addr::text, state, sync_state,
+       sent_lsn::text, replay_lsn::text,
+       pg_wal_lsn_diff(sent_lsn, replay_lsn)::bigint AS lag_bytes
+FROM pg_stat_replication
+ORDER BY pid;
+"""
+
+# Replication slots. wal_status flags whether the WAL a slot needs is still
+# kept ('reserved') or has been lost — the headline "is this slot a problem?".
+SLOTS_SQL = """
+SELECT slot_name, slot_type, database, active, restart_lsn::text, wal_status
+FROM pg_replication_slots
+ORDER BY slot_name;
 """
 
 # Configuration parameters. current_setting() gives the human form ("128MB",
@@ -460,6 +526,90 @@ class PostgresEngine(Engine):
                         sql.SQL("SELECT {}(%s)").format(sql.Identifier(fn)), [pid]
                     )
                     return bool(cur.fetchone()[0])
+                except psycopg2.Error as exc:
+                    raise EngineError(_clean(exc)) from exc
+
+    def list_blocking(self) -> list[LockWait]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(BLOCKING_SQL)
+                rows = cur.fetchall()
+                cur.execute(ACTIVITY_MAP_SQL)
+                info = {r[0]: (r[1], r[2], r[3]) for r in cur.fetchall()}
+        waits = []
+        for row in rows:
+            blockers = [
+                Blocker(
+                    pid=p,
+                    user=info.get(p, (None, None, ""))[0],
+                    state=info.get(p, (None, None, ""))[1],
+                    query=info.get(p, (None, None, ""))[2],
+                )
+                for p in (row[7] or [])
+            ]
+            waits.append(
+                LockWait(
+                    blocked_pid=row[0], blocked_user=row[1], blocked_query=row[2],
+                    wait_secs=row[3], lock_type=row[4], lock_mode=row[5],
+                    object=row[6], blockers=blockers,
+                )
+            )
+        return waits
+
+    # --- replication -----------------------------------------------------
+
+    def replication_status(self) -> ReplicationStatus:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(REPLICATION_STATUS_SQL)
+                r = cur.fetchone()
+        return ReplicationStatus(
+            wal_level=r[0], max_wal_senders=r[1], max_replication_slots=r[2],
+            hot_standby=r[3], archive_mode=r[4], current_lsn=r[5], is_standby=r[6],
+        )
+
+    def list_standbys(self) -> list[Standby]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(STANDBYS_SQL)
+                return [
+                    Standby(
+                        pid=row[0], user=row[1], app=row[2], client=row[3],
+                        state=row[4], sync_state=row[5], sent_lsn=row[6],
+                        replay_lsn=row[7], lag_bytes=row[8],
+                    )
+                    for row in cur.fetchall()
+                ]
+
+    def list_replication_slots(self) -> list[ReplicationSlot]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(SLOTS_SQL)
+                return [
+                    ReplicationSlot(
+                        name=row[0], slot_type=row[1], database=row[2],
+                        active=row[3], restart_lsn=row[4], wal_status=row[5],
+                    )
+                    for row in cur.fetchall()
+                ]
+
+    def create_replication_slot(self, name: str) -> None:
+        # The slot name is a bound value (not an identifier), so this is
+        # injection-safe; Postgres rejects an ill-formed name with a clear error.
+        self._call("pg_create_physical_replication_slot", name)
+
+    def drop_replication_slot(self, name: str) -> None:
+        self._call("pg_drop_replication_slot", name)
+
+    def _call(self, fn: str, *args) -> None:
+        """Run SELECT fn(%s, …) for a side-effecting function, mapping driver
+        errors to EngineError. Args are bound values, never spliced."""
+        placeholders = sql.SQL(", ").join(sql.Placeholder() * len(args))
+        stmt = sql.SQL("SELECT {}({})").format(sql.Identifier(fn), placeholders)
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                try:
+                    cur.execute(stmt, args)
                 except psycopg2.Error as exc:
                     raise EngineError(_clean(exc)) from exc
 

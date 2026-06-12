@@ -179,6 +179,81 @@ class Activity:
 
 
 @dataclass
+class Blocker:
+    """One session holding a lock that another session is waiting on."""
+
+    pid: int
+    user: str | None
+    state: str | None
+    query: str
+
+
+@dataclass
+class LockWait:
+    """One blocked session: the lock it's stuck waiting for and who holds it.
+    The Web equivalent of joining pg_locks against pg_stat_activity to answer
+    "what is my query waiting on, and who do I cancel to free it?"."""
+
+    blocked_pid: int
+    blocked_user: str | None
+    blocked_query: str
+    wait_secs: int | None       # how long it has been waiting
+    lock_type: str              # pg_locks.locktype (relation, transactionid, …)
+    lock_mode: str              # requested mode (AccessExclusiveLock, …)
+    object: str                 # contended relation name, or the lock type
+    blockers: list[Blocker]     # sessions that must release before this proceeds
+
+
+@dataclass
+class ReplicationStatus:
+    """The server's replication posture: am I a primary or a standby, where is
+    my WAL, and am I configured to accept a replica? The settings come straight
+    from pg_settings so this doubles as a 'ready to attach a standby?' check."""
+
+    wal_level: str              # minimal | replica | logical
+    max_wal_senders: int        # 0 means no standby can connect
+    max_replication_slots: int
+    hot_standby: str            # on | off
+    archive_mode: str           # on | off | always
+    current_lsn: str            # write LSN (primary) or replay LSN (standby)
+    is_standby: bool            # pg_is_in_recovery()
+
+    @property
+    def ready(self) -> bool:
+        """Configured to accept a physical standby: WAL detailed enough and at
+        least one sender slot available."""
+        return self.wal_level in ("replica", "logical") and self.max_wal_senders > 0
+
+
+@dataclass
+class Standby:
+    """One connected replica (a row of pg_stat_replication)."""
+
+    pid: int
+    user: str | None
+    app: str | None
+    client: str | None
+    state: str | None           # streaming | catchup | …
+    sync_state: str | None      # async | sync | quorum
+    sent_lsn: str | None
+    replay_lsn: str | None
+    lag_bytes: int | None       # sent − replayed, in bytes
+
+
+@dataclass
+class ReplicationSlot:
+    """One replication slot (a row of pg_replication_slots). An inactive slot
+    keeps WAL pinned, so the panel surfaces active/inactive prominently."""
+
+    name: str
+    slot_type: str              # physical | logical
+    database: str | None        # set for logical slots only
+    active: bool
+    restart_lsn: str | None
+    wal_status: str | None      # reserved | extended | unreserved | lost
+
+
+@dataclass
 class Setting:
     """One server configuration parameter (a row of pg_settings)."""
 
@@ -353,6 +428,33 @@ class Engine:
 
     def terminate_backend(self, pid: int) -> bool:
         """Force-close a session. `pg_terminate_backend(pid)`."""
+        raise NotImplementedError
+
+    def list_blocking(self) -> list[LockWait]:
+        """Sessions blocked waiting on a lock, paired with whoever holds it.
+        The Web equivalent of joining `pg_locks` to `pg_stat_activity`."""
+        raise NotImplementedError
+
+    # --- replication (pg_stat_replication / pg_replication_slots) -----------
+
+    def replication_status(self) -> ReplicationStatus:
+        """WAL position, primary/standby role, and config readiness."""
+        raise NotImplementedError
+
+    def list_standbys(self) -> list[Standby]:
+        """Connected replicas. The Web equivalent of `pg_stat_replication`."""
+        raise NotImplementedError
+
+    def list_replication_slots(self) -> list[ReplicationSlot]:
+        """Replication slots. The Web equivalent of `pg_replication_slots`."""
+        raise NotImplementedError
+
+    def create_replication_slot(self, name: str) -> None:
+        """Create a physical slot. `pg_create_physical_replication_slot(name)`."""
+        raise NotImplementedError
+
+    def drop_replication_slot(self, name: str) -> None:
+        """Drop a slot, freeing the WAL it pinned. `pg_drop_replication_slot`."""
         raise NotImplementedError
 
     # --- catalog browsing (psql backslash commands) ------------------------
