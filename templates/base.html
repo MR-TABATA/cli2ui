@@ -14,6 +14,33 @@
     body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
     .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
     [x-cloak] { display: none !important; }
+
+    /* Shared component classes — see STYLE.md. CDN Tailwind has no @apply, so
+       these are raw CSS using the Tailwind zinc/emerald/red/amber/sky values.
+       Colour = intent: emerald primary/success, red destructive, amber warning,
+       sky info/link, zinc structure. */
+    .btn { display: inline-flex; align-items: center; gap: .375rem; white-space: nowrap;
+           border: 1px solid transparent; border-radius: .5rem; padding: .375rem .75rem;
+           font-size: .875rem; line-height: 1.25rem; cursor: pointer;
+           transition: color .15s, background-color .15s, border-color .15s; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-sm { padding: .25rem .5rem; font-size: .75rem; gap: .25rem; }
+    .btn-primary { background: #34d399; color: #09090b; font-weight: 500; }
+    .btn-primary:hover:not(:disabled) { background: #6ee7b7; }
+    .btn-neutral { border-color: #3f3f46; color: #d4d4d8; }
+    .btn-neutral:hover:not(:disabled) { border-color: #71717a; color: #f4f4f5; }
+    .btn-danger { border-color: rgba(127,29,29,.6); color: rgba(248,113,113,.85); }
+    .btn-danger:hover:not(:disabled) { border-color: #ef4444; color: #fecaca; }
+    .btn-warn { border-color: rgba(120,53,15,.7); color: rgba(252,211,77,.9); }
+    .btn-warn:hover:not(:disabled) { border-color: #f59e0b; color: #fde68a; }
+    .btn-link { border: 0; padding: 0; background: none; color: rgba(125,211,252,.85); }
+    .btn-link:hover:not(:disabled) { color: #bae6fd; }
+
+    .field { background: #09090b; border: 1px solid #3f3f46; border-radius: .5rem;
+             padding: .375rem .625rem; font-size: .875rem; color: #f4f4f5; }
+    .field::placeholder { color: #52525b; }
+    .field:focus { outline: none; border-color: #34d399; }
+    .field-sm { padding: .25rem .5rem; font-size: .75rem; }
     /* htmx loading indicators: hidden until a request the element belongs to is
        in flight (used for the restore spinner). */
     .htmx-indicator { opacity: 0; transition: opacity .2s ease-in; }
