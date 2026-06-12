@@ -134,4 +134,52 @@
       <p class="px-5 py-8 text-center text-zinc-500 text-sm">No table statistics yet.</p>
     {% endif %}
   </section>
+
+  <!-- Bloat estimate: how much space a table wastes (stats-only, approximate) -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-zinc-500">
+        Bloat estimate <span class="mono lowercase text-zinc-600">pg_stats · approximate, no scan</span>
+      </span>
+      <button hx-get="{% url 'query' connection.pk %}?sql={{ bloat_sql|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML"
+              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
+                     hover:border-zinc-600 transition">open in SQL →</button>
+    </div>
+    {% if bloat %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">Table</th>
+            <th class="px-5 py-2 font-medium text-right">Size</th>
+            <th class="px-5 py-2 font-medium text-right">Wasted (est.)</th>
+            <th class="px-5 py-2 font-medium text-right">Wasted %</th>
+            <th class="px-5 py-2 font-medium text-right">Bloat ×</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in bloat %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono">{{ b.qualified }}</td>
+              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ b.table_bytes|filesizeformat }}</td>
+              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ b.wasted_bytes|filesizeformat }}</td>
+              <td class="px-5 py-2 text-right tabular-nums">
+                <span class="mono px-1.5 py-0.5 rounded
+                  {% if b.wasted_pct >= 50 %}bg-red-500/15 text-red-300
+                  {% elif b.wasted_pct >= 20 %}bg-amber-500/15 text-amber-300
+                  {% else %}text-zinc-500{% endif %}">{{ b.wasted_pct }}%</span>
+              </td>
+              <td class="px-5 py-2 mono text-zinc-500 text-right tabular-nums">{{ b.bloat_ratio }}×</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-500">
+        An estimate from planner statistics — run <span class="mono">VACUUM FULL</span> or
+        <span class="mono">pg_repack</span> to reclaim. Needs a recent <span class="mono">ANALYZE</span> to be accurate.
+      </div>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-500 text-sm">No bloat to estimate (or stats not collected yet).</p>
+    {% endif %}
+  </section>
 </div>

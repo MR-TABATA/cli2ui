@@ -86,7 +86,8 @@ MVP. `docker compose up` → connect → browse your tables in a DB-client layou
   with the holder, plus one-click cancel / kill of the blocker
 - ✅ Replication: readiness check (`wal_level` / `max_wal_senders`) + WAL position,
   connected standbys (`pg_stat_replication`), and slot create / drop
-- ⬜ More `pg_*` ops panels: bloat estimate
+- ✅ Health: bloat estimate — wasted table space from a stats-only query
+  (no scan), next to the dead-rows / vacuum card
 - ⬜ Bento ops overview once a few panels exist
 - ⬜ MySQL (the engine layer is ready for it)
 - ⬜ Command history
