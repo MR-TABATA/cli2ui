@@ -88,9 +88,10 @@ MVP. `docker compose up` → connect → browse your tables in a DB-client layou
   connected standbys (`pg_stat_replication`), and slot create / drop
 - ✅ Health: bloat estimate — wasted table space from a stats-only query
   (no scan), next to the dead-rows / vacuum card
+- ✅ Command history: SQL run through the runner, logged to the management DB —
+  status, row count, timing, and one-click re-open
 - ⬜ Bento ops overview once a few panels exist
 - ⬜ MySQL (the engine layer is ready for it)
-- ⬜ Command history
 
 ## Stack
 
