@@ -11,6 +11,14 @@ class EngineError(Exception):
 
 
 @dataclass
+class Dump:
+    """A pg_dump result, ready to hand to the browser as a download."""
+    filename: str
+    content_type: str
+    data: bytes
+
+
+@dataclass
 class Table:
     schema: str
     name: str

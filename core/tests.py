@@ -6,12 +6,13 @@ row/cost factors), and (de)serialization. No PostgreSQL needed — SimpleTestCas
 no DB. The catalog-touching simulate_scale() itself is verified by hand against
 the sample DB (see project notes); here we test the machinery it feeds.
 """
+import contextlib
 import os
 import unittest
 from types import SimpleNamespace
 
 import psycopg2
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.engines import EngineError, get_engine
 from core.engines.base import Activity, Index, PlanNode, Setting, Table
@@ -24,10 +25,11 @@ from core.engines.postgres import (
     _role,
     _scale_error,
     _setting,
+    _tool_error,
     build_create_index_sql,
 )
 from core.forms import ConnectionForm
-from core.models import Connection, PlanSnapshot
+from core.models import Backup, Connection, PlanSnapshot
 from core.plan_diff import diff_plans, node_from_dict, node_to_dict, to_text
 
 
@@ -222,6 +224,27 @@ class CleanErrorTests(SimpleTestCase):
         self.assertEqual(_clean(psycopg2.Error("")), "Could not connect to PostgreSQL.")
 
 
+class ToolErrorTests(SimpleTestCase):
+    def test_prefers_the_error_line_over_a_trailing_summary(self):
+        stderr = (
+            b"pg_restore: connecting to database for restore\n"
+            b"pg_restore: error: could not execute query: ERROR:  relation "
+            b'"orders" already exists\n'
+            b"pg_restore: warning: errors ignored on restore: 1\n"
+        )
+        msg = _tool_error(stderr, "restore failed.")
+        self.assertIn('relation "orders" already exists', msg)
+        # The trailing "errors ignored" summary isn't the only thing shown.
+        self.assertTrue(msg.startswith("pg_restore: error"))
+
+    def test_falls_back_to_last_lines_when_nothing_flagged(self):
+        msg = _tool_error(b"some noise\nmore noise\n", "x failed.")
+        self.assertIn("noise", msg)
+
+    def test_blank_stderr_uses_fallback(self):
+        self.assertEqual(_tool_error(b"   \n", "pg_dump failed."), "pg_dump failed.")
+
+
 class ScaleErrorTests(SimpleTestCase):
     def test_pg_class_permission_gets_friendly_hint(self):
         exc = psycopg2.Error("permission denied for table pg_class")
@@ -348,6 +371,13 @@ class GetEngineTests(SimpleTestCase):
 
 # --- models + form (sqlite management DB) -----------------------------------
 
+class BackupModelTests(SimpleTestCase):
+    def test_pretty_size_scales_units(self):
+        self.assertEqual(Backup(byte_size=512).pretty_size, "512 B")
+        self.assertEqual(Backup(byte_size=2048).pretty_size, "2 kB")
+        self.assertEqual(Backup(byte_size=5 * 1048576).pretty_size, "5.0 MB")
+
+
 class ConnectionModelTests(TestCase):
     def test_display_name_prefers_label(self):
         c = Connection(name="Prod", dbname="shop", host="db", user="u")
@@ -403,6 +433,48 @@ def _sampledb_reachable() -> bool:
         return True
     except Exception:
         return False
+
+
+def _has_pg_dump() -> bool:
+    import shutil
+    return shutil.which("pg_dump") is not None
+
+
+def _has_restore_tools() -> bool:
+    import shutil
+    return all(shutil.which(t) for t in ("pg_dump", "psql", "pg_restore"))
+
+
+def _client_major():
+    import re
+    import subprocess  # nosec B404
+    try:
+        out = subprocess.run(["pg_dump", "--version"],  # nosec B603 B607
+                             capture_output=True, text=True)
+        m = re.search(r"(\d+)\.", out.stdout)
+        return int(m.group(1)) if m else None
+    except Exception:
+        return None
+
+
+def _server_major():
+    try:
+        with get_engine(_sampledb())._connect() as conn, conn.cursor() as cur:
+            cur.execute("SHOW server_version_num")
+            return int(cur.fetchone()[0]) // 10000
+    except Exception:
+        return None
+
+
+def _restore_compatible() -> bool:
+    # A clean round-trip restore needs the client (pg_dump/psql) major version to
+    # be no newer than the server's — a newer client emits settings (e.g.
+    # transaction_timeout in PG17) that an older server rejects. This is a real
+    # pg constraint, not a code issue, so the round-trip tests gate on it.
+    if not _has_restore_tools():
+        return False
+    c, s = _client_major(), _server_major()
+    return c is not None and s is not None and c <= s
 
 
 @unittest.skipUnless(_sampledb_reachable(),
@@ -689,7 +761,183 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
             self._exec(f'DROP VIEW IF EXISTS public."{v}"')
             self._drop_table_if_exists(t)
 
+    def test_add_rename_drop_column_roundtrip(self):
+        t = "cli2ui_test_col_tbl"
+        self._drop_table_if_exists(t)
+        self._exec(f'CREATE TABLE public."{t}" (x int)')
+        try:
+            self.engine.add_column("public", t, "note", "text")
+            self.assertIn("note", self._col_names(t))
+            self.engine.rename_column("public", t, "note", "memo")
+            names = self._col_names(t)
+            self.assertIn("memo", names)
+            self.assertNotIn("note", names)
+            self.engine.drop_column("public", t, "memo")
+            self.assertNotIn("memo", self._col_names(t))
+        finally:
+            self._drop_table_if_exists(t)
+
+    def test_add_column_not_null_with_default_on_populated_table(self):
+        # NOT NULL needs a default to backfill existing rows; the literal default
+        # is bound, then cast to the column type by the DB.
+        t = "cli2ui_test_col_nn"
+        self._drop_table_if_exists(t)
+        self._exec(f'CREATE TABLE public."{t}" (x int)')
+        self._exec(f'INSERT INTO public."{t}" VALUES (1), (2)')
+        try:
+            self.engine.add_column("public", t, "active", "boolean",
+                                   nullable=False, default="false")
+            col = next(c for c in self.engine.list_columns("public", t)
+                       if c.name == "active")
+            self.assertFalse(col.nullable)
+        finally:
+            self._drop_table_if_exists(t)
+
+    def test_add_column_rejects_unknown_type(self):
+        # The type allow-list catches a bogus type before any DDL runs.
+        t = "cli2ui_test_col_bad"
+        self._drop_table_if_exists(t)
+        self._exec(f'CREATE TABLE public."{t}" (x int)')
+        try:
+            with self.assertRaises(EngineError):
+                self.engine.add_column("public", t, "y", "text; DROP TABLE x")
+        finally:
+            self._drop_table_if_exists(t)
+
+    def test_rename_and_drop_column_reject_unknown_column(self):
+        with self.assertRaises(EngineError):
+            self.engine.rename_column("public", "orders", "no_such_col", "y")
+        with self.assertRaises(EngineError):
+            self.engine.drop_column("public", "orders", "no_such_col")
+
+    def test_alter_column_type_casts_existing_values(self):
+        # text→integer isn't an implicit cast; the generated USING x::integer
+        # makes it work and converts the stored values.
+        t = "cli2ui_test_retype"
+        self._drop_table_if_exists(t)
+        self._exec(f'CREATE TABLE public."{t}" (amount text)')
+        self._exec(f"INSERT INTO public.\"{t}\" VALUES ('1'), ('2')")
+        try:
+            self.engine.alter_column_type("public", t, "amount", "integer")
+            col = next(c for c in self.engine.list_columns("public", t)
+                       if c.name == "amount")
+            self.assertEqual(col.type, "integer")
+        finally:
+            self._drop_table_if_exists(t)
+
+    def test_alter_column_type_rejects_unknown_type(self):
+        with self.assertRaises(EngineError):
+            self.engine.alter_column_type("public", "orders", "total",
+                                          "money; DROP TABLE x")
+
+    def test_set_and_drop_column_not_null(self):
+        t = "cli2ui_test_null"
+        self._drop_table_if_exists(t)
+        self._exec(f'CREATE TABLE public."{t}" (x int)')
+        try:
+            self.engine.set_column_null("public", t, "x", nullable=False)
+            self.assertFalse(self._col("x", t).nullable)
+            self.engine.set_column_null("public", t, "x", nullable=True)
+            self.assertTrue(self._col("x", t).nullable)
+        finally:
+            self._drop_table_if_exists(t)
+
+    def test_set_and_drop_column_default(self):
+        t = "cli2ui_test_default"
+        self._drop_table_if_exists(t)
+        self._exec(f'CREATE TABLE public."{t}" (x int)')
+        try:
+            self.engine.set_column_default("public", t, "x", "5")
+            self.assertIn("5", self._col("x", t).default or "")
+            self.engine.set_column_default("public", t, "x", None)
+            self.assertIsNone(self._col("x", t).default)
+        finally:
+            self._drop_table_if_exists(t)
+
+    @unittest.skipUnless(_has_pg_dump(), "pg_dump not installed")
+    def test_dump_database_plain_is_restorable_sql(self):
+        dump = self.engine.dump_database("shop", fmt="plain")
+        self.assertEqual(dump.content_type, "application/sql")
+        self.assertTrue(dump.filename.endswith(".sql"))
+        self.assertIn(b"orders", dump.data)
+        self.assertIn(b"CREATE TABLE", dump.data)
+
+    @unittest.skipUnless(_has_pg_dump(), "pg_dump not installed")
+    def test_dump_database_custom_is_a_binary_archive(self):
+        dump = self.engine.dump_database("shop", fmt="custom")
+        self.assertEqual(dump.content_type, "application/octet-stream")
+        self.assertTrue(dump.filename.endswith(".dump"))
+        # pg_dump custom archives start with the "PGDMP" magic marker.
+        self.assertTrue(dump.data.startswith(b"PGDMP"))
+
+    @unittest.skipUnless(_has_pg_dump(), "pg_dump not installed")
+    def test_dump_table_is_scoped_to_one_table(self):
+        dump = self.engine.dump_table("public", "orders", fmt="plain")
+        self.assertTrue(dump.filename.startswith("public.orders-"))
+        self.assertIn(b"CREATE TABLE", dump.data)
+        self.assertIn(b"orders", dump.data)
+        # -t orders must not pull in a different table's DDL.
+        self.assertNotIn(b"CREATE TABLE public.order_items", dump.data)
+
+    @unittest.skipUnless(_has_pg_dump(), "pg_dump not installed")
+    def test_dump_rejects_unknown_format(self):
+        with self.assertRaises(EngineError):
+            self.engine.dump_database("shop", fmt="bogus")
+
+    @unittest.skipUnless(_has_pg_dump(), "pg_dump not installed")
+    def test_dump_nonexistent_database_errors(self):
+        with self.assertRaises(EngineError):
+            self.engine.dump_database("cli2ui_no_such_db", fmt="plain")
+
+    @unittest.skipUnless(_restore_compatible(),
+                         "restore round-trip needs pg client major <= server major")
+    def test_restore_plain_dump_into_new_database(self):
+        # Round-trip: dump shop as plain SQL, restore it into a fresh DB via
+        # psql, and confirm the schema landed.
+        name = "cli2ui_test_restore_plain"
+        self._drop_db_if_exists(name)
+        data = self.engine.dump_database("shop", fmt="plain").data
+        self.engine.create_database(name, template="template0")
+        try:
+            self.engine.restore(name, data)
+            self.assertIn("orders", self._tables_in(name))
+        finally:
+            self._drop_db_if_exists(name)
+
+    @unittest.skipUnless(_restore_compatible(),
+                         "restore round-trip needs pg client major <= server major")
+    def test_restore_custom_dump_into_new_database(self):
+        # The custom-format archive goes through pg_restore (detected by the
+        # PGDMP marker), not psql.
+        name = "cli2ui_test_restore_custom"
+        self._drop_db_if_exists(name)
+        data = self.engine.dump_database("shop", fmt="custom").data
+        self.engine.create_database(name, template="template0")
+        try:
+            self.engine.restore(name, data)
+            self.assertIn("orders", self._tables_in(name))
+        finally:
+            self._drop_db_if_exists(name)
+
+    @unittest.skipUnless(_has_restore_tools(), "psql/pg_restore not installed")
+    def test_restore_bad_dump_errors(self):
+        name = "cli2ui_test_restore_bad"
+        self._drop_db_if_exists(name)
+        self.engine.create_database(name, template="template0")
+        try:
+            with self.assertRaises(EngineError):
+                self.engine.restore(name, b"this is not a valid dump;\n")
+        finally:
+            self._drop_db_if_exists(name)
+
     # helpers
+    def _col_names(self, table):
+        return {c.name for c in self.engine.list_columns("public", table)}
+
+    def _col(self, name, table):
+        return next(c for c in self.engine.list_columns("public", table)
+                    if c.name == name)
+
     def _exec(self, raw_sql):
         with self.engine._connect() as conn, conn.cursor() as cur:
             cur.execute(raw_sql)
@@ -708,6 +956,11 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
     def _db_names(self):
         return {d.name for d in self.engine.list_databases()}
 
+    def _tables_in(self, dbname):
+        conn = SimpleNamespace(kind="postgres", host="localhost", port=5433,
+                               dbname=dbname, user="demo", password="demo")
+        return {t.name for t in get_engine(conn).list_tables()}
+
     def _drop_db_if_exists(self, name):
         if name in self._db_names():
             self.engine.drop_database(name, force=True)
@@ -723,6 +976,194 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
 
 def _max_rows(node: PlanNode) -> float:
     return max([node.plan_rows] + [_max_rows(c) for c in node.children])
+
+
+@unittest.skipUnless(_sampledb_reachable() and _has_pg_dump(),
+                     "needs the sample DB and pg_dump")
+class DumpViewTests(TestCase):
+    """The backup download endpoints: GET → pg_dump → attachment response, with
+    a plain-text error (502) when the dump fails."""
+
+    def setUp(self):
+        from django.urls import reverse
+        self.reverse = reverse
+        self.conn = Connection.objects.create(
+            name="dump", kind="postgres", host="localhost", port=5433,
+            dbname="shop", user="demo", password="demo")
+
+    def test_database_dump_downloads_sql_attachment(self):
+        url = self.reverse("database_dump", args=[self.conn.pk])
+        resp = self.client.get(url, {"name": "shop", "format": "plain"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("attachment", resp["Content-Disposition"])
+        self.assertIn(".sql", resp["Content-Disposition"])
+        self.assertIn(b"orders", resp.content)
+
+    def test_table_dump_downloads_attachment(self):
+        url = self.reverse("table_dump", args=[self.conn.pk])
+        resp = self.client.get(
+            url, {"schema": "public", "table": "orders", "format": "plain"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("attachment", resp["Content-Disposition"])
+        self.assertIn(b"orders", resp.content)
+
+    def test_database_dump_failure_returns_error_text(self):
+        url = self.reverse("database_dump", args=[self.conn.pk])
+        resp = self.client.get(url, {"name": "cli2ui_no_such_db", "format": "plain"})
+        self.assertEqual(resp.status_code, 502)
+
+
+@unittest.skipUnless(_sampledb_reachable() and _has_restore_tools(),
+                     "needs the sample DB and psql/pg_restore")
+class RestoreViewTests(TestCase):
+    """Restore upload flow: an uploaded dump creates a new database and populates
+    it; a bad dump leaves nothing behind (the new database is rolled back)."""
+
+    def setUp(self):
+        from django.urls import reverse
+        self.reverse = reverse
+        self.conn = Connection.objects.create(
+            name="restore", kind="postgres", host="localhost", port=5433,
+            dbname="shop", user="demo", password="demo")
+        self.engine = get_engine(self.conn)
+        self.created = []
+
+    def tearDown(self):
+        for n in self.created:
+            with contextlib.suppress(EngineError):
+                self.engine.drop_database(n, force=True)
+
+    def _db_names(self):
+        return {d.name for d in self.engine.list_databases()}
+
+    @unittest.skipUnless(_restore_compatible(),
+                         "restore round-trip needs pg client major <= server major")
+    def test_upload_creates_and_populates_new_database(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        name = "cli2ui_view_restore"
+        self.created.append(name)
+        if name in self._db_names():
+            self.engine.drop_database(name, force=True)
+        data = self.engine.dump_database("shop", fmt="plain").data
+        upload = SimpleUploadedFile(f"{name}.sql", data,
+                                    content_type="application/sql")
+        resp = self.client.post(self.reverse("database_restore", args=[self.conn.pk]),
+                                {"name": name, "dump": upload})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(name, self._db_names())
+
+    def test_bad_upload_rolls_back_new_database(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        name = "cli2ui_view_restore_bad"
+        self.created.append(name)
+        if name in self._db_names():
+            self.engine.drop_database(name, force=True)
+        upload = SimpleUploadedFile(f"{name}.sql", b"NOT A VALID DUMP;\n")
+        resp = self.client.post(self.reverse("database_restore", args=[self.conn.pk]),
+                                {"name": name, "dump": upload})
+        self.assertEqual(resp.status_code, 200)  # objects panel re-renders w/ error
+        self.assertNotIn(name, self._db_names())  # half-made DB was dropped
+
+
+@unittest.skipUnless(_sampledb_reachable() and _has_pg_dump(),
+                     "needs the sample DB and pg_dump")
+class AutoBackupTests(TestCase):
+    """A destructive op takes an automatic safety snapshot first; an oversized
+    snapshot is skipped (with a warning) but never blocks the operation."""
+
+    def setUp(self):
+        from django.urls import reverse
+        self.reverse = reverse
+        self.conn = Connection.objects.create(
+            name="ab", kind="postgres", host="localhost", port=5433,
+            dbname="shop", user="demo", password="demo")
+        self.engine = get_engine(self.conn)
+        self.tbl = "cli2ui_autobackup_tbl"
+        self._exec(f'DROP TABLE IF EXISTS public."{self.tbl}"')
+        self._exec(f'CREATE TABLE public."{self.tbl}" (x int)')
+        self._exec(f'INSERT INTO public."{self.tbl}" VALUES (1), (2)')
+
+    def tearDown(self):
+        self._exec(f'DROP TABLE IF EXISTS public."{self.tbl}"')
+
+    def _exec(self, sql):
+        with self.engine._connect() as c, c.cursor() as cur:
+            cur.execute(sql)
+
+    def _tables(self):
+        return {t.name for t in self.engine.list_tables()}
+
+    def test_drop_table_snapshots_first_then_drops(self):
+        resp = self.client.post(self.reverse("table_drop", args=[self.conn.pk]),
+                                {"schema": "public", "table": self.tbl})
+        self.assertEqual(resp.status_code, 200)
+        b = Backup.objects.get(connection=self.conn)
+        self.assertEqual(b.kind, Backup.KIND_TABLE)
+        self.assertEqual(b.target, f"public.{self.tbl}")
+        self.assertGreater(b.byte_size, 0)
+        self.assertTrue(bytes(b.data).startswith(b"PGDMP"))  # custom-format archive
+        self.assertNotIn(self.tbl, self._tables())           # actually dropped
+
+    @override_settings(CLI2UI_MAX_AUTO_BACKUP_BYTES=1)
+    def test_oversized_snapshot_is_skipped_but_op_proceeds(self):
+        resp = self.client.post(self.reverse("table_drop", args=[self.conn.pk]),
+                                {"schema": "public", "table": self.tbl})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Backup.objects.count(), 0)   # too big → not stored
+        self.assertNotIn(self.tbl, self._tables())    # dropped anyway
+
+
+@unittest.skipUnless(_sampledb_reachable() and _has_pg_dump(),
+                     "needs the sample DB and pg_dump")
+class BackupPanelTests(TestCase):
+    """The Backups panel: list, download, delete, and restore-into-a-new-DB."""
+
+    def setUp(self):
+        from django.urls import reverse
+        self.reverse = reverse
+        self.conn = Connection.objects.create(
+            name="bp", kind="postgres", host="localhost", port=5433,
+            dbname="shop", user="demo", password="demo")
+        self.engine = get_engine(self.conn)
+        data = self.engine.dump_table("public", "orders", fmt="custom").data
+        self.backup = Backup.objects.create(
+            connection=self.conn, operation="drop table", kind=Backup.KIND_TABLE,
+            target="public.orders", dbname="shop", data=data, byte_size=len(data))
+
+    def test_list_shows_the_snapshot(self):
+        resp = self.client.get(self.reverse("backups", args=[self.conn.pk]))
+        self.assertContains(resp, "public.orders")
+
+    def test_download_returns_the_archive(self):
+        resp = self.client.get(self.reverse("backup_download", args=[self.conn.pk]),
+                               {"id": self.backup.pk})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("attachment", resp["Content-Disposition"])
+        self.assertTrue(resp.content.startswith(b"PGDMP"))
+
+    def test_delete_removes_the_snapshot(self):
+        resp = self.client.post(self.reverse("backup_delete", args=[self.conn.pk]),
+                                {"id": self.backup.pk})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Backup.objects.count(), 0)
+
+    @unittest.skipUnless(_restore_compatible(),
+                         "restore round-trip needs pg client major <= server major")
+    def test_restore_snapshot_into_new_database(self):
+        name = "cli2ui_backup_restore"
+        if name in {d.name for d in self.engine.list_databases()}:
+            self.engine.drop_database(name, force=True)
+        try:
+            resp = self.client.post(self.reverse("backup_restore", args=[self.conn.pk]),
+                                    {"id": self.backup.pk, "name": name})
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn(name, {d.name for d in self.engine.list_databases()})
+            conn = SimpleNamespace(kind="postgres", host="localhost", port=5433,
+                                   dbname=name, user="demo", password="demo")
+            self.assertIn("orders", {t.name for t in get_engine(conn).list_tables()})
+        finally:
+            with contextlib.suppress(EngineError):
+                self.engine.drop_database(name, force=True)
 
 
 # --- smoke E2E: the Explain → save → structured diff flow in a real browser ---
@@ -983,7 +1424,9 @@ class TableManagementSmokeE2E(_BrowserE2E):
         expect(page.locator("#detail h2")).to_have_text(f"public.{self.TBL}")
 
         # Rename it via the header toggle; both panes update from one response.
-        page.get_by_role("button", name="rename", exact=True).click()
+        # (The header rename is the first "rename" in the pane; column rows add
+        # their own below.)
+        page.locator("#detail").get_by_role("button", name="rename", exact=True).first.click()
         form = page.locator('form[hx-post*="table/rename"]')
         form.locator("input[name=new_name]").fill(self.TBL2)
         form.get_by_role("button", name="Rename").click()
@@ -993,10 +1436,100 @@ class TableManagementSmokeE2E(_BrowserE2E):
         expect(tree.locator(f'button[hx-get$="table={self.TBL2}"]')).to_have_count(1)
         expect(tree.locator(f'button[hx-get$="table={self.TBL}"]')).to_have_count(0)
 
-        # Drop it (hx-confirm → window.confirm, auto-accepted).
+        # Drop it (hx-confirm → window.confirm, auto-accepted). Header drop is
+        # the first "drop" in the pane; column rows add their own below.
         page.on("dialog", lambda d: d.accept())
-        page.get_by_role("button", name="drop", exact=True).click()
+        page.locator("#detail").get_by_role("button", name="drop", exact=True).first.click()
         expect(tree.locator(f'button[hx-get$="table={self.TBL2}"]')).to_have_count(0)
+
+
+@unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
+                     "needs playwright + chromium and a reachable sample DB")
+class ColumnManagementSmokeE2E(_BrowserE2E):
+    """Open a table, add a column from the footer form, rename it inline, then
+    drop it — driving the real htmx swaps and the hx-confirm dialog on drop."""
+
+    TBL = "cli2ui_e2e_col_tbl"
+
+    def setUp(self):
+        super().setUp()
+        with get_engine(self.conn)._connect() as conn, conn.cursor() as cur:
+            cur.execute(f'CREATE TABLE public."{self.TBL}" (x int)')
+
+    def tearDown(self):
+        with get_engine(self.conn)._connect() as conn, conn.cursor() as cur:
+            cur.execute(f'DROP TABLE IF EXISTS public."{self.TBL}"')
+        super().tearDown()
+
+    def test_add_rename_drop_column(self):
+        page = self.page
+        page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
+        page.locator(f'button[hx-get$="table={self.TBL}"]').click()
+
+        # Add a column via the footer form.
+        add = page.locator('form[hx-post*="columns/add"]')
+        add.wait_for()
+        add.locator("input[name=name]").fill("note")
+        add.locator("select[name=type]").select_option("text")
+        add.get_by_role("button", name="+ Add").click()
+        row = page.locator("#detail tbody tr", has_text="note")
+        expect(row).to_be_visible()
+
+        # Rename it inline (same-cell toggle).
+        row.get_by_role("button", name="rename").click()
+        row.locator("input[name=new_name]").fill("memo")
+        row.get_by_role("button", name="save").click()
+        memo = page.locator("#detail tbody tr", has_text="memo")
+        expect(memo).to_be_visible()
+
+        # Drop it (hx-confirm → window.confirm, auto-accepted). Each column is
+        # its own <tbody>, so assert no column tbody carries "memo" any more.
+        page.on("dialog", lambda d: d.accept())
+        memo.get_by_role("button", name="drop").click()
+        expect(page.locator("#detail tbody", has_text="memo")).to_have_count(0)
+
+
+@unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
+                     "needs playwright + chromium and a reachable sample DB")
+class ColumnAlterSmokeE2E(_BrowserE2E):
+    """Open a table, expand a column's editor, change its type and flip its
+    nullability — checking the Columns grid reflects each ALTER."""
+
+    TBL = "cli2ui_e2e_alter_tbl"
+
+    def setUp(self):
+        super().setUp()
+        with get_engine(self.conn)._connect() as conn, conn.cursor() as cur:
+            cur.execute(f'CREATE TABLE public."{self.TBL}" (amount text)')
+
+    def tearDown(self):
+        with get_engine(self.conn)._connect() as conn, conn.cursor() as cur:
+            cur.execute(f'DROP TABLE IF EXISTS public."{self.TBL}"')
+        super().tearDown()
+
+    def _amount_row(self):
+        # The column's <tbody> holds its data row + editor row.
+        return self.page.locator("#detail tbody", has_text="amount")
+
+    def test_change_type_then_set_not_null(self):
+        page = self.page
+        page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
+        page.locator(f'button[hx-get$="table={self.TBL}"]').click()
+
+        # Expand the editor and change text → integer.
+        tb = self._amount_row()
+        tb.get_by_role("button", name="edit").click()
+        tb.locator("select[name=type]").select_option("integer")
+        tb.get_by_role("button", name="change").click()
+        # Type cell (2nd column) reflects the change.
+        expect(self._amount_row().locator("td").nth(1)).to_have_text("integer")
+
+        # Re-open the editor and add a NOT NULL constraint.
+        tb = self._amount_row()
+        tb.get_by_role("button", name="edit").click()
+        tb.get_by_role("button", name="set NOT NULL").click()
+        # Nullable cell (3rd column) flips to "no".
+        expect(self._amount_row().locator("td").nth(2)).to_have_text("no")
 
 
 @unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),

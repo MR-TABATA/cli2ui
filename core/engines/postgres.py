@@ -1,7 +1,10 @@
 """PostgreSQL engine — psycopg2 under the hood."""
 import contextlib
 import json
+import os
+import subprocess  # nosec B404 — used only to run pg_dump with a fixed argv, no shell
 import time
+from datetime import datetime
 
 import psycopg2
 from psycopg2 import sql
@@ -10,6 +13,7 @@ from .base import (
     Activity,
     Column,
     Database,
+    Dump,
     Engine,
     EngineError,
     Index,
@@ -173,6 +177,29 @@ ORDER BY n_dead_tup DESC, schemaname, relname;
 # chosen method is interpolated into the DDL as a bare keyword (it can't be a
 # bound parameter), so it must never come straight from user input.
 INDEX_METHODS = ("btree", "hash", "gin", "gist", "spgist", "brin")
+
+# Column types offered for ADD COLUMN. Like INDEX_METHODS, the chosen type is
+# spliced into the DDL as a bare keyword (it can't be bound), so it must match
+# this allow-list exactly — never raw user input. Parameterised types (varchar(n),
+# numeric(p,s)) are deliberately left out to keep the splice point injection-proof;
+# text/numeric cover those needs.
+COLUMN_TYPES = (
+    "text", "integer", "bigint", "smallint", "boolean", "numeric",
+    "real", "double precision", "date", "timestamptz", "timestamp",
+    "time", "uuid", "jsonb", "json", "bytea", "inet",
+)
+
+# pg_dump output formats offered for backup: flag, file extension, MIME type.
+# 'plain' is restorable with psql and human-readable; 'custom' is compressed and
+# restorable selectively with pg_restore.
+DUMP_FORMATS = {
+    "plain": ("-Fp", "sql", "application/sql"),
+    "custom": ("-Fc", "dump", "application/octet-stream"),
+}
+
+# How long a single pg_dump / restore may run before we give up (seconds).
+DUMP_TIMEOUT = 120
+RESTORE_TIMEOUT = 300
 
 # Name given to the throwaway index created during a what-if trial, so we can
 # tell whether the planner actually chose it (it's rolled back regardless).
@@ -642,6 +669,161 @@ class PostgresEngine(Engine):
         self._execute(sql.SQL("DROP TABLE {}.{}").format(
             sql.Identifier(schema), sql.Identifier(table)))
 
+    # --- column-level operations (ALTER TABLE) ---------------------------
+
+    def add_column(self, schema: str, table: str, name: str, col_type: str, *,
+                   nullable: bool = True, default: str | None = None) -> None:
+        # The type is the one bare keyword we splice, so it must match the
+        # allow-list exactly (same rule as index methods); everything else is a
+        # quoted identifier or a bound literal.
+        if col_type not in COLUMN_TYPES:
+            raise EngineError(
+                f"Unsupported column type: {col_type}. Pick one of the listed types.")
+        stmt = sql.SQL("ALTER TABLE {}.{} ADD COLUMN {} {}").format(
+            sql.Identifier(schema), sql.Identifier(table),
+            sql.Identifier(name), sql.SQL(col_type))
+        if default not in (None, ""):
+            # A literal default (e.g. 0, '', false) — bound, not spliced. The DB
+            # casts it to the column type; an expression like now() isn't supported.
+            stmt = stmt + sql.SQL(" DEFAULT {}").format(sql.Literal(default))
+        if not nullable:
+            stmt = stmt + sql.SQL(" NOT NULL")
+        self._execute(stmt)
+
+    def rename_column(self, schema: str, table: str, old: str, new: str) -> None:
+        self._require_column(schema, table, old)
+        self._execute(sql.SQL("ALTER TABLE {}.{} RENAME COLUMN {} TO {}").format(
+            sql.Identifier(schema), sql.Identifier(table),
+            sql.Identifier(old), sql.Identifier(new)))
+
+    def drop_column(self, schema: str, table: str, name: str) -> None:
+        # Non-CASCADE, matching drop_table: dependents block the drop loudly.
+        self._require_column(schema, table, name)
+        self._execute(sql.SQL("ALTER TABLE {}.{} DROP COLUMN {}").format(
+            sql.Identifier(schema), sql.Identifier(table), sql.Identifier(name)))
+
+    def alter_column_type(self, schema: str, table: str, name: str,
+                          new_type: str) -> None:
+        if new_type not in COLUMN_TYPES:
+            raise EngineError(
+                f"Unsupported column type: {new_type}. Pick one of the listed types.")
+        self._require_column(schema, table, name)
+        # Build an explicit USING cast from safe parts (identifier + allow-listed
+        # type) so casts that aren't implicit — e.g. text→integer — still work
+        # without accepting a free-text USING expression.
+        self._execute(sql.SQL(
+            "ALTER TABLE {}.{} ALTER COLUMN {} TYPE {} USING {}::{}").format(
+            sql.Identifier(schema), sql.Identifier(table), sql.Identifier(name),
+            sql.SQL(new_type), sql.Identifier(name), sql.SQL(new_type)))
+
+    def set_column_null(self, schema: str, table: str, name: str, *,
+                        nullable: bool) -> None:
+        self._require_column(schema, table, name)
+        action = sql.SQL("DROP NOT NULL") if nullable else sql.SQL("SET NOT NULL")
+        self._execute(sql.SQL("ALTER TABLE {}.{} ALTER COLUMN {} {}").format(
+            sql.Identifier(schema), sql.Identifier(table),
+            sql.Identifier(name), action))
+
+    def set_column_default(self, schema: str, table: str, name: str,
+                           default: str | None) -> None:
+        self._require_column(schema, table, name)
+        if default in (None, ""):
+            action = sql.SQL("DROP DEFAULT")
+        else:
+            # Bound literal, not spliced; the DB casts it to the column type.
+            action = sql.SQL("SET DEFAULT {}").format(sql.Literal(default))
+        self._execute(sql.SQL("ALTER TABLE {}.{} ALTER COLUMN {} {}").format(
+            sql.Identifier(schema), sql.Identifier(table),
+            sql.Identifier(name), action))
+
+    def _require_column(self, schema: str, table: str, name: str) -> None:
+        if name not in {c.name for c in self.list_columns(schema, table)}:
+            raise EngineError(f"No such column: {name}")
+
+    # --- backup (pg_dump) ------------------------------------------------
+
+    def dump_database(self, dbname: str, *, fmt: str = "plain") -> Dump:
+        """Dump a whole database with pg_dump, returned as a downloadable blob."""
+        return self._run_pg_dump(["-d", dbname], fmt, base=dbname)
+
+    def dump_table(self, schema: str, table: str, *, fmt: str = "plain") -> Dump:
+        """Dump a single table (-t) from the connection's current database."""
+        pattern = f'{self._dump_ident(schema)}.{self._dump_ident(table)}'
+        return self._run_pg_dump(
+            ["-d", self.connection.dbname, "-t", pattern], fmt,
+            base=f"{schema}.{table}")
+
+    @staticmethod
+    def _dump_ident(name: str) -> str:
+        # pg_dump -t takes a pattern; double-quote so the identifier is matched
+        # literally (no case-folding / wildcard interpretation), doubling any
+        # embedded quote — same rule as a quoted SQL identifier.
+        return '"' + name.replace('"', '""') + '"'
+
+    def _run_pg_dump(self, scope: list[str], fmt: str, *, base: str) -> Dump:
+        if fmt not in DUMP_FORMATS:
+            raise EngineError(f"Unknown dump format: {fmt}")
+        flag, ext, ctype = DUMP_FORMATS[fmt]
+        conn = self.connection
+        argv = [
+            "pg_dump",
+            "-h", conn.host, "-p", str(conn.port), "-U", conn.user,
+            "--no-password", flag, *scope,
+        ]
+        env = {**os.environ, "PGPASSWORD": conn.password or ""}
+        try:
+            # No shell, fixed argv, password via env (never on the command line).
+            proc = subprocess.run(  # nosec B603 B607
+                argv, capture_output=True, env=env, timeout=DUMP_TIMEOUT)
+        except FileNotFoundError as exc:
+            raise EngineError(
+                "pg_dump not found — install the postgresql-client package "
+                "(it ships in the Docker image).") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise EngineError("pg_dump timed out.") from exc
+        if proc.returncode != 0:
+            raise EngineError(_tool_error(proc.stderr, "pg_dump failed."))
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        return Dump(filename=f"{base}-{stamp}.{ext}",
+                    content_type=ctype, data=proc.stdout)
+
+    def restore(self, dbname: str, data: bytes) -> None:
+        """Restore a dump (bytes) into an existing database. The format is
+        detected from the content — a custom-format archive starts with the
+        'PGDMP' marker and goes through pg_restore; anything else is treated as
+        plain SQL and piped through psql (stopping on the first error)."""
+        is_custom = data[:5] == b"PGDMP"
+        conn = self.connection
+        common = ["-h", conn.host, "-p", str(conn.port), "-U", conn.user,
+                  "--no-password", "-d", dbname]
+        if is_custom:
+            # --exit-on-error makes pg_restore stop and fail on the first error
+            # instead of limping on and reporting a count, matching psql below.
+            argv = ["pg_restore", "--exit-on-error", *common]
+            tool = "pg_restore"
+        else:
+            # ON_ERROR_STOP makes psql exit non-zero on the first failed
+            # statement; --single-transaction wraps the whole restore in one
+            # transaction so a failure leaves the database untouched (all or
+            # nothing), on top of the new-database drop the caller does.
+            argv = ["psql", *common, "-v", "ON_ERROR_STOP=1",
+                    "--single-transaction"]
+            tool = "psql"
+        env = {**os.environ, "PGPASSWORD": conn.password or ""}
+        try:
+            # No shell; the dump is fed on stdin, never written to disk.
+            proc = subprocess.run(  # nosec B603 B607
+                argv, input=data, capture_output=True, env=env,
+                timeout=RESTORE_TIMEOUT)
+        except FileNotFoundError as exc:
+            raise EngineError(
+                f"{tool} not found — install the postgresql-client package "
+                "(it ships in the Docker image).") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise EngineError("restore timed out.") from exc
+        if proc.returncode != 0:
+            raise EngineError(_tool_error(proc.stderr, "restore failed."))
+
     def preview_index(self, sql_text: str, schema: str, table: str,
                       columns: list[str], *, method: str = "btree",
                       unique: bool = False,
@@ -890,3 +1072,22 @@ def _clean(exc: psycopg2.Error) -> str:
     """psycopg2 errors are multi-line; keep the first meaningful line."""
     msg = str(exc).strip()
     return msg.splitlines()[0] if msg else "Could not connect to PostgreSQL."
+
+
+def _tool_error(stderr: bytes, fallback: str) -> str:
+    """Pull the useful cause out of a pg_dump/psql/pg_restore stderr dump.
+
+    These tools print progress and notices alongside the real failure, and the
+    last line is often a summary ("errors ignored…"), not the cause. Prefer the
+    lines that actually carry the error — those with an error:/fatal:/panic:
+    marker (covers `ERROR:`, `pg_restore: error:`, `psql:…: ERROR:`) — keeping
+    the first few so the context shows; fall back to the closing lines, then to
+    a generic message."""
+    lines = [ln.strip() for ln in stderr.decode(errors="replace").splitlines()
+             if ln.strip()]
+    if not lines:
+        return fallback
+    flagged = [ln for ln in lines
+               if any(k in ln.lower() for k in ("error:", "fatal:", "panic:"))]
+    chosen = flagged or lines[-3:]
+    return " · ".join(chosen[:3])

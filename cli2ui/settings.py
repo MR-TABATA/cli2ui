@@ -65,3 +65,10 @@ CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"]
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 USE_TZ = True
+
+# Largest automatic safety snapshot (taken before a destructive op) we'll store
+# as a blob in the management DB. Past this, the operation proceeds with a
+# warning instead of bloating SQLite. Raise it for bigger objects.
+CLI2UI_MAX_AUTO_BACKUP_BYTES = int(
+    os.environ.get("CLI2UI_MAX_AUTO_BACKUP_BYTES", str(50 * 1024 * 1024))
+)

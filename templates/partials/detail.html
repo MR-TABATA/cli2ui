@@ -14,6 +14,18 @@
                      hover:border-zinc-600 transition flex items-center gap-1.5">
         <span>▷</span> Open in SQL
       </button>
+      <!-- Backup this table (pg_dump -t). Fetched via JS for an in-page spinner. -->
+      <span x-data="dumpLinks()" class="flex items-center gap-1.5 text-xs border border-zinc-800 rounded-lg px-3 py-1.5 text-zinc-500">
+        backup
+        <a href="#" @click.prevent="download('{% url 'table_dump' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=plain')"
+           :class="busy && 'opacity-40 pointer-events-none'" title="pg_dump this table as plain SQL"
+           class="text-sky-300/80 hover:text-sky-200">.sql ↓</a>
+        <a href="#" @click.prevent="download('{% url 'table_dump' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=custom')"
+           :class="busy && 'opacity-40 pointer-events-none'" title="pg_dump this table in custom format"
+           class="text-sky-300/80 hover:text-sky-200">.dump ↓</a>
+        <span x-show="busy" class="spinner text-sky-300"></span>
+        <span x-show="err" x-text="err" class="text-red-400/90 max-w-[160px] truncate"></span>
+      </span>
       <button @click="ren = !ren"
               :class="ren ? 'border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
               class="text-xs border rounded-lg px-3 py-1.5 hover:border-zinc-600 transition">
@@ -58,8 +70,11 @@
   {% if error %}
     <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-2.5 text-sm text-red-200/90 mono">{{ error }}</div>
   {% endif %}
+  {% if notice %}
+    <div class="{% if '⚠' in notice %}bg-amber-950/40 border-amber-900 text-amber-200/90{% else %}bg-sky-950/40 border-sky-900 text-sky-200/90{% endif %} border rounded-lg px-4 py-2.5 text-sm">{{ notice }}</div>
+  {% endif %}
 
-  <!-- Columns: the \d table view -->
+  <!-- Columns: the \d table view, now with add / rename / drop -->
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
     <div class="px-5 py-2.5 border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
       Columns
@@ -71,19 +86,125 @@
           <th class="px-5 py-2 font-medium">Type</th>
           <th class="px-5 py-2 font-medium">Nullable</th>
           <th class="px-5 py-2 font-medium">Default</th>
+          <th class="px-5 py-2 font-medium w-px"></th>
         </tr>
       </thead>
-      <tbody>
-        {% for col in columns %}
+      {% for col in columns %}
+        <tbody x-data="{ ren: false, ed: false }">
           <tr class="border-b border-zinc-800/60">
             <td class="px-5 py-2 mono">{{ col.name }}</td>
             <td class="px-5 py-2 text-zinc-400 mono">{{ col.type }}</td>
             <td class="px-5 py-2 text-zinc-400">{% if col.nullable %}yes{% else %}<span class="text-zinc-300">no</span>{% endif %}</td>
             <td class="px-5 py-2 text-zinc-400 mono truncate max-w-[200px]">{{ col.default|default:"—" }}</td>
+            <td class="px-5 py-2 text-right whitespace-nowrap">
+              <div x-show="!ren" class="flex items-center gap-3 justify-end">
+                <button @click="ed = !ed" type="button"
+                        :class="ed ? 'text-zinc-200' : 'text-zinc-400'"
+                        class="text-xs hover:text-zinc-200">edit</button>
+                <button @click="ren = true; ed = false" type="button" class="text-xs text-zinc-400 hover:text-zinc-200">rename</button>
+                <form hx-post="{% url 'column_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                      hx-confirm="Drop column &quot;{{ col.name }}&quot; from {{ schema }}.{{ table }}? This permanently deletes its data.">
+                  <input type="hidden" name="schema" value="{{ schema }}">
+                  <input type="hidden" name="table" value="{{ table }}">
+                  <input type="hidden" name="column" value="{{ col.name }}">
+                  <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
+                </form>
+              </div>
+              <form x-show="ren" x-cloak hx-post="{% url 'column_rename' connection.pk %}"
+                    hx-target="#detail" hx-swap="innerHTML"
+                    class="flex items-center gap-1.5 justify-end">
+                <input type="hidden" name="schema" value="{{ schema }}">
+                <input type="hidden" name="table" value="{{ table }}">
+                <input type="hidden" name="column" value="{{ col.name }}">
+                <input name="new_name" value="{{ col.name }}" autocomplete="off"
+                       class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 text-xs mono w-32
+                              text-zinc-100 focus:outline-none focus:border-emerald-400">
+                <button type="submit" class="text-xs text-emerald-400 hover:text-emerald-300">save</button>
+                <button @click="ren = false" type="button" class="text-xs text-zinc-500 hover:text-zinc-300">cancel</button>
+              </form>
+            </td>
           </tr>
-        {% endfor %}
-      </tbody>
+
+          <!-- Editor: type / nullability / default, each its own explicit ALTER. -->
+          <tr x-show="ed" x-cloak class="border-b border-zinc-800/60 bg-zinc-950/40">
+            <td colspan="5" class="px-5 py-3">
+              <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                <!-- change type -->
+                <form hx-post="{% url 'column_retype' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                      class="flex items-center gap-1.5">
+                  <input type="hidden" name="schema" value="{{ schema }}">
+                  <input type="hidden" name="table" value="{{ table }}">
+                  <input type="hidden" name="column" value="{{ col.name }}">
+                  <input type="hidden" name="cur_type" value="{{ col.type }}">
+                  <span class="text-xs uppercase tracking-wide text-zinc-500">Type</span>
+                  <select name="type"
+                          class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 text-xs mono text-zinc-100 focus:outline-none focus:border-emerald-400">
+                    <option value="{{ col.type }}" selected>{{ col.type }} (current)</option>
+                    {% for t in column_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+                  </select>
+                  <button type="submit" class="text-xs text-emerald-400 hover:text-emerald-300">change</button>
+                </form>
+
+                <!-- nullability flip -->
+                <form hx-post="{% url 'column_set_null' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                      class="flex items-center gap-1.5">
+                  <input type="hidden" name="schema" value="{{ schema }}">
+                  <input type="hidden" name="table" value="{{ table }}">
+                  <input type="hidden" name="column" value="{{ col.name }}">
+                  <span class="text-xs uppercase tracking-wide text-zinc-500">Nullable</span>
+                  {% if col.nullable %}
+                    <input type="hidden" name="nullable" value="0">
+                    <button type="submit" class="text-xs text-zinc-300 border border-zinc-700 rounded px-2 py-0.5 hover:border-zinc-500">set NOT NULL</button>
+                  {% else %}
+                    <input type="hidden" name="nullable" value="1">
+                    <button type="submit" class="text-xs text-zinc-300 border border-zinc-700 rounded px-2 py-0.5 hover:border-zinc-500">drop NOT NULL</button>
+                  {% endif %}
+                </form>
+
+                <!-- default set / drop -->
+                <form hx-post="{% url 'column_set_default' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                      class="flex items-center gap-1.5">
+                  <input type="hidden" name="schema" value="{{ schema }}">
+                  <input type="hidden" name="table" value="{{ table }}">
+                  <input type="hidden" name="column" value="{{ col.name }}">
+                  <span class="text-xs uppercase tracking-wide text-zinc-500">Default</span>
+                  <input name="default" value="{{ col.default|default:'' }}" placeholder="(none)" autocomplete="off"
+                         class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 text-xs mono w-36
+                                text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
+                  <button type="submit" class="text-xs text-emerald-400 hover:text-emerald-300">set</button>
+                  <span class="text-zinc-600">·</span>
+                  <span class="text-xs text-zinc-500">clear the box + set to drop it</span>
+                </form>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      {% endfor %}
     </table>
+
+    <!-- Add column: name + type (allow-list) + optional default + NOT NULL. -->
+    <form hx-post="{% url 'column_add' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          hx-disabled-elt="find button[type=submit]"
+          class="px-5 py-3 border-t border-zinc-800 flex flex-wrap items-center gap-2 text-sm">
+      <input type="hidden" name="schema" value="{{ schema }}">
+      <input type="hidden" name="table" value="{{ table }}">
+      <span class="text-xs uppercase tracking-wide text-zinc-500 mr-1">Add column</span>
+      <input name="name" placeholder="column name" autocomplete="off" required
+             class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono w-40
+                    text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
+      <select name="type"
+              class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono text-zinc-100 focus:outline-none focus:border-emerald-400">
+        {% for t in column_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+      </select>
+      <input name="default" placeholder="default (optional)" autocomplete="off"
+             class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono w-36
+                    text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
+      <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="notnull" class="accent-emerald-400"> not null</label>
+      <button type="submit"
+              class="bg-emerald-400 text-zinc-950 font-medium rounded px-3 py-1 hover:bg-emerald-300">
+        + Add
+      </button>
+    </form>
   </section>
 
   <!-- Indexes: the index list from \d table, now with create / drop -->

@@ -1,4 +1,7 @@
 <div class="space-y-5">
+  {% if notice %}
+    <div class="{% if '⚠' in notice %}bg-amber-950/40 border-amber-900 text-amber-200/90{% else %}bg-sky-950/40 border-sky-900 text-sky-200/90{% endif %} border rounded-lg px-4 py-2.5 text-sm">{{ notice }}</div>
+  {% endif %}
   <div>
     <h2 class="text-xl font-semibold">Connected to {{ connection.display_name }}</h2>
     <p class="text-sm text-zinc-400 mt-1">Run and tune PostgreSQL from your browser. Pick a section to start:</p>
