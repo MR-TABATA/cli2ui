@@ -91,9 +91,10 @@ MVP. `docker compose up` → connect → browse your tables in a DB-client layou
   (no scan), next to the dead-rows / vacuum card
 - ✅ Command history: SQL run through the runner, logged to the management DB —
   status, row count, timing, and one-click re-open
-- ✅ Backup / restore: automatic pre-destructive snapshots (`pg_dump` custom
-  format), plus restore of an uploaded dump — streamed to the client tool (not
-  buffered in memory) — into a new database or, with a type-gate, an existing one
+- ✅ Backup / restore: automatic table snapshots (`pg_dump` custom format) before
+  every destructive or structural change (drop / truncate / rename / alter), plus
+  restore of an uploaded dump — streamed to the client tool (not buffered in
+  memory) — into a new database or, with a type-gate, an existing one
 - ⬜ Bento ops overview once a few panels exist
 - ⬜ MySQL (the engine layer is ready for it)
 
