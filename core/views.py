@@ -1,5 +1,6 @@
 import contextlib
 import difflib
+import io
 import json
 
 from django.http import HttpResponse
@@ -1011,12 +1012,11 @@ def database_dump(request, pk):
     return _dump_download(dump)
 
 
-def _restore_into_new_db(connection, name, data):
+def _restore_into_new_db(connection, name, stream):
     """Create a brand-new database (from the pristine template0) and restore the
-    dump bytes into it. If the restore fails, drop the just-made database so a
-    failed attempt leaves nothing behind. Targeting a new name (which must not
-    already exist) is the safety model — an existing database is never
-    overwritten. Returns an error string, or None on success."""
+    dump (a file-like object, streamed) into it. If the restore fails, drop the
+    just-made database so a failed attempt leaves nothing behind. Returns an
+    error string, or None on success."""
     if not name:
         return "Provide a new database name."
     engine = get_engine(connection)
@@ -1025,7 +1025,7 @@ def _restore_into_new_db(connection, name, data):
     except EngineError as exc:
         return str(exc)
     try:
-        engine.restore(name, data)
+        engine.restore_stream(name, stream)
     except EngineError as exc:
         with contextlib.suppress(EngineError):
             engine.drop_database(name, force=True)
@@ -1033,20 +1033,46 @@ def _restore_into_new_db(connection, name, data):
     return None
 
 
+def _restore_into_existing_db(connection, name, stream):
+    """Restore the dump (streamed) into an existing database, without creating or
+    dropping anything. The caller is responsible for the type-gate confirmation —
+    this overwrites/merges into a live database. Returns an error or None."""
+    if not name:
+        return "Provide the database name."
+    try:
+        get_engine(connection).restore_stream(name, stream)
+    except EngineError as exc:
+        return f"Restore failed. {exc}"
+    return None
+
+
 def database_restore(request, pk):
-    """Restore an uploaded dump file into a brand-new database."""
+    """Restore an uploaded dump into a new database (default) or, with a type-gate
+    confirmation, into an existing one. The upload is streamed to the client tool,
+    not read wholly into memory."""
     connection = get_object_or_404(Connection, pk=pk)
     name = (request.POST.get("name") or "").strip()
+    target = request.POST.get("target", "new")
     upload = request.FILES.get("dump")
     if not name or not upload:
         return _render_objects(
             request, connection,
-            error="Provide a new database name and a dump file to restore.")
-    err = _restore_into_new_db(connection, name, upload.read())
+            error="Provide a database name and a dump file to restore.")
+    if target == "existing":
+        # Type-gate: the user must type the database name to confirm overwriting
+        # a live database (there's no auto-snapshot here — it's their own dump).
+        if (request.POST.get("confirm") or "").strip() != name:
+            return _render_objects(
+                request, connection,
+                error=f"To restore into the existing “{name}”, type its name to confirm.")
+        err = _restore_into_existing_db(connection, name, upload)
+        notice = f"Restored into existing database “{name}”."
+    else:
+        err = _restore_into_new_db(connection, name, upload)
+        notice = f"Restored into new database “{name}”."
     if err:
         return _render_objects(request, connection, error=err)
-    return _render_objects(request, connection,
-                           notice=f"Restored into new database “{name}”.")
+    return _render_objects(request, connection, notice=notice)
 
 
 def table_dump(request, pk):
@@ -1097,7 +1123,7 @@ def backup_restore(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     backup = get_object_or_404(Backup, pk=request.POST.get("id"), connection=connection)
     name = (request.POST.get("name") or "").strip()
-    err = _restore_into_new_db(connection, name, bytes(backup.data))
+    err = _restore_into_new_db(connection, name, io.BytesIO(bytes(backup.data)))
     if err:
         return _render_backups(request, connection, error=err)
     return _render_backups(

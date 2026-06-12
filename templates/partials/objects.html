@@ -91,24 +91,44 @@
       </tbody>
     </table>
 
-    <!-- Restore from a dump file into a brand-new database. New-DB-only by
-         design: an existing database is never overwritten, and the typed name
-         (which must not already exist) is itself the safety gate. The format
-         (.sql / custom) is auto-detected server-side. -->
+    <!-- Restore from a dump file. Into a brand-new database (default, safe: an
+         existing DB is never touched, the unused name is the gate) or, with a
+         type-gate confirmation, into an existing database. The upload is
+         streamed to the client tool; the format (.sql / custom) is
+         auto-detected server-side. -->
     <form hx-post="{% url 'database_restore' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
           hx-encoding="multipart/form-data" hx-disabled-elt="find button[type=submit]"
-          hx-confirm="Create a new database and restore the uploaded dump into it?"
+          x-data="{ target: 'new', name: '', confirm: '' }"
           class="px-5 py-3 border-t border-zinc-800 flex flex-wrap items-center gap-2 text-sm">
-      <span class="text-xs uppercase tracking-wide text-zinc-500 mr-1">Restore</span>
-      <input name="name" placeholder="new_database" autocomplete="off" required
-             class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono w-40
-                    text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-sky-400">
+      <span class="text-xs uppercase tracking-wide text-zinc-500 mr-1">Restore into</span>
+      <select name="target" x-model="target"
+              class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200
+                     focus:outline-none focus:border-sky-400">
+        <option value="new">a new DB</option>
+        <option value="existing">an existing DB</option>
+      </select>
+      <input name="name" x-model="name" autocomplete="off" required
+             :placeholder="target === 'existing' ? 'existing_database' : 'new_database'"
+             class="bg-zinc-950 border rounded px-2 py-1 mono w-40 text-zinc-100
+                    placeholder-zinc-600 focus:outline-none"
+             :class="target === 'existing' ? 'border-amber-800 focus:border-amber-500' : 'border-zinc-700 focus:border-sky-400'">
       <span class="text-zinc-600">←</span>
       <input type="file" name="dump" accept=".sql,.dump" required
              class="text-xs text-zinc-400 file:mr-2 file:rounded file:border-0 file:bg-zinc-800
                     file:px-2 file:py-1 file:text-zinc-200 file:cursor-pointer hover:file:bg-zinc-700">
+      <!-- Type-gate: only for an existing DB; the typed name must match. -->
+      <input x-show="target === 'existing'" x-cloak name="confirm" x-model="confirm" autocomplete="off"
+             :placeholder="'type ' + (name || 'name') + ' to confirm'"
+             class="bg-zinc-950 border border-amber-800 rounded px-2 py-1 mono w-48
+                    text-amber-100 placeholder-amber-700/70 focus:outline-none focus:border-amber-500">
       <button type="submit"
-              class="bg-sky-400 text-zinc-950 font-medium rounded px-3 py-1 hover:bg-sky-300">
+              :hx-confirm="target === 'existing'
+                ? 'Restore into the EXISTING database “' + name + '”? This runs your dump against a live database and is not auto-snapshotted.'
+                : 'Create a new database and restore the uploaded dump into it?'"
+              :disabled="target === 'existing' && confirm !== name"
+              class="font-medium rounded px-3 py-1 disabled:opacity-40 disabled:cursor-not-allowed"
+              :class="target === 'existing' ? 'bg-amber-400 text-zinc-950 hover:bg-amber-300'
+                                            : 'bg-sky-400 text-zinc-950 hover:bg-sky-300'">
         Restore ↥
       </button>
       <span class="htmx-indicator flex items-center gap-1.5 text-xs text-sky-300">
