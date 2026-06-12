@@ -651,7 +651,57 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
         with self.assertRaises(EngineError):
             self.engine.rename_role(self.engine.connection.user, "someone_else")
 
+    def test_rename_truncate_drop_table_roundtrip(self):
+        a, b = "cli2ui_test_tbl", "cli2ui_test_tbl2"
+        for n in (a, b):
+            self._drop_table_if_exists(n)
+        self._exec(f'CREATE TABLE public."{a}" (x int)')
+        self._exec(f'INSERT INTO public."{a}" VALUES (1), (2)')
+        try:
+            # rename
+            self.engine.rename_table("public", a, b)
+            names = {t.name for t in self.engine.list_tables()}
+            self.assertIn(b, names)
+            self.assertNotIn(a, names)
+            # truncate empties the (renamed) table
+            self.assertEqual(self._rowcount(b), 2)
+            self.engine.truncate_table("public", b)
+            self.assertEqual(self._rowcount(b), 0)
+            # drop removes it from the tree
+            self.engine.drop_table("public", b)
+            self.assertNotIn(b, {t.name for t in self.engine.list_tables()})
+        finally:
+            for n in (a, b):
+                self._drop_table_if_exists(n)
+
+    def test_drop_table_is_not_cascade(self):
+        # A dependent view blocks the drop (non-CASCADE), surfaced as EngineError
+        # rather than silently taking the view down too.
+        t, v = "cli2ui_test_dep_tbl", "cli2ui_test_dep_view"
+        self._exec(f'DROP VIEW IF EXISTS public."{v}"')
+        self._drop_table_if_exists(t)
+        self._exec(f'CREATE TABLE public."{t}" (x int)')
+        self._exec(f'CREATE VIEW public."{v}" AS SELECT x FROM public."{t}"')
+        try:
+            with self.assertRaises(EngineError):
+                self.engine.drop_table("public", t)
+        finally:
+            self._exec(f'DROP VIEW IF EXISTS public."{v}"')
+            self._drop_table_if_exists(t)
+
     # helpers
+    def _exec(self, raw_sql):
+        with self.engine._connect() as conn, conn.cursor() as cur:
+            cur.execute(raw_sql)
+
+    def _rowcount(self, table):
+        with self.engine._connect() as conn, conn.cursor() as cur:
+            cur.execute(f'SELECT count(*) FROM public."{table}"')
+            return cur.fetchone()[0]
+
+    def _drop_table_if_exists(self, name):
+        self._exec(f'DROP TABLE IF EXISTS public."{name}"')
+
     def _has_role(self, name):
         return any(r.name == name for r in self.engine.list_roles())
 
@@ -902,6 +952,51 @@ class SchemaAlterSmokeE2E(_BrowserE2E):
         objects = page.locator("#detail")
         expect(objects).to_contain_text(self.SCH2)
         expect(objects.get_by_text(self.SCH, exact=True)).to_have_count(0)
+
+
+@unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
+                     "needs playwright + chromium and a reachable sample DB")
+class TableManagementSmokeE2E(_BrowserE2E):
+    """Open a table, rename it from the header (main pane AND sidebar tree update
+    in one round trip), then drop it — driving the real htmx swaps, the inline
+    rename toggle, and the hx-confirm dialog on drop."""
+
+    TBL, TBL2 = "cli2ui_e2e_tbl", "cli2ui_e2e_tbl2"
+
+    def setUp(self):
+        super().setUp()
+        with get_engine(self.conn)._connect() as conn, conn.cursor() as cur:
+            cur.execute(f'CREATE TABLE public."{self.TBL}" (x int)')
+
+    def tearDown(self):
+        with get_engine(self.conn)._connect() as conn, conn.cursor() as cur:
+            for n in (self.TBL, self.TBL2):
+                cur.execute(f'DROP TABLE IF EXISTS public."{n}"')
+        super().tearDown()
+
+    def test_rename_then_drop_table(self):
+        page = self.page
+        page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
+
+        # Open the new table from the sidebar tree.
+        page.locator(f'button[hx-get$="table={self.TBL}"]').click()
+        expect(page.locator("#detail h2")).to_have_text(f"public.{self.TBL}")
+
+        # Rename it via the header toggle; both panes update from one response.
+        page.get_by_role("button", name="rename", exact=True).click()
+        form = page.locator('form[hx-post*="table/rename"]')
+        form.locator("input[name=new_name]").fill(self.TBL2)
+        form.get_by_role("button", name="Rename").click()
+
+        expect(page.locator("#detail h2")).to_have_text(f"public.{self.TBL2}")
+        tree = page.locator("#table-list")
+        expect(tree.locator(f'button[hx-get$="table={self.TBL2}"]')).to_have_count(1)
+        expect(tree.locator(f'button[hx-get$="table={self.TBL}"]')).to_have_count(0)
+
+        # Drop it (hx-confirm → window.confirm, auto-accepted).
+        page.on("dialog", lambda d: d.accept())
+        page.get_by_role("button", name="drop", exact=True).click()
+        expect(tree.locator(f'button[hx-get$="table={self.TBL2}"]')).to_have_count(0)
 
 
 @unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
