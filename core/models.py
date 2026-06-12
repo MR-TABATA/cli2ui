@@ -58,3 +58,40 @@ class PlanSnapshot(models.Model):
 
     def __str__(self):
         return self.label
+
+
+class Backup(models.Model):
+    """An automatic safety snapshot taken just before a destructive operation
+    (drop/truncate). The dump (pg_dump custom format) is stored as a blob in the
+    management DB so the data can be recovered — restored into a NEW database, so
+    an existing one is never overwritten. Snapshots above a size threshold aren't
+    stored (the operation proceeds with a warning instead)."""
+
+    KIND_TABLE = "table"
+    KIND_DATABASE = "database"
+
+    connection = models.ForeignKey(
+        Connection, on_delete=models.CASCADE, related_name="backups"
+    )
+    operation = models.CharField(max_length=40)   # e.g. "drop table"
+    kind = models.CharField(max_length=16)        # table | database
+    target = models.CharField(max_length=255)     # "public.orders" or a db name
+    dbname = models.CharField(max_length=255)     # source database (for context)
+    data = models.BinaryField()                   # custom-format pg_dump archive
+    byte_size = models.PositiveBigIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.operation} {self.target}"
+
+    @property
+    def pretty_size(self):
+        n = self.byte_size
+        if n >= 1048576:
+            return f"{n / 1048576:.1f} MB"
+        if n >= 1024:
+            return f"{n / 1024:.0f} kB"
+        return f"{n} B"

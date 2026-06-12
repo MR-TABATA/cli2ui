@@ -1,3 +1,4 @@
+import contextlib
 import difflib
 import json
 
@@ -7,10 +8,12 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 
+from django.conf import settings as django_settings
+
 from .engines import EngineError, get_engine
-from .engines.postgres import INDEX_METHODS
+from .engines.postgres import COLUMN_TYPES, INDEX_METHODS
 from .forms import ConnectionForm
-from .models import Connection, PlanSnapshot
+from .models import Backup, Connection, PlanSnapshot
 from .plan_diff import diff_plans, node_from_dict, node_to_dict, to_text
 
 # Row-count multipliers for the scale simulation: now, 100×, 10000×. Enough
@@ -102,7 +105,36 @@ def table_detail(request, pk):
     return _render_detail(request, connection, schema, table)
 
 
-def _render_detail(request, connection, schema, table, error=None):
+def _mb(n):
+    return f"{n / 1048576:.0f} MB" if n >= 1048576 else f"{n / 1024:.0f} kB"
+
+
+def _auto_backup(connection, *, operation, kind, dbname, schema=None, table=None):
+    """Take an automatic safety snapshot (custom-format pg_dump) just before a
+    destructive op and store it if it's under the size limit. Returns a short
+    notice for the UI; never raises — an oversized or failed snapshot must not
+    block the operation, so the caller proceeds (warned)."""
+    engine = get_engine(connection)
+    try:
+        if kind == Backup.KIND_TABLE:
+            dump = engine.dump_table(schema, table, fmt="custom")
+            target = f"{schema}.{table}"
+        else:
+            dump = engine.dump_database(dbname, fmt="custom")
+            target = dbname
+    except EngineError as exc:
+        return f"⚠ No backup taken — the snapshot failed: {exc}"
+    limit = django_settings.CLI2UI_MAX_AUTO_BACKUP_BYTES
+    if len(dump.data) > limit:
+        return (f"⚠ No backup taken — {target} is {_mb(len(dump.data))}, "
+                f"over the {_mb(limit)} limit.")
+    Backup.objects.create(
+        connection=connection, operation=operation, kind=kind, target=target,
+        dbname=dbname, data=dump.data, byte_size=len(dump.data))
+    return f"Backup saved before {operation} — recover it from Backups."
+
+
+def _render_detail(request, connection, schema, table, error=None, notice=None):
     """Render the table-detail panel: columns, indexes and a row preview.
 
     A connection-level failure falls back to the error partial; a per-action
@@ -128,6 +160,7 @@ def _render_detail(request, connection, schema, table, error=None):
             "columns": columns,
             "indexes": indexes,
             "index_methods": INDEX_METHODS,
+            "column_types": COLUMN_TYPES,
             "preview_columns": preview.columns,
             "preview_rows": rows,
             # Display-only: prefilled into the SQL editor as a starting point,
@@ -135,6 +168,7 @@ def _render_detail(request, connection, schema, table, error=None):
             # enforced by the DB. nosec B608 — not a query we build and execute.
             "query_sql": f'SELECT * FROM "{schema}"."{table}" LIMIT 100',  # nosec B608
             "error": error,
+            "notice": notice,
         },
     )
 
@@ -214,11 +248,13 @@ def table_truncate(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     schema = request.POST.get("schema", "")
     table = request.POST.get("table", "")
+    notice = _auto_backup(connection, operation="truncate", kind=Backup.KIND_TABLE,
+                          dbname=connection.dbname, schema=schema, table=table)
     try:
         get_engine(connection).truncate_table(schema, table)
     except EngineError as exc:
         return _render_detail(request, connection, schema, table, error=str(exc))
-    response = _render_detail(request, connection, schema, table)
+    response = _render_detail(request, connection, schema, table, notice=notice)
     return _refresh_table_tree(response, request, connection)
 
 
@@ -228,12 +264,111 @@ def table_drop(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     schema = request.POST.get("schema", "")
     table = request.POST.get("table", "")
+    notice = _auto_backup(connection, operation="drop table", kind=Backup.KIND_TABLE,
+                          dbname=connection.dbname, schema=schema, table=table)
     try:
         get_engine(connection).drop_table(schema, table)
     except EngineError as exc:
         return _render_detail(request, connection, schema, table, error=str(exc))
-    response = overview(request, pk)
+    response = overview(request, pk, notice=notice)
     return _refresh_table_tree(response, request, connection)
+
+
+def column_add(request, pk):
+    """Add a column (ALTER TABLE … ADD COLUMN), then re-render the table detail."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        return _render_detail(request, connection, schema, table,
+                              error="Enter a column name.")
+    try:
+        get_engine(connection).add_column(
+            schema, table, name, request.POST.get("type", ""),
+            nullable=request.POST.get("notnull") != "on",
+            default=(request.POST.get("default") or "").strip() or None,
+        )
+    except EngineError as exc:
+        return _render_detail(request, connection, schema, table, error=str(exc))
+    return _render_detail(request, connection, schema, table)
+
+
+def column_rename(request, pk):
+    """Rename a column (ALTER TABLE … RENAME COLUMN), then re-render detail."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    new_name = (request.POST.get("new_name") or "").strip()
+    if not new_name:
+        return _render_detail(request, connection, schema, table,
+                              error="Enter a new column name.")
+    try:
+        get_engine(connection).rename_column(
+            schema, table, request.POST.get("column", ""), new_name)
+    except EngineError as exc:
+        return _render_detail(request, connection, schema, table, error=str(exc))
+    return _render_detail(request, connection, schema, table)
+
+
+def column_drop(request, pk):
+    """Drop a column (ALTER TABLE … DROP COLUMN), then re-render detail."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    notice = _auto_backup(connection, operation="drop column", kind=Backup.KIND_TABLE,
+                          dbname=connection.dbname, schema=schema, table=table)
+    try:
+        get_engine(connection).drop_column(
+            schema, table, request.POST.get("column", ""))
+    except EngineError as exc:
+        return _render_detail(request, connection, schema, table, error=str(exc))
+    return _render_detail(request, connection, schema, table, notice=notice)
+
+
+def column_retype(request, pk):
+    """Change a column's type (ALTER COLUMN … TYPE, with a generated USING cast).
+    A no-op if the chosen type matches the current one — avoids a needless and
+    expensive table rewrite."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    new_type = request.POST.get("type", "")
+    if new_type and new_type != request.POST.get("cur_type", ""):
+        try:
+            get_engine(connection).alter_column_type(
+                schema, table, request.POST.get("column", ""), new_type)
+        except EngineError as exc:
+            return _render_detail(request, connection, schema, table, error=str(exc))
+    return _render_detail(request, connection, schema, table)
+
+
+def column_set_null(request, pk):
+    """Add or drop a column's NOT NULL constraint."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    try:
+        get_engine(connection).set_column_null(
+            schema, table, request.POST.get("column", ""),
+            nullable=request.POST.get("nullable") == "1")
+    except EngineError as exc:
+        return _render_detail(request, connection, schema, table, error=str(exc))
+    return _render_detail(request, connection, schema, table)
+
+
+def column_set_default(request, pk):
+    """Set or drop a column's DEFAULT (empty value drops it)."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    try:
+        get_engine(connection).set_column_default(
+            schema, table, request.POST.get("column", ""),
+            (request.POST.get("default") or "").strip() or None)
+    except EngineError as exc:
+        return _render_detail(request, connection, schema, table, error=str(exc))
+    return _render_detail(request, connection, schema, table)
 
 
 def index_lab(request, pk):
@@ -315,10 +450,12 @@ def _index_verdict(preview):
     return {"label": "≈ no measurable change", "tone": "muted"}
 
 
-def overview(request, pk):
-    """The workspace home: what each section is and where to start."""
+def overview(request, pk, notice=None):
+    """The workspace home: what each section is and where to start. `notice` is
+    an optional info banner (e.g. the auto-backup result after a table drop)."""
     connection = get_object_or_404(Connection, pk=pk)
-    return render(request, "partials/workspace_home.html", {"connection": connection})
+    return render(request, "partials/workspace_home.html",
+                  {"connection": connection, "notice": notice})
 
 
 def query(request, pk):
@@ -630,12 +767,14 @@ def database_drop(request, pk):
     name = (request.POST.get("name") or "").strip()
     if not name:
         return _render_objects(request, connection, error="Database name is required.")
+    notice = _auto_backup(connection, operation="drop database",
+                          kind=Backup.KIND_DATABASE, dbname=name)
     try:
         get_engine(connection).drop_database(
             name, force=request.POST.get("force") == "on")
     except EngineError as exc:
         return _render_objects(request, connection, error=str(exc))
-    return _render_objects(request, connection)
+    return _render_objects(request, connection, notice=notice)
 
 
 def database_rename(request, pk):
@@ -650,6 +789,122 @@ def database_rename(request, pk):
     except EngineError as exc:
         return _render_objects(request, connection, error=str(exc))
     return _render_objects(request, connection)
+
+
+def _dump_download(dump):
+    """Wrap a Dump as an attachment download."""
+    response = HttpResponse(dump.data, content_type=dump.content_type)
+    response["Content-Disposition"] = f'attachment; filename="{dump.filename}"'
+    return response
+
+
+def database_dump(request, pk):
+    """Stream a pg_dump of a database to the browser as a download. A GET so a
+    plain link/anchor (target=_blank) triggers it; the dump only reads the DB.
+    On failure, return plain text — the link opens in a new tab, so the
+    workspace stays intact."""
+    connection = get_object_or_404(Connection, pk=pk)
+    try:
+        dump = get_engine(connection).dump_database(
+            request.GET.get("name", ""),
+            fmt=request.GET.get("format", "plain"))
+    except EngineError as exc:
+        return HttpResponse(str(exc), content_type="text/plain", status=502)
+    return _dump_download(dump)
+
+
+def _restore_into_new_db(connection, name, data):
+    """Create a brand-new database (from the pristine template0) and restore the
+    dump bytes into it. If the restore fails, drop the just-made database so a
+    failed attempt leaves nothing behind. Targeting a new name (which must not
+    already exist) is the safety model — an existing database is never
+    overwritten. Returns an error string, or None on success."""
+    if not name:
+        return "Provide a new database name."
+    engine = get_engine(connection)
+    try:
+        engine.create_database(name, template="template0")
+    except EngineError as exc:
+        return str(exc)
+    try:
+        engine.restore(name, data)
+    except EngineError as exc:
+        with contextlib.suppress(EngineError):
+            engine.drop_database(name, force=True)
+        return f"Restore failed — database not created. {exc}"
+    return None
+
+
+def database_restore(request, pk):
+    """Restore an uploaded dump file into a brand-new database."""
+    connection = get_object_or_404(Connection, pk=pk)
+    name = (request.POST.get("name") or "").strip()
+    upload = request.FILES.get("dump")
+    if not name or not upload:
+        return _render_objects(
+            request, connection,
+            error="Provide a new database name and a dump file to restore.")
+    err = _restore_into_new_db(connection, name, upload.read())
+    if err:
+        return _render_objects(request, connection, error=err)
+    return _render_objects(request, connection,
+                           notice=f"Restored into new database “{name}”.")
+
+
+def table_dump(request, pk):
+    """pg_dump a single table (-t) as a download. GET, like database_dump."""
+    connection = get_object_or_404(Connection, pk=pk)
+    try:
+        dump = get_engine(connection).dump_table(
+            request.GET.get("schema", ""), request.GET.get("table", ""),
+            fmt=request.GET.get("format", "plain"))
+    except EngineError as exc:
+        return HttpResponse(str(exc), content_type="text/plain", status=502)
+    return _dump_download(dump)
+
+
+def _render_backups(request, connection, error=None, notice=None):
+    return render(request, "partials/backups.html",
+                  {"connection": connection, "backups": connection.backups.all(),
+                   "error": error, "notice": notice})
+
+
+def backups(request, pk):
+    """The automatic safety snapshots taken before destructive operations."""
+    connection = get_object_or_404(Connection, pk=pk)
+    return _render_backups(request, connection)
+
+
+def backup_download(request, pk):
+    """Download a stored snapshot as a custom-format .dump file."""
+    connection = get_object_or_404(Connection, pk=pk)
+    backup = get_object_or_404(Backup, pk=request.GET.get("id"), connection=connection)
+    stamp = backup.created_at.strftime("%Y%m%d-%H%M%S")
+    response = HttpResponse(bytes(backup.data), content_type="application/octet-stream")
+    response["Content-Disposition"] = f'attachment; filename="{backup.target}-{stamp}.dump"'
+    return response
+
+
+def backup_delete(request, pk):
+    """Delete a stored snapshot, then re-render the list."""
+    connection = get_object_or_404(Connection, pk=pk)
+    Backup.objects.filter(pk=request.POST.get("id"), connection=connection).delete()
+    return _render_backups(request, connection)
+
+
+def backup_restore(request, pk):
+    """Restore a stored snapshot into a brand-new database (never overwriting an
+    existing one). A table snapshot lands in a fresh DB containing just that
+    table, so you can recover its data without touching the original."""
+    connection = get_object_or_404(Connection, pk=pk)
+    backup = get_object_or_404(Backup, pk=request.POST.get("id"), connection=connection)
+    name = (request.POST.get("name") or "").strip()
+    err = _restore_into_new_db(connection, name, bytes(backup.data))
+    if err:
+        return _render_backups(request, connection, error=err)
+    return _render_backups(
+        request, connection,
+        notice=f"Restored “{backup.target}” into new database “{name}”.")
 
 
 def schema_create(request, pk):
@@ -755,7 +1010,7 @@ def role_delete(request, pk):
     return _render_objects(request, connection)
 
 
-def _render_objects(request, connection, error=None):
+def _render_objects(request, connection, error=None, notice=None):
     """Gather databases / schemas / roles and render the objects panel.
 
     A connection-level failure falls back to the error partial; a per-action
@@ -778,6 +1033,7 @@ def _render_objects(request, connection, error=None):
             "schemas": schemas,
             "roles": roles,
             "error": error,
+            "notice": notice,
         },
     )
 

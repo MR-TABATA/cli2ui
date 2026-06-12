@@ -14,7 +14,65 @@
     body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
     .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
     [x-cloak] { display: none !important; }
+    /* htmx loading indicators: hidden until a request the element belongs to is
+       in flight (used for the restore spinner). */
+    .htmx-indicator { opacity: 0; transition: opacity .2s ease-in; }
+    .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+    .spinner { display: inline-block; width: .9em; height: .9em; border: 2px solid currentColor;
+               border-right-color: transparent; border-radius: 50%;
+               animation: spin .6s linear infinite; vertical-align: -2px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Global activity bar: an indeterminate sliding stripe (no fake %), shown
+       only when an htmx request runs longer than ~300ms so quick panel swaps
+       don't flash it but slow ops (dump/restore/drop) signal that work is on. */
+    #htmx-activity { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 50;
+                     opacity: 0; transition: opacity .2s;
+                     background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+                     background-size: 40% 100%; background-repeat: no-repeat;
+                     animation: htmx-slide 1s linear infinite; }
+    #htmx-activity.on { opacity: 1; }
+    @keyframes htmx-slide { 0% { background-position: -40% 0; } 100% { background-position: 140% 0; } }
   </style>
+  <script>
+    // Backup downloads aren't htmx requests (they stream a file), so they can't
+    // use hx-indicator. This Alpine component fetches the dump, shows an in-page
+    // spinner while pg_dump runs, then triggers the browser download from the
+    // blob — and surfaces the server's error text inline if it fails.
+    document.addEventListener("alpine:init", () => {
+      Alpine.data("dumpLinks", () => ({
+        busy: false,
+        err: "",
+        async download(url) {
+          this.busy = true; this.err = "";
+          try {
+            const r = await fetch(url);
+            if (!r.ok) { this.err = (await r.text()).slice(0, 300) || "Backup failed."; return; }
+            const blob = await r.blob();
+            const m = (r.headers.get("Content-Disposition") || "").match(/filename="?([^"]+)"?/);
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = m ? m[1] : "backup";
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(a.href);
+          } catch (e) { this.err = String(e); }
+          finally { this.busy = false; }
+        },
+      }));
+    });
+
+    // Global htmx activity bar (see #htmx-activity CSS). Only reveal it if a
+    // request outlasts a short grace period, so fast swaps stay flicker-free.
+    (function () {
+      let timer, bar;
+      const show = () => {
+        if (!bar) { bar = document.createElement("div"); bar.id = "htmx-activity"; document.body.appendChild(bar); }
+        bar.classList.add("on");
+      };
+      document.addEventListener("htmx:beforeRequest", () => { timer = setTimeout(show, 300); });
+      const hide = () => { clearTimeout(timer); if (bar) bar.classList.remove("on"); };
+      document.addEventListener("htmx:afterRequest", hide);
+    })();
+  </script>
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen"
       hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>

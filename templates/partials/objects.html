@@ -7,6 +7,9 @@
   {% if error %}
     <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-2.5 text-sm text-red-200/90 mono">{{ error }}</div>
   {% endif %}
+  {% if notice %}
+    <div class="{% if '⚠' in notice %}bg-amber-950/40 border-amber-900 text-amber-200/90{% else %}bg-sky-950/40 border-sky-900 text-sky-200/90{% endif %} border rounded-lg px-4 py-2.5 text-sm">{{ notice }}</div>
+  {% endif %}
 
   <!-- Databases: the \l view, now with create / clone / rename / drop -->
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
@@ -48,33 +51,71 @@
             <td class="px-5 py-2 text-zinc-400 mono">{{ d.encoding }}</td>
             <td class="px-5 py-2 text-zinc-400 mono text-right">{{ d.size|default:"—" }}</td>
             <td class="px-5 py-2 text-right whitespace-nowrap">
-              {% if d.name == connection.dbname %}
-                <span class="text-xs text-zinc-600">current</span>
-              {% else %}
-                <div x-show="!ren" class="flex items-center gap-3 justify-end">
+              <div x-show="!ren" class="flex items-center gap-3 justify-end">
+                <!-- Backup: fetched via JS so an in-page spinner shows while
+                     pg_dump runs, then the browser downloads the blob. -->
+                <span x-data="dumpLinks()" class="flex items-center gap-2">
+                  <a href="#" @click.prevent="download('{% url 'database_dump' connection.pk %}?name={{ d.name|urlencode }}&format=plain')"
+                     :class="busy && 'opacity-40 pointer-events-none'" title="pg_dump as plain SQL"
+                     class="text-xs text-sky-300/80 hover:text-sky-200">.sql ↓</a>
+                  <a href="#" @click.prevent="download('{% url 'database_dump' connection.pk %}?name={{ d.name|urlencode }}&format=custom')"
+                     :class="busy && 'opacity-40 pointer-events-none'" title="pg_dump in custom (compressed) format"
+                     class="text-xs text-sky-300/80 hover:text-sky-200">.dump ↓</a>
+                  <span x-show="busy" class="spinner text-sky-300"></span>
+                  <span x-show="err" x-text="err" class="text-xs text-red-400/90 max-w-[200px] truncate"></span>
+                </span>
+                {% if d.name == connection.dbname %}
+                  <span class="text-xs text-zinc-600">current</span>
+                {% else %}
                   <button @click="ren = true" type="button" class="text-xs text-zinc-400 hover:text-zinc-200">rename</button>
                   <form hx-post="{% url 'database_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
                         hx-confirm="Drop database &quot;{{ d.name }}&quot;? This permanently deletes all its data.">
                     <input type="hidden" name="name" value="{{ d.name }}">
                     <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
                   </form>
-                </div>
-                <form x-show="ren" x-cloak hx-post="{% url 'database_rename' connection.pk %}"
-                      hx-target="#detail" hx-swap="innerHTML"
-                      class="flex items-center gap-1.5 justify-end">
-                  <input type="hidden" name="old" value="{{ d.name }}">
-                  <input name="new" value="{{ d.name }}" autocomplete="off"
-                         class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 text-xs mono w-32
-                                text-zinc-100 focus:outline-none focus:border-emerald-400">
-                  <button type="submit" class="text-xs text-emerald-400 hover:text-emerald-300">save</button>
-                  <button @click="ren = false" type="button" class="text-xs text-zinc-500 hover:text-zinc-300">cancel</button>
-                </form>
-              {% endif %}
+                {% endif %}
+              </div>
+              <form x-show="ren" x-cloak hx-post="{% url 'database_rename' connection.pk %}"
+                    hx-target="#detail" hx-swap="innerHTML"
+                    class="flex items-center gap-1.5 justify-end">
+                <input type="hidden" name="old" value="{{ d.name }}">
+                <input name="new" value="{{ d.name }}" autocomplete="off"
+                       class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 text-xs mono w-32
+                              text-zinc-100 focus:outline-none focus:border-emerald-400">
+                <button type="submit" class="text-xs text-emerald-400 hover:text-emerald-300">save</button>
+                <button @click="ren = false" type="button" class="text-xs text-zinc-500 hover:text-zinc-300">cancel</button>
+              </form>
             </td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
+
+    <!-- Restore from a dump file into a brand-new database. New-DB-only by
+         design: an existing database is never overwritten, and the typed name
+         (which must not already exist) is itself the safety gate. The format
+         (.sql / custom) is auto-detected server-side. -->
+    <form hx-post="{% url 'database_restore' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          hx-encoding="multipart/form-data" hx-disabled-elt="find button[type=submit]"
+          hx-confirm="Create a new database and restore the uploaded dump into it?"
+          class="px-5 py-3 border-t border-zinc-800 flex flex-wrap items-center gap-2 text-sm">
+      <span class="text-xs uppercase tracking-wide text-zinc-500 mr-1">Restore</span>
+      <input name="name" placeholder="new_database" autocomplete="off" required
+             class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono w-40
+                    text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-sky-400">
+      <span class="text-zinc-600">←</span>
+      <input type="file" name="dump" accept=".sql,.dump" required
+             class="text-xs text-zinc-400 file:mr-2 file:rounded file:border-0 file:bg-zinc-800
+                    file:px-2 file:py-1 file:text-zinc-200 file:cursor-pointer hover:file:bg-zinc-700">
+      <button type="submit"
+              class="bg-sky-400 text-zinc-950 font-medium rounded px-3 py-1 hover:bg-sky-300">
+        Restore ↥
+      </button>
+      <span class="htmx-indicator flex items-center gap-1.5 text-xs text-sky-300">
+        <span class="spinner"></span> Restoring…
+      </span>
+      <span class="text-xs text-zinc-600">.sql or custom — format auto-detected</span>
+    </form>
   </section>
 
   <!-- Schemas: the \dn view, now with create / drop -->
