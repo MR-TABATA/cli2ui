@@ -459,8 +459,12 @@ class PostgresEngine(Engine):
             except psycopg2.Error as exc:
                 conn.rollback()
                 raise EngineError(_clean(exc)) from exc
-            # Read-only: never persist, even for a statement that slipped through.
-            conn.rollback()
+            if read_only:
+                # Never persist — even a statement that slipped past READ ONLY.
+                conn.rollback()
+            else:
+                # Write mode: the statement succeeded, so make it durable.
+                conn.commit()
         return QueryResult(
             columns=columns, rows=rows, rowcount=rowcount,
             truncated=truncated, duration_ms=duration_ms,
