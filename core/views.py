@@ -235,11 +235,13 @@ def table_rename(request, pk):
     if not new_name:
         return _render_detail(request, connection, schema, table,
                               error="Enter a new table name.")
+    notice = _auto_backup(connection, operation="rename table", kind=Backup.KIND_TABLE,
+                          dbname=connection.dbname, schema=schema, table=table)
     try:
         get_engine(connection).rename_table(schema, table, new_name)
     except EngineError as exc:
         return _render_detail(request, connection, schema, table, error=str(exc))
-    response = _render_detail(request, connection, schema, new_name)
+    response = _render_detail(request, connection, schema, new_name, notice=notice)
     return _refresh_table_tree(response, request, connection)
 
 
@@ -304,12 +306,14 @@ def column_rename(request, pk):
     if not new_name:
         return _render_detail(request, connection, schema, table,
                               error="Enter a new column name.")
+    notice = _auto_backup(connection, operation="rename column", kind=Backup.KIND_TABLE,
+                          dbname=connection.dbname, schema=schema, table=table)
     try:
         get_engine(connection).rename_column(
             schema, table, request.POST.get("column", ""), new_name)
     except EngineError as exc:
         return _render_detail(request, connection, schema, table, error=str(exc))
-    return _render_detail(request, connection, schema, table)
+    return _render_detail(request, connection, schema, table, notice=notice)
 
 
 def column_drop(request, pk):
@@ -336,11 +340,17 @@ def column_retype(request, pk):
     table = request.POST.get("table", "")
     new_type = request.POST.get("type", "")
     if new_type and new_type != request.POST.get("cur_type", ""):
+        # A type change can transform or lose data (the USING cast), so snapshot
+        # the table first — unlike the no-op path below, which changes nothing.
+        notice = _auto_backup(connection, operation="change column type",
+                              kind=Backup.KIND_TABLE, dbname=connection.dbname,
+                              schema=schema, table=table)
         try:
             get_engine(connection).alter_column_type(
                 schema, table, request.POST.get("column", ""), new_type)
         except EngineError as exc:
             return _render_detail(request, connection, schema, table, error=str(exc))
+        return _render_detail(request, connection, schema, table, notice=notice)
     return _render_detail(request, connection, schema, table)
 
 
@@ -349,13 +359,16 @@ def column_set_null(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     schema = request.POST.get("schema", "")
     table = request.POST.get("table", "")
+    notice = _auto_backup(connection, operation="set column nullability",
+                          kind=Backup.KIND_TABLE, dbname=connection.dbname,
+                          schema=schema, table=table)
     try:
         get_engine(connection).set_column_null(
             schema, table, request.POST.get("column", ""),
             nullable=request.POST.get("nullable") == "1")
     except EngineError as exc:
         return _render_detail(request, connection, schema, table, error=str(exc))
-    return _render_detail(request, connection, schema, table)
+    return _render_detail(request, connection, schema, table, notice=notice)
 
 
 def column_set_default(request, pk):
@@ -363,13 +376,16 @@ def column_set_default(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     schema = request.POST.get("schema", "")
     table = request.POST.get("table", "")
+    notice = _auto_backup(connection, operation="set column default",
+                          kind=Backup.KIND_TABLE, dbname=connection.dbname,
+                          schema=schema, table=table)
     try:
         get_engine(connection).set_column_default(
             schema, table, request.POST.get("column", ""),
             (request.POST.get("default") or "").strip() or None)
     except EngineError as exc:
         return _render_detail(request, connection, schema, table, error=str(exc))
-    return _render_detail(request, connection, schema, table)
+    return _render_detail(request, connection, schema, table, notice=notice)
 
 
 def index_lab(request, pk):
