@@ -26,6 +26,46 @@ a bundled sample database — just hit **Connect** and you'll see its tables.
 To point at your own PostgreSQL, change the form fields (host, port, db, user,
 password) and connect.
 
+## Connecting to a database in another container
+
+cli2ui runs in its own container, so "localhost" in the connection form means
+*the cli2ui container*, not your machine. Your database almost always lives
+somewhere else — another container, another compose project, or a native
+install. Three ways to reach it (no code changes, just how you fill the form):
+
+1. **Via the host (simplest).** If the database publishes a port on your machine
+   (e.g. `-p 5432:5432`), set the connection **host** to `host.docker.internal`
+   and the **port** to the published one. Works the same on macOS, Windows, and
+   Linux — the `extra_hosts` entry in `docker-compose.yml` makes the name
+   resolve everywhere.
+
+2. **Share a network, connect by container name.** Put both on one external
+   network and use the database's container name as the host:
+
+   ```bash
+   docker network create cli2ui-net
+   # then in BOTH compose files:
+   #   networks:
+   #     default:
+   #       name: cli2ui-net
+   #       external: true
+   ```
+
+3. **Attach at runtime.** Join the running cli2ui container to the database's
+   existing network, then use the DB container name as the host:
+
+   ```bash
+   docker network connect <db-network> <cli2ui-app-container>
+   ```
+
+## Trying replication locally
+
+The Replication panel reads `pg_stat_replication` / `pg_replication_slots`, so
+its **Standbys** table stays empty until a replica is actually attached. To
+watch it populate, spin up a throwaway primary + standby pair and point cli2ui
+at the primary — see **[README.REPLICATION.md](README.REPLICATION.md)** for a
+copy-paste compose file and the exact connection details.
+
 ## Status
 
 MVP. `docker compose up` → connect → browse your tables in a DB-client layout
@@ -42,7 +82,11 @@ MVP. `docker compose up` → connect → browse your tables in a DB-client layou
 - ✅ Objects browser: databases (`\l`), schemas (`\dn`), roles (`\du`) — read-only
 - ✅ `postgresql.conf` editor: read/edit parameters via `pg_settings` +
   `ALTER SYSTEM SET` + `pg_reload_conf()`, with reload-vs-restart badges
-- ⬜ More `pg_*` ops panels: locks/blocking, table health, sizes, replication
+- ✅ Locks: sessions blocked on a lock (`pg_locks` + `pg_blocking_pids`) paired
+  with the holder, plus one-click cancel / kill of the blocker
+- ✅ Replication: readiness check (`wal_level` / `max_wal_senders`) + WAL position,
+  connected standbys (`pg_stat_replication`), and slot create / drop
+- ⬜ More `pg_*` ops panels: bloat estimate
 - ⬜ Bento ops overview once a few panels exist
 - ⬜ MySQL (the engine layer is ready for it)
 - ⬜ Command history
