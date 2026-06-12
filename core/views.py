@@ -469,23 +469,34 @@ def query(request, pk):
 
 
 def query_run(request, pk):
-    """Execute ad-hoc SQL read-only and render the result grid."""
+    """Execute ad-hoc SQL and render the result grid. Read-only by default; in
+    write mode the statement is committed, after an automatic safety snapshot."""
     connection = get_object_or_404(Connection, pk=pk)
     sql_text = (request.POST.get("sql") or "").strip()
+    write = bool(request.POST.get("write"))
     if not sql_text:
         return render(request, "partials/query_result.html", {"empty": True})
-    try:
-        result = get_engine(connection).run_query(sql_text)
-    except EngineError as exc:
-        _log_command(connection, sql_text, read_only=True, error=str(exc))
-        return render(request, "partials/query_result.html", {"error": str(exc)})
 
-    _log_command(connection, sql_text, read_only=True, result=result)
+    # Safety net: a whole-database snapshot before any arbitrary write, so the
+    # change can be undone from Backups (same mechanism as drop/truncate).
+    notice = None
+    if write:
+        notice = _auto_backup(connection, operation="write query",
+                              kind=Backup.KIND_DATABASE, dbname=connection.dbname)
+
+    try:
+        result = get_engine(connection).run_query(sql_text, read_only=not write)
+    except EngineError as exc:
+        _log_command(connection, sql_text, read_only=not write, error=str(exc))
+        return render(request, "partials/query_result.html",
+                      {"error": str(exc), "notice": notice})
+
+    _log_command(connection, sql_text, read_only=not write, result=result)
     rows = [["" if v is None else v for v in row] for row in result.rows]
     return render(
         request,
         "partials/query_result.html",
-        {"result": result, "rows": rows},
+        {"result": result, "rows": rows, "notice": notice, "wrote": write},
     )
 
 
