@@ -95,3 +95,29 @@ class Backup(models.Model):
         if n >= 1024:
             return f"{n / 1024:.0f} kB"
         return f"{n} B"
+
+
+class Command(models.Model):
+    """One SQL statement run through the ad-hoc runner, logged to the management
+    DB so you can see (and re-open) what you ran. Read-only queries and writes
+    are both recorded; the flag and status distinguish them."""
+
+    STATUS_OK = "ok"
+    STATUS_ERROR = "error"
+
+    connection = models.ForeignKey(
+        Connection, on_delete=models.CASCADE, related_name="commands"
+    )
+    sql = models.TextField()
+    read_only = models.BooleanField(default=True)
+    status = models.CharField(max_length=8, default=STATUS_OK)
+    rowcount = models.IntegerField(null=True, blank=True)
+    duration_ms = models.IntegerField(null=True, blank=True)
+    error = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.sql[:60]

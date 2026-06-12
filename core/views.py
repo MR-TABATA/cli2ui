@@ -13,7 +13,7 @@ from django.conf import settings as django_settings
 from .engines import EngineError, get_engine
 from .engines.postgres import COLUMN_TYPES, INDEX_METHODS
 from .forms import ConnectionForm
-from .models import Backup, Connection, PlanSnapshot
+from .models import Backup, Command, Connection, PlanSnapshot
 from .plan_diff import diff_plans, node_from_dict, node_to_dict, to_text
 
 # Row-count multipliers for the scale simulation: now, 100×, 10000×. Enough
@@ -477,13 +477,51 @@ def query_run(request, pk):
     try:
         result = get_engine(connection).run_query(sql_text)
     except EngineError as exc:
+        _log_command(connection, sql_text, read_only=True, error=str(exc))
         return render(request, "partials/query_result.html", {"error": str(exc)})
 
+    _log_command(connection, sql_text, read_only=True, result=result)
     rows = [["" if v is None else v for v in row] for row in result.rows]
     return render(
         request,
         "partials/query_result.html",
         {"result": result, "rows": rows},
+    )
+
+
+def _log_command(connection, sql_text, *, read_only, result=None, error=None):
+    """Record one runner execution in the management DB. Never raises — a
+    logging failure must not break the query the user actually ran."""
+    try:
+        Command.objects.create(
+            connection=connection, sql=sql_text, read_only=read_only,
+            status=Command.STATUS_ERROR if error else Command.STATUS_OK,
+            rowcount=result.rowcount if result else None,
+            duration_ms=result.duration_ms if result else None,
+            error=error or "",
+        )
+    except Exception:  # noqa: BLE001 — logging is best-effort
+        pass
+
+
+def history(request, pk):
+    """Command history: SQL run through the runner, newest first (htmx partial)."""
+    connection = get_object_or_404(Connection, pk=pk)
+    return _render_history(request, connection)
+
+
+def history_clear(request, pk):
+    """Delete this connection's command history, then re-render the panel."""
+    connection = get_object_or_404(Connection, pk=pk)
+    connection.commands.all().delete()
+    return _render_history(request, connection)
+
+
+def _render_history(request, connection):
+    return render(
+        request,
+        "partials/history.html",
+        {"connection": connection, "commands": connection.commands.all()[:200]},
     )
 
 
