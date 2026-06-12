@@ -1,0 +1,151 @@
+<div class="space-y-5">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h2 class="text-lg font-semibold flex items-center gap-2"><span>🔁</span> Replication</h2>
+      <p class="text-xs text-zinc-500 mono">readiness · WAL position · standbys · slots</p>
+    </div>
+    <button hx-get="{% url 'replication' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            class="text-xs text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1.5
+                   hover:border-zinc-600 transition">↻ Refresh</button>
+  </div>
+
+  {% if error %}
+    <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-2.5 text-sm text-red-200/90 mono">{{ error }}</div>
+  {% endif %}
+
+  <!-- Readiness + role: can this server accept a standby, and where is its WAL -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-zinc-500">Readiness</span>
+      {% if status.ready %}
+        <span class="text-[11px] px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/60">ready for a standby</span>
+      {% else %}
+        <span class="text-[11px] px-1.5 py-0.5 rounded bg-amber-950/50 text-amber-400 border border-amber-900/60">not accepting standbys</span>
+      {% endif %}
+    </div>
+    <div class="px-5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5 text-sm">
+      <div><div class="text-xs text-zinc-500">role</div>
+        <div class="mono text-zinc-200">{% if status.is_standby %}standby (in recovery){% else %}primary{% endif %}</div></div>
+      <div><div class="text-xs text-zinc-500">current LSN</div>
+        <div class="mono text-zinc-200">{{ status.current_lsn|default:"—" }}</div></div>
+      <div><div class="text-xs text-zinc-500">wal_level</div>
+        <div class="mono {% if status.wal_level == 'minimal' %}text-amber-400{% else %}text-zinc-200{% endif %}">{{ status.wal_level }}</div></div>
+      <div><div class="text-xs text-zinc-500">max_wal_senders</div>
+        <div class="mono {% if status.max_wal_senders == 0 %}text-amber-400{% else %}text-zinc-200{% endif %}">{{ status.max_wal_senders }}</div></div>
+      <div><div class="text-xs text-zinc-500">max_replication_slots</div>
+        <div class="mono text-zinc-200">{{ status.max_replication_slots }}</div></div>
+      <div><div class="text-xs text-zinc-500">archive_mode</div>
+        <div class="mono text-zinc-200">{{ status.archive_mode }}</div></div>
+    </div>
+    <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-500 flex items-center justify-between gap-3">
+      <span>A standby needs <span class="mono">wal_level</span> ≥ replica and <span class="mono">max_wal_senders</span> &gt; 0.</span>
+      <button hx-get="{% url 'settings' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+              class="text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
+                     hover:border-zinc-600 transition whitespace-nowrap">edit in settings →</button>
+    </div>
+  </section>
+
+  <!-- Connected standbys: pg_stat_replication. Empty unless a replica is attached. -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-zinc-500">
+        Standbys <span class="mono lowercase text-zinc-600">pg_stat_replication</span>
+      </span>
+      <button hx-get="{% url 'query' connection.pk %}?sql={{ standbys_sql|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML"
+              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
+                     hover:border-zinc-600 transition">open in SQL →</button>
+    </div>
+    {% if standbys %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">PID</th>
+            <th class="px-5 py-2 font-medium">Client</th>
+            <th class="px-5 py-2 font-medium">State</th>
+            <th class="px-5 py-2 font-medium">Sync</th>
+            <th class="px-5 py-2 font-medium text-right">Lag</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in standbys %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono text-zinc-400">{{ s.pid }}</td>
+              <td class="px-5 py-2 mono text-zinc-300">{{ s.app|default:"—" }} <span class="text-zinc-500">{{ s.client|default:"" }}</span></td>
+              <td class="px-5 py-2 mono text-zinc-300">{{ s.state|default:"—" }}</td>
+              <td class="px-5 py-2 mono text-zinc-400">{{ s.sync_state|default:"—" }}</td>
+              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{% if s.lag_bytes is not None %}{{ s.lag_bytes }} B{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-500 text-sm">No standby connected.</p>
+    {% endif %}
+  </section>
+
+  <!-- Slots: pg_replication_slots, with create / drop. An inactive slot pins WAL. -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-zinc-500">
+        Slots <span class="mono lowercase text-zinc-600">pg_replication_slots</span>
+      </span>
+      <button hx-get="{% url 'query' connection.pk %}?sql={{ slots_sql|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML"
+              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
+                     hover:border-zinc-600 transition">open in SQL →</button>
+    </div>
+    {% if slots %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">Name</th>
+            <th class="px-5 py-2 font-medium">Type</th>
+            <th class="px-5 py-2 font-medium">Active</th>
+            <th class="px-5 py-2 font-medium">Restart LSN</th>
+            <th class="px-5 py-2 font-medium text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sl in slots %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono text-zinc-200">{{ sl.name }}</td>
+              <td class="px-5 py-2 mono text-zinc-400">{{ sl.slot_type }}{% if sl.database %} <span class="text-zinc-500">{{ sl.database }}</span>{% endif %}</td>
+              <td class="px-5 py-2">
+                {% if sl.active %}
+                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/60">active</span>
+                {% else %}
+                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-amber-950/50 text-amber-400 border border-amber-900/60" title="An inactive slot keeps WAL from being recycled">inactive · pins WAL</span>
+                {% endif %}
+                {% if sl.wal_status and sl.wal_status != 'reserved' %}
+                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-red-950/50 text-red-400 border border-red-900/60">{{ sl.wal_status }}</span>
+                {% endif %}
+              </td>
+              <td class="px-5 py-2 mono text-zinc-400">{{ sl.restart_lsn|default:"—" }}</td>
+              <td class="px-5 py-2 text-right whitespace-nowrap">
+                <button hx-post="{% url 'slot_drop' connection.pk %}" hx-vals='{"name": "{{ sl.name }}"}'
+                        hx-target="#detail" hx-swap="innerHTML"
+                        hx-confirm="Drop replication slot &quot;{{ sl.name }}&quot;? Any standby relying on it will break."
+                        class="text-xs text-red-400 hover:text-red-300 underline">drop</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-500 text-sm">No replication slots.</p>
+    {% endif %}
+    <div class="px-5 py-3 border-t border-zinc-800">
+      <form hx-post="{% url 'slot_create' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            class="flex items-center gap-2 flex-wrap">
+        <input name="name" placeholder="new_slot_name" autocomplete="off"
+               class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm mono
+                      focus:outline-none focus:border-emerald-500 w-48">
+        <button type="submit"
+                class="text-xs text-emerald-400 border border-emerald-900/60 bg-emerald-950/40 rounded-lg px-3 py-1.5
+                       hover:border-emerald-700 transition">+ Create physical slot</button>
+        <span class="text-xs text-amber-400/80">⚠ An unused slot keeps WAL forever — drop it when done.</span>
+      </form>
+    </div>
+  </section>
+</div>
