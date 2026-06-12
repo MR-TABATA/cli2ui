@@ -5,6 +5,13 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
+    # Lets you reach a database running elsewhere on the host (another container
+    # that publishes a port, or a native install) by connecting cli2ui to
+    # host.docker.internal. Docker Desktop (Mac/Windows) provides this name
+    # automatically; host-gateway adds it on Linux too, so the connect steps in
+    # the README are the same on every platform.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       sampledb:
         condition: service_healthy
