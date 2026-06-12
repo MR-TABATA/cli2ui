@@ -73,8 +73,9 @@ MVP. `docker compose up` → connect → browse your tables in a DB-client layou
 
 - ✅ PostgreSQL: connect + list tables (estimated row counts)
 - ✅ Table detail: column definitions (`\d table`) + row preview (`SELECT * … LIMIT`)
-- ✅ SQL runner: read-only ad-hoc queries — `SET TRANSACTION READ ONLY` +
-  `statement_timeout` + 1000-row cap (writes wait for the safety net)
+- ✅ SQL runner: read-only ad-hoc queries by default (`SET TRANSACTION READ ONLY`
+  + `statement_timeout` + 1000-row cap), with an opt-in **write mode** that
+  commits — guarded by a whole-database safety snapshot taken before each write
 - ✅ EXPLAIN snapshots + diff: save query plans and diff two (before/after an
   index) instead of copy-pasting plans into a scratch file
 - ✅ Activity: running queries + connections from `pg_stat_activity`, with

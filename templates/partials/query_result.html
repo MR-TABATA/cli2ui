@@ -1,6 +1,10 @@
 {% if empty %}
   <p class="text-sm text-zinc-500">Enter a query and hit Run.</p>
-{% elif error %}
+{% else %}
+  {% if notice %}
+    <div class="{% if '⚠' in notice %}bg-amber-950/40 border-amber-900 text-amber-200/90{% else %}bg-sky-950/40 border-sky-900 text-sky-200/90{% endif %} border rounded-lg px-4 py-2.5 text-sm mb-3">{{ notice }}</div>
+  {% endif %}
+{% if error %}
   <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-3">
     <p class="text-sm font-medium text-red-300 mb-1">Query error</p>
     <p class="text-sm text-red-200/80 mono whitespace-pre-wrap">{{ error }}</p>
@@ -9,6 +13,8 @@
   <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm mb-3">
     {% if result.columns %}
       <span class="text-zinc-200 font-medium">{{ result.rowcount }} row{{ result.rowcount|pluralize }} returned</span>
+    {% elif wrote %}
+      <span class="text-amber-400 font-medium">{{ result.rowcount }} row{{ result.rowcount|pluralize }} affected · committed</span>
     {% else %}
       <span class="text-emerald-400 font-medium">statement executed</span>
     {% endif %}
@@ -48,4 +54,5 @@
       </div>
     </div>
   {% endif %}
-{% endif %}
+{% endif %}{# error #}
+{% endif %}{# empty #}
