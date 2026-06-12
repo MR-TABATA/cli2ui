@@ -339,6 +339,29 @@ class VacuumStat:
 
 
 @dataclass
+class BloatEstimate:
+    """Estimated table bloat — wasted space beyond what the rows actually need,
+    from a statistics-only query (no table scan). Approximate by design: it
+    relies on pg_stats, so it's directional, not exact. The neighbour of the
+    dead-rows card: dead tuples are *why* a table bloats, this is *how much*."""
+
+    schema: str
+    name: str
+    table_bytes: int        # current on-disk heap size (context / the bar)
+    wasted_bytes: int       # estimated reclaimable space
+    bloat_ratio: float      # actual pages / ideal pages; 1.0 = no bloat
+
+    @property
+    def qualified(self) -> str:
+        return f"{self.schema}.{self.name}"
+
+    @property
+    def wasted_pct(self) -> int:
+        """Wasted / current size, 0..100 — the headline number."""
+        return round(self.wasted_bytes / self.table_bytes * 100) if self.table_bytes else 0
+
+
+@dataclass
 class IndexPreview:
     """The result of a 'what-if' index trial: the same query EXPLAIN ANALYZE'd
     without and then with a hypothetical index, which is created and immediately
@@ -576,6 +599,10 @@ class Engine:
 
     def vacuum_stats(self) -> list[VacuumStat]:
         """Dead-tuple counts and last (auto)vacuum/analyze times per table."""
+        raise NotImplementedError
+
+    def bloat_estimates(self, limit: int = 20) -> list[BloatEstimate]:
+        """Estimated table bloat from pg_stats (no table scan). Approximate."""
         raise NotImplementedError
 
     # --- server configuration (postgresql.conf, via SQL) -------------------
