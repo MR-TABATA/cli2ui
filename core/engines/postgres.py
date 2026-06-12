@@ -1,8 +1,10 @@
 """PostgreSQL engine — psycopg2 under the hood."""
 import contextlib
+import io
 import json
 import os
 import subprocess  # nosec B404 — used only to run pg_dump with a fixed argv, no shell
+import threading
 import time
 from datetime import datetime
 
@@ -988,11 +990,19 @@ class PostgresEngine(Engine):
                     content_type=ctype, data=proc.stdout)
 
     def restore(self, dbname: str, data: bytes) -> None:
-        """Restore a dump (bytes) into an existing database. The format is
-        detected from the content — a custom-format archive starts with the
-        'PGDMP' marker and goes through pg_restore; anything else is treated as
-        plain SQL and piped through psql (stopping on the first error)."""
-        is_custom = data[:5] == b"PGDMP"
+        """Restore dump bytes into an existing database (convenience wrapper —
+        streams from an in-memory buffer)."""
+        self.restore_stream(dbname, io.BytesIO(data))
+
+    def restore_stream(self, dbname: str, fileobj) -> None:
+        """Restore a dump read from a file-like object into an existing database,
+        streaming it to the client tool's stdin in chunks instead of loading the
+        whole dump into memory. The format is detected from the leading bytes —
+        a custom-format archive starts with the 'PGDMP' marker and goes through
+        pg_restore; anything else is treated as plain SQL piped through psql
+        (stopping on the first error)."""
+        head = fileobj.read(5)
+        is_custom = head[:5] == b"PGDMP"
         conn = self.connection
         common = ["-h", conn.host, "-p", str(conn.port), "-U", conn.user,
                   "--no-password", "-d", dbname]
@@ -1011,18 +1021,40 @@ class PostgresEngine(Engine):
             tool = "psql"
         env = {**os.environ, "PGPASSWORD": conn.password or ""}
         try:
-            # No shell; the dump is fed on stdin, never written to disk.
-            proc = subprocess.run(  # nosec B603 B607
-                argv, input=data, capture_output=True, env=env,
-                timeout=RESTORE_TIMEOUT)
+            # No shell; the dump is fed on stdin in chunks, never written to disk.
+            proc = subprocess.Popen(  # nosec B603 B607
+                argv, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE, env=env)
         except FileNotFoundError as exc:
             raise EngineError(
                 f"{tool} not found — install the postgresql-client package "
                 "(it ships in the Docker image).") from exc
+        # Drain stderr on a thread so a chatty tool can't fill the pipe and
+        # deadlock us while we're busy writing stdin.
+        err_chunks: list[bytes] = []
+        drainer = threading.Thread(
+            target=lambda: err_chunks.extend(iter(lambda: proc.stderr.read(8192), b"")),
+            daemon=True)
+        drainer.start()
+        try:
+            with proc.stdin as stdin:
+                if head:
+                    stdin.write(head)
+                for chunk in iter(lambda: fileobj.read(65536), b""):
+                    stdin.write(chunk)
+            proc.wait(timeout=RESTORE_TIMEOUT)
         except subprocess.TimeoutExpired as exc:
+            proc.kill()
+            proc.wait()
             raise EngineError("restore timed out.") from exc
+        except BrokenPipeError:
+            # The tool exited early (e.g. an error mid-stream); fall through to
+            # report it from the captured stderr below.
+            proc.wait()
+        finally:
+            drainer.join(timeout=5)
         if proc.returncode != 0:
-            raise EngineError(_tool_error(proc.stderr, "restore failed."))
+            raise EngineError(_tool_error(b"".join(err_chunks), "restore failed."))
 
     def preview_index(self, sql_text: str, schema: str, table: str,
                       columns: list[str], *, method: str = "btree",
