@@ -42,6 +42,13 @@
     .field:focus { outline: none; border-color: #34d399; }
     .field-sm { padding: .25rem .5rem; font-size: .75rem; }
 
+    /* Sidebar nav buttons (the top-level section switcher). The active state is
+       toggled via Alpine :class, layered on top of these base styles. */
+    .nav-btn { width: 100%; text-align: left; display: flex; align-items: center; gap: .5rem;
+               background: rgba(24,24,27,.6); border: 1px solid #27272a; border-radius: .5rem;
+               padding: .625rem .875rem; color: #d4d4d8; transition: border-color .15s, background-color .15s; }
+    .nav-btn:hover { border-color: #52525b; }
+
     /* Panel subtabs — the in-panel section switcher (Alpine x-show). */
     .subtab { padding: .375rem .75rem; font-size: .8125rem; border-radius: .5rem;
               color: #a1a1aa; cursor: pointer; transition: color .15s, background-color .15s; }
