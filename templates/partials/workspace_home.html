@@ -1,89 +1,17 @@
-{% comment %}Workspace home — a bento of live operational summaries. Each card
-shows an at-a-glance metric from _overview_summary and drills into its panel.
-A card whose probe failed (value is None) still renders, showing "—".{% endcomment %}
+{% comment %}Workspace home (#detail landing). The section bento now lives in the
+overview hover menu, so the landing is just a slim welcome that points there.{% endcomment %}
 <div class="space-y-5">
   {% include "partials/_banner.html" %}
-  <div>
+  <div class="border border-zinc-800 rounded-xl bg-zinc-900/40 px-6 py-10 text-center">
     <h2 class="text-xl font-semibold">Connected to {{ connection.display_name }}</h2>
     <p class="text-sm text-zinc-400 mt-1 mono">{{ connection.host }}:{{ connection.port }}/{{ connection.dbname }}</p>
+    <p class="text-sm text-zinc-400 mt-5">
+      Hover <span class="mono text-zinc-200">⌂ overview</span> to jump to a section,
+      or pick a table in the sidebar.
+    </p>
+    <p class="text-xs text-zinc-500 mt-3">
+      Read-only by default — changes are always explicit. cli2ui runs locally;
+      your DB credentials never leave this machine.
+    </p>
   </div>
-
-  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-
-    {% comment %}Activity{% endcomment %}
-    <button hx-get="{% url 'activity' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-            class="text-left bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition">
-      <div class="flex items-center justify-between">
-        <span class="flex items-center gap-2 font-medium text-zinc-200"><span>⚡</span> Activity</span>
-        {% if summary.activity.blocked %}<span class="text-xs text-red-300 bg-red-950/50 rounded px-1.5 py-0.5">{{ summary.activity.blocked }} blocked</span>{% endif %}
-      </div>
-      {% if summary.activity %}
-        <p class="text-2xl font-semibold mt-2">{{ summary.activity.sessions }}<span class="text-sm font-normal text-zinc-400"> session{{ summary.activity.sessions|pluralize }}</span></p>
-        <p class="text-xs text-zinc-400 mt-0.5">{{ summary.activity.active }} active now</p>
-      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-500">—</p>{% endif %}
-    </button>
-
-    {% comment %}Health{% endcomment %}
-    <button hx-get="{% url 'health' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-            class="text-left bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition">
-      <div class="flex items-center justify-between">
-        <span class="flex items-center gap-2 font-medium text-zinc-200"><span>🩺</span> Health</span>
-        {% if summary.health.unused %}<span class="text-xs text-amber-300 bg-amber-950/50 rounded px-1.5 py-0.5">{{ summary.health.unused }} unused idx</span>{% endif %}
-      </div>
-      {% if summary.health %}
-        <p class="text-2xl font-semibold mt-2">{% if summary.health.largest %}{{ summary.health.largest.total }}{% else %}0{% endif %}<span class="text-sm font-normal text-zinc-400"> largest table</span></p>
-        <p class="text-xs text-zinc-400 mt-0.5 truncate">{% if summary.health.largest %}{{ summary.health.largest.qualified }} · {% endif %}{{ summary.health.dead }} dead row{{ summary.health.dead|pluralize }}</p>
-      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-500">—</p>{% endif %}
-    </button>
-
-    {% comment %}Tables{% endcomment %}
-    <button hx-get="{% url 'health' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-            class="text-left bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition">
-      <span class="flex items-center gap-2 font-medium text-zinc-200"><span>▤</span> Tables</span>
-      {% if summary.tables %}
-        <p class="text-2xl font-semibold mt-2">{{ summary.tables.count }}<span class="text-sm font-normal text-zinc-400"> table{{ summary.tables.count|pluralize }}</span></p>
-        <p class="text-xs text-zinc-400 mt-0.5">≈{{ summary.tables.rows }} rows · pick one in the sidebar</p>
-      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-500">—</p>{% endif %}
-    </button>
-
-    {% comment %}Objects{% endcomment %}
-    <button hx-get="{% url 'objects' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-            class="text-left bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition">
-      <span class="flex items-center gap-2 font-medium text-zinc-200"><span>🗄</span> Objects</span>
-      {% if summary.objects %}
-        <p class="text-2xl font-semibold mt-2">{{ summary.objects.databases }}<span class="text-sm font-normal text-zinc-400"> database{{ summary.objects.databases|pluralize }}</span></p>
-        <p class="text-xs text-zinc-400 mt-0.5">{{ summary.objects.schemas }} schema{{ summary.objects.schemas|pluralize }} · {{ summary.objects.roles }} role{{ summary.objects.roles|pluralize }}</p>
-      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-500">—</p>{% endif %}
-    </button>
-
-    {% comment %}Replication{% endcomment %}
-    <button hx-get="{% url 'replication' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-            class="text-left bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition">
-      <div class="flex items-center justify-between">
-        <span class="flex items-center gap-2 font-medium text-zinc-200"><span>🔁</span> Replication</span>
-        {% if summary.replication %}
-          {% if summary.replication.ready %}<span class="text-xs text-emerald-300 bg-emerald-950/50 rounded px-1.5 py-0.5">ready</span>
-          {% else %}<span class="text-xs text-zinc-400 bg-zinc-800/70 rounded px-1.5 py-0.5">not ready</span>{% endif %}
-        {% endif %}
-      </div>
-      {% if summary.replication %}
-        <p class="text-2xl font-semibold mt-2 mono">{{ summary.replication.wal_level }}<span class="text-sm font-normal text-zinc-400"> wal_level</span></p>
-        <p class="text-xs text-zinc-400 mt-0.5">{{ summary.replication.max_wal_senders }} wal sender{{ summary.replication.max_wal_senders|pluralize }}{% if summary.replication.is_standby %} · standby{% endif %}</p>
-      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-500">—</p>{% endif %}
-    </button>
-
-    {% comment %}SQL runner / history{% endcomment %}
-    <button hx-get="{% url 'query' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-            class="text-left bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition">
-      <span class="flex items-center gap-2 font-medium text-zinc-200"><span>▷</span> SQL runner</span>
-      <p class="text-2xl font-semibold mt-2">{{ commands }}<span class="text-sm font-normal text-zinc-400"> command{{ commands|pluralize }} run</span></p>
-      <p class="text-xs text-zinc-400 mt-0.5">Query, EXPLAIN, scale-test · ⌘/Ctrl+Enter to run</p>
-    </button>
-
-  </div>
-
-  <p class="text-xs text-zinc-400">
-    Read-only by default — changes are always explicit. cli2ui runs locally; your DB
-    credentials never leave this machine.
-  </p>
 </div>

@@ -6,49 +6,27 @@ main pane) and `q` (the table filter).{% endcomment %}
 {% block body_attrs %}x-data="{ q: '', sel: '' }"{% endblock %}
 
 {% block topnav %}
-<nav class="max-w-7xl mx-auto px-6 pb-2.5 flex flex-wrap items-center gap-x-0.5 gap-y-1">
-  <button hx-get="{% url 'overview' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="sel = '__home__'" :class="sel === '__home__' && 'topnav-btn-on'"
-          class="topnav-btn mono"><span>⌂</span> overview</button>
+<nav class="max-w-7xl mx-auto px-6 pb-2.5 flex items-center gap-1">
+  <!-- Only this wrapper (the overview button + its menu) is the hover zone, so
+       moving the mouse elsewhere along the bar doesn't drop the mega-menu. -->
+  <div class="relative" @mouseenter="$store.navmenu.open = true" @mouseleave="$store.navmenu.open = false">
+    <button hx-get="{% url 'overview' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            @click="$store.navmenu.open = false"
+            :class="$store.navmenu.open && 'topnav-btn-on'"
+            class="topnav-btn mono" aria-haspopup="true"><span>⌂</span> overview <span class="text-zinc-500">▾</span></button>
 
-  <span class="topnav-sep"></span>
-  <button hx-get="{% url 'query' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="sel = '__sql__'" :class="sel === '__sql__' && 'topnav-btn-on'"
-          class="topnav-btn mono"><span>▷</span> SQL</button>
-  <button hx-get="{% url 'history' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="sel = '__history__'" :class="sel === '__history__' && 'topnav-btn-on'"
-          class="topnav-btn mono"><span>≡</span> history</button>
-  <button hx-get="{% url 'snapshots' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="sel = '__snapshots__'" :class="sel === '__snapshots__' && 'topnav-btn-on'"
-          class="topnav-btn mono"><span>◫</span> snapshots</button>
-  <button hx-get="{% url 'index_lab' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="sel = '__lab__'" :class="sel === '__lab__' && 'topnav-btn-on'"
-          class="topnav-btn mono"><span>⚗</span> index lab</button>
-
-  <span class="topnav-sep"></span>
-  <button hx-get="{% url 'activity' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="sel = '__activity__'" :class="sel === '__activity__' && 'topnav-btn-on'"
-          class="topnav-btn mono"><span>⚡</span> activity</button>
-  <button hx-get="{% url 'locks' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="sel = '__locks__'" :class="sel === '__locks__' && 'topnav-btn-on'"
-          class="topnav-btn mono"><span>🔒</span> locks</button>
-  <button hx-get="{% url 'replication' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="sel = '__replication__'" :class="sel === '__replication__' && 'topnav-btn-on'"
-          class="topnav-btn mono"><span>🔁</span> replication</button>
-  <button hx-get="{% url 'health' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="sel = '__health__'" :class="sel === '__health__' && 'topnav-btn-on'"
-          class="topnav-btn mono"><span>🩺</span> health</button>
-
-  <span class="topnav-sep"></span>
-  <button hx-get="{% url 'objects' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="sel = '__objects__'" :class="sel === '__objects__' && 'topnav-btn-on'"
-          class="topnav-btn mono"><span>🗄</span> objects</button>
-  <button hx-get="{% url 'backups' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="sel = '__backups__'" :class="sel === '__backups__' && 'topnav-btn-on'"
-          class="topnav-btn mono"><span>💾</span> backups</button>
-  <button hx-get="{% url 'settings' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="sel = '__config__'" :class="sel === '__config__' && 'topnav-btn-on'"
-          class="topnav-btn mono"><span>⚙</span> postgresql.conf</button>
+    <!-- Hover mega-menu: the section bento, makunouchi-grouped. Flush under the
+         button (top-full, no gap) so the pointer travels in without it closing. -->
+    <div id="nav-menu" x-show="$store.navmenu.open" x-cloak
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 -translate-y-1"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         class="absolute z-30 left-0 top-full w-[min(64rem,calc(100vw-3rem))]
+                bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl p-4">
+      {% include "partials/_bento.html" %}
+    </div>
+  </div>
+  <span class="text-xs text-zinc-500 ml-1 hidden sm:inline">— hover for the section menu</span>
 </nav>
 {% endblock %}
 
