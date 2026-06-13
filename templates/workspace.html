@@ -1,10 +1,62 @@
 {% extends "base.html" %}
 
-{% block content %}
-<div class="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 items-start">
+{% comment %}The workspace owns the body's Alpine scope so the section nav (in
+the sticky header) and the sidebar table list share `sel` (what's active in the
+main pane) and `q` (the table filter).{% endcomment %}
+{% block body_attrs %}x-data="{ q: '', sel: '' }"{% endblock %}
 
-  <!-- Sidebar: connection switcher + table list -->
-  <aside class="lg:sticky lg:top-20 space-y-4">
+{% block topnav %}
+<nav class="max-w-7xl mx-auto px-6 pb-2.5 flex flex-wrap items-center gap-x-0.5 gap-y-1">
+  <button hx-get="{% url 'overview' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="sel = '__home__'" :class="sel === '__home__' && 'topnav-btn-on'"
+          class="topnav-btn mono"><span>⌂</span> overview</button>
+
+  <span class="topnav-sep"></span>
+  <button hx-get="{% url 'query' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="sel = '__sql__'" :class="sel === '__sql__' && 'topnav-btn-on'"
+          class="topnav-btn mono"><span>▷</span> SQL</button>
+  <button hx-get="{% url 'history' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="sel = '__history__'" :class="sel === '__history__' && 'topnav-btn-on'"
+          class="topnav-btn mono"><span>≡</span> history</button>
+  <button hx-get="{% url 'snapshots' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="sel = '__snapshots__'" :class="sel === '__snapshots__' && 'topnav-btn-on'"
+          class="topnav-btn mono"><span>◫</span> snapshots</button>
+  <button hx-get="{% url 'index_lab' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="sel = '__lab__'" :class="sel === '__lab__' && 'topnav-btn-on'"
+          class="topnav-btn mono"><span>⚗</span> index lab</button>
+
+  <span class="topnav-sep"></span>
+  <button hx-get="{% url 'activity' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="sel = '__activity__'" :class="sel === '__activity__' && 'topnav-btn-on'"
+          class="topnav-btn mono"><span>⚡</span> activity</button>
+  <button hx-get="{% url 'locks' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="sel = '__locks__'" :class="sel === '__locks__' && 'topnav-btn-on'"
+          class="topnav-btn mono"><span>🔒</span> locks</button>
+  <button hx-get="{% url 'replication' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="sel = '__replication__'" :class="sel === '__replication__' && 'topnav-btn-on'"
+          class="topnav-btn mono"><span>🔁</span> replication</button>
+  <button hx-get="{% url 'health' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="sel = '__health__'" :class="sel === '__health__' && 'topnav-btn-on'"
+          class="topnav-btn mono"><span>🩺</span> health</button>
+
+  <span class="topnav-sep"></span>
+  <button hx-get="{% url 'objects' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="sel = '__objects__'" :class="sel === '__objects__' && 'topnav-btn-on'"
+          class="topnav-btn mono"><span>🗄</span> objects</button>
+  <button hx-get="{% url 'backups' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="sel = '__backups__'" :class="sel === '__backups__' && 'topnav-btn-on'"
+          class="topnav-btn mono"><span>💾</span> backups</button>
+  <button hx-get="{% url 'settings' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="sel = '__config__'" :class="sel === '__config__' && 'topnav-btn-on'"
+          class="topnav-btn mono"><span>⚙</span> postgresql.conf</button>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-6 items-start">
+
+  <!-- Sidebar: connection switcher + table list (sections moved to the top bar) -->
+  <aside class="lg:sticky lg:top-24 space-y-4">
 
     <div class="relative" x-data="{ menu: false }">
       <button @click="menu = !menu" @click.outside="menu = false"
@@ -12,9 +64,9 @@
                      border border-zinc-800 rounded-lg px-3.5 py-2.5 hover:border-zinc-600 transition">
         <span class="min-w-0">
           <span class="block font-medium text-sm truncate text-left">{{ connection.display_name }}</span>
-          <span class="block text-xs text-zinc-500 mono truncate text-left">{{ connection.host }}:{{ connection.port }}/{{ connection.dbname }}</span>
+          <span class="block text-xs text-zinc-400 mono truncate text-left">{{ connection.host }}:{{ connection.port }}/{{ connection.dbname }}</span>
         </span>
-        <svg class="h-4 w-4 text-zinc-500 shrink-0" :class="menu && 'rotate-180'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        <svg class="h-4 w-4 text-zinc-400 shrink-0" :class="menu && 'rotate-180'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
       </button>
       <div x-show="menu" x-cloak style="display:none"
            class="absolute z-20 mt-1 w-full bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl py-1">
@@ -32,94 +84,7 @@
         <a href="/" class="text-xs text-red-300 underline mt-2 inline-block">back to connections</a>
       </div>
     {% else %}
-      <div x-data="{ q: '', sel: '' }" class="space-y-3">
-
-      <button hx-get="{% url 'overview' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              @click="sel = '__home__'"
-              :class="sel === '__home__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
-              class="nav-btn">
-        <span>⌂</span><span class="text-sm font-medium mono">overview</span>
-      </button>
-
-      <button hx-get="{% url 'query' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              @click="sel = '__sql__'"
-              :class="sel === '__sql__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
-              class="nav-btn">
-        <span>▷</span><span class="text-sm font-medium mono">SQL</span>
-      </button>
-
-      <button hx-get="{% url 'history' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              @click="sel = '__history__'"
-              :class="sel === '__history__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
-              class="nav-btn">
-        <span>≡</span><span class="text-sm font-medium mono">history</span>
-      </button>
-
-      <button hx-get="{% url 'activity' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              @click="sel = '__activity__'"
-              :class="sel === '__activity__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
-              class="nav-btn">
-        <span>⚡</span><span class="text-sm font-medium mono">activity</span>
-      </button>
-
-      <button hx-get="{% url 'locks' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              @click="sel = '__locks__'"
-              :class="sel === '__locks__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
-              class="nav-btn">
-        <span>🔒</span><span class="text-sm font-medium mono">locks</span>
-      </button>
-
-      <button hx-get="{% url 'replication' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              @click="sel = '__replication__'"
-              :class="sel === '__replication__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
-              class="nav-btn">
-        <span>🔁</span><span class="text-sm font-medium mono">replication</span>
-      </button>
-
-      <button hx-get="{% url 'snapshots' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              @click="sel = '__snapshots__'"
-              :class="sel === '__snapshots__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
-              class="nav-btn">
-        <span>◫</span><span class="text-sm font-medium mono">snapshots</span>
-      </button>
-
-      <button hx-get="{% url 'index_lab' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              @click="sel = '__lab__'"
-              :class="sel === '__lab__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
-              class="nav-btn">
-        <span>⚗</span><span class="text-sm font-medium mono">index lab</span>
-      </button>
-
-      <button hx-get="{% url 'health' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              @click="sel = '__health__'"
-              :class="sel === '__health__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
-              class="nav-btn">
-        <span>🩺</span><span class="text-sm font-medium mono">health</span>
-      </button>
-
-      <button hx-get="{% url 'backups' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              @click="sel = '__backups__'"
-              :class="sel === '__backups__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
-              class="nav-btn">
-        <span>💾</span><span class="text-sm font-medium mono">backups</span>
-      </button>
-
-      <button hx-get="{% url 'objects' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              @click="sel = '__objects__'"
-              :class="sel === '__objects__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
-              class="nav-btn">
-        <span>🗄</span><span class="text-sm font-medium mono">objects</span>
-      </button>
-
-      <button hx-get="{% url 'settings' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              @click="sel = '__config__'"
-              :class="sel === '__config__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
-              class="nav-btn">
-        <span>⚙</span><span class="text-sm font-medium mono">postgresql.conf</span>
-      </button>
-
       {% include "partials/table_list.html" %}
-      </div><!-- /x-data wrapper -->
     {% endif %}
   </aside>
 
