@@ -1,144 +1,126 @@
-{% comment %}The section bento — a Windows-style tile grid: equal square tiles,
-spaced by gaps. Each tile is a launcher (hx-get into #detail; closes the overview
-hover menu via the always-present navmenu store) except Tables, which is info-
-only (tables open from the sidebar, so it must not navigate). Tiles show a live
-metric where one is cheap. 2 cols on phones, 3 on small, 6 on large.{% endcomment %}
-<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+{% comment %}The section bento — a tile layout with two large feature tiles
+(SQL runner, Index lab — cli2ui's headline planner tools) stacked on the left,
+two wide tiles (Activity, Objects) top-right, and the eight remaining sections
+as small tiles filling the bottom-right. On lg this is an explicit 4-col grid
+with rows 2fr 2fr 1fr 1fr 1fr 1fr, so the two feature tiles are equal height,
+the wide tiles are half that, and the small tiles a quarter — matching the
+sketch. On small screens it falls back to a plain square-tile stack (DOM order).
+Cells are launchers (hx-get into #detail; close the overview hover menu via the
+navmenu store) except Tables, which is info-only.{% endcomment %}
+<div class="grid grid-cols-2 gap-2
+            lg:grid-cols-4 lg:grid-rows-[2fr_2fr_1fr_1fr_1fr_1fr] lg:h-[44rem]">
 
-  <button hx-get="{% url 'activity' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="$store.navmenu.open = false"
-          class="aspect-square rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800
-                 p-3 flex flex-col justify-between text-left transition">
-    <span class="text-lg">⚡</span>
-    <span>
-      {% if summary.activity %}<span class="block text-2xl font-semibold leading-none">{{ summary.activity.sessions }}</span>{% endif %}
-      <span class="block text-sm font-medium text-zinc-200 mt-1">Activity</span>
-      {% if summary.activity.blocked %}<span class="block text-xs text-red-300">{{ summary.activity.blocked }} blocked</span>{% endif %}
-    </span>
-  </button>
-
-  <button hx-get="{% url 'locks' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="$store.navmenu.open = false"
-          class="aspect-square rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800
-                 p-3 flex flex-col justify-between text-left transition">
-    <span class="text-lg">🔒</span>
-    <span>
-      {% if summary.activity %}<span class="block text-2xl font-semibold leading-none">{{ summary.activity.blocked }}</span>{% endif %}
-      <span class="block text-sm font-medium text-zinc-200 mt-1">Locks</span>
-    </span>
-  </button>
-
-  <button hx-get="{% url 'health' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="$store.navmenu.open = false"
-          class="aspect-square rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800
-                 p-3 flex flex-col justify-between text-left transition">
-    <span class="text-lg">🩺</span>
-    <span>
-      {% if summary.health %}<span class="block text-2xl font-semibold leading-none">{% if summary.health.largest %}{{ summary.health.largest.total }}{% else %}0{% endif %}</span>{% endif %}
-      <span class="block text-sm font-medium text-zinc-200 mt-1">Health</span>
-      {% if summary.health.unused %}<span class="block text-xs text-amber-300">{{ summary.health.unused }} unused idx</span>{% endif %}
-    </span>
-  </button>
-
-  <button hx-get="{% url 'replication' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="$store.navmenu.open = false"
-          class="aspect-square rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800
-                 p-3 flex flex-col justify-between text-left transition">
-    <span class="text-lg">🔁</span>
-    <span>
-      {% if summary.replication %}<span class="block text-lg font-semibold leading-none mono">{{ summary.replication.wal_level }}</span>{% endif %}
-      <span class="block text-sm font-medium text-zinc-200 mt-1">Replication</span>
-      {% if summary.replication.ready %}<span class="block text-xs text-emerald-300">ready</span>{% endif %}
-    </span>
-  </button>
-
-  <div class="aspect-square rounded-lg border border-zinc-800 bg-zinc-900/70
-              p-3 flex flex-col justify-between text-left">
-    <span class="text-lg">▤</span>
-    <span>
-      {% if summary.tables %}<span class="block text-2xl font-semibold leading-none">{{ summary.tables.count }}</span>{% endif %}
-      <span class="block text-sm font-medium text-zinc-200 mt-1">Tables</span>
-      <span class="block text-xs text-zinc-500">in the sidebar</span>
-    </span>
-  </div>
-
-  <button hx-get="{% url 'objects' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="$store.navmenu.open = false"
-          class="aspect-square rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800
-                 p-3 flex flex-col justify-between text-left transition">
-    <span class="text-lg">🗄</span>
-    <span>
-      {% if summary.objects %}<span class="block text-2xl font-semibold leading-none">{{ summary.objects.databases }}</span>{% endif %}
-      <span class="block text-sm font-medium text-zinc-200 mt-1">Objects</span>
-      {% if summary.objects %}<span class="block text-xs text-zinc-500">{{ summary.objects.schemas }} sch · {{ summary.objects.roles }} role</span>{% endif %}
-    </span>
-  </button>
-
-  <button hx-get="{% url 'backups' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="$store.navmenu.open = false"
-          class="aspect-square rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800
-                 p-3 flex flex-col justify-between text-left transition">
-    <span class="text-lg">💾</span>
-    <span>
-      <span class="block text-2xl font-semibold leading-none">{{ backups_count }}</span>
-      <span class="block text-sm font-medium text-zinc-200 mt-1">Backups</span>
-    </span>
-  </button>
-
-  <button hx-get="{% url 'settings' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="$store.navmenu.open = false"
-          class="aspect-square rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800
-                 p-3 flex flex-col justify-between text-left transition">
-    <span class="text-lg">⚙</span>
-    <span>
-      <span class="block text-sm font-medium text-zinc-200">Config</span>
-      <span class="block text-xs text-zinc-500">postgresql.conf</span>
-    </span>
-  </button>
-
+  {# ── Feature tiles (left) ── #}
   <button hx-get="{% url 'query' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
           @click="$store.navmenu.open = false"
-          class="aspect-square rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800
-                 p-3 flex flex-col justify-between text-left transition">
-    <span class="text-lg">▷</span>
+          class="aspect-square lg:aspect-auto lg:col-start-1 lg:col-span-2 lg:row-start-1 lg:row-span-2
+                 rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 transition
+                 p-4 flex flex-col justify-between text-left">
+    <span class="text-2xl">▷</span>
     <span>
-      <span class="block text-2xl font-semibold leading-none">{{ commands }}</span>
-      <span class="block text-sm font-medium text-zinc-200 mt-1">SQL runner</span>
-      <span class="block text-xs text-zinc-500">EXPLAIN · scale</span>
-    </span>
-  </button>
-
-  <button hx-get="{% url 'history' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="$store.navmenu.open = false"
-          class="aspect-square rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800
-                 p-3 flex flex-col justify-between text-left transition">
-    <span class="text-lg">≡</span>
-    <span>
-      <span class="block text-sm font-medium text-zinc-200">History</span>
-      <span class="block text-xs text-zinc-500">command log</span>
-    </span>
-  </button>
-
-  <button hx-get="{% url 'snapshots' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          @click="$store.navmenu.open = false"
-          class="aspect-square rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800
-                 p-3 flex flex-col justify-between text-left transition">
-    <span class="text-lg">◫</span>
-    <span>
-      <span class="block text-2xl font-semibold leading-none">{{ snapshots_count }}</span>
-      <span class="block text-sm font-medium text-zinc-200 mt-1">Snapshots</span>
+      <span class="block text-3xl font-semibold leading-none">{{ commands }}</span>
+      <span class="block text-base font-semibold text-zinc-100 mt-1.5">SQL runner</span>
+      <span class="block text-xs text-zinc-400 mt-0.5">Query · EXPLAIN · scale-test</span>
     </span>
   </button>
 
   <button hx-get="{% url 'index_lab' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
           @click="$store.navmenu.open = false"
-          class="aspect-square rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800
-                 p-3 flex flex-col justify-between text-left transition">
-    <span class="text-lg">⚗</span>
+          class="aspect-square lg:aspect-auto lg:col-start-1 lg:col-span-2 lg:row-start-3 lg:row-span-4
+                 rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 transition
+                 p-4 flex flex-col justify-between text-left">
+    <span class="text-2xl">⚗</span>
     <span>
-      <span class="block text-sm font-medium text-zinc-200">Index lab</span>
-      <span class="block text-xs text-zinc-500">what-if index</span>
+      <span class="block text-base font-semibold text-zinc-100">Index lab</span>
+      <span class="block text-xs text-zinc-400 mt-0.5">Try a hypothetical index and measure it before creating it for real.</span>
     </span>
+  </button>
+
+  {# ── Wide tiles (top-right) ── #}
+  <button hx-get="{% url 'activity' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="$store.navmenu.open = false"
+          class="aspect-square lg:aspect-auto lg:col-start-3 lg:col-span-2 lg:row-start-1
+                 rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 transition
+                 p-4 flex flex-col justify-between text-left">
+    <div class="flex items-center justify-between">
+      <span class="flex items-center gap-2 font-medium text-zinc-200"><span>⚡</span> Activity</span>
+      {% if summary.activity.blocked %}<span class="text-xs text-red-300 bg-red-950/50 rounded px-1.5 py-0.5">{{ summary.activity.blocked }} blocked</span>{% endif %}
+    </div>
+    {% if summary.activity %}
+      <p class="text-sm text-zinc-400"><span class="text-xl font-semibold text-zinc-100">{{ summary.activity.sessions }}</span> session{{ summary.activity.sessions|pluralize }} · {{ summary.activity.active }} active</p>
+    {% endif %}
+  </button>
+
+  <button hx-get="{% url 'objects' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="$store.navmenu.open = false"
+          class="aspect-square lg:aspect-auto lg:col-start-3 lg:col-span-2 lg:row-start-2
+                 rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 transition
+                 p-4 flex flex-col justify-between text-left">
+    <span class="flex items-center gap-2 font-medium text-zinc-200"><span>🗄</span> Objects</span>
+    {% if summary.objects %}
+      <p class="text-sm text-zinc-400"><span class="text-xl font-semibold text-zinc-100">{{ summary.objects.databases }}</span> db · {{ summary.objects.schemas }} schema{{ summary.objects.schemas|pluralize }} · {{ summary.objects.roles }} role{{ summary.objects.roles|pluralize }}</p>
+    {% endif %}
+  </button>
+
+  {# ── Small tiles (bottom-right, auto-flow) ── #}
+  <button hx-get="{% url 'locks' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="$store.navmenu.open = false"
+          class="aspect-square lg:aspect-auto rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 transition
+                 p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-1 text-left">
+    <span class="flex items-center gap-2 text-sm font-medium text-zinc-200"><span>🔒</span> Locks</span>
+    {% if summary.activity %}<span class="text-sm text-zinc-400">{{ summary.activity.blocked }}</span>{% endif %}
+  </button>
+
+  <button hx-get="{% url 'health' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="$store.navmenu.open = false"
+          class="aspect-square lg:aspect-auto rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 transition
+                 p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-1 text-left">
+    <span class="flex items-center gap-2 text-sm font-medium text-zinc-200"><span>🩺</span> Health</span>
+    {% if summary.health.largest %}<span class="text-sm text-zinc-400">{{ summary.health.largest.total }}</span>{% endif %}
+  </button>
+
+  <button hx-get="{% url 'replication' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="$store.navmenu.open = false"
+          class="aspect-square lg:aspect-auto rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 transition
+                 p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-1 text-left">
+    <span class="flex items-center gap-2 text-sm font-medium text-zinc-200"><span>🔁</span> Replication</span>
+    {% if summary.replication.ready %}<span class="text-xs text-emerald-300">ready</span>{% endif %}
+  </button>
+
+  <div class="aspect-square lg:aspect-auto rounded-lg border border-zinc-800 bg-zinc-900/70
+              p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-1 text-left">
+    <span class="flex items-center gap-2 text-sm font-medium text-zinc-200"><span>▤</span> Tables</span>
+    {% if summary.tables %}<span class="text-sm text-zinc-400">{{ summary.tables.count }}</span>{% endif %}
+  </div>
+
+  <button hx-get="{% url 'backups' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="$store.navmenu.open = false"
+          class="aspect-square lg:aspect-auto rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 transition
+                 p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-1 text-left">
+    <span class="flex items-center gap-2 text-sm font-medium text-zinc-200"><span>💾</span> Backups</span>
+    <span class="text-sm text-zinc-400">{{ backups_count }}</span>
+  </button>
+
+  <button hx-get="{% url 'settings' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="$store.navmenu.open = false"
+          class="aspect-square lg:aspect-auto rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 transition
+                 p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-1 text-left">
+    <span class="flex items-center gap-2 text-sm font-medium text-zinc-200"><span>⚙</span> Config</span>
+  </button>
+
+  <button hx-get="{% url 'history' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="$store.navmenu.open = false"
+          class="aspect-square lg:aspect-auto rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 transition
+                 p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-1 text-left">
+    <span class="flex items-center gap-2 text-sm font-medium text-zinc-200"><span>≡</span> History</span>
+  </button>
+
+  <button hx-get="{% url 'snapshots' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+          @click="$store.navmenu.open = false"
+          class="aspect-square lg:aspect-auto rounded-lg border border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 transition
+                 p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-1 text-left">
+    <span class="flex items-center gap-2 text-sm font-medium text-zinc-200"><span>◫</span> Snapshots</span>
+    <span class="text-sm text-zinc-400">{{ snapshots_count }}</span>
   </button>
 
 </div>
