@@ -4,12 +4,7 @@
     <p class="text-xs text-zinc-500">Automatic safety snapshots taken just before a destructive operation. Restore one into a <span class="text-zinc-300">new</span> database — an existing one is never overwritten.</p>
   </div>
 
-  {% if error %}
-    <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-2.5 text-sm text-red-200/90 mono">{{ error }}</div>
-  {% endif %}
-  {% if notice %}
-    <div class="{% if '⚠' in notice %}bg-amber-950/40 border-amber-900 text-amber-200/90{% else %}bg-sky-950/40 border-sky-900 text-sky-200/90{% endif %} border rounded-lg px-4 py-2.5 text-sm">{{ notice }}</div>
-  {% endif %}
+  {% include "partials/_banner.html" %}
 
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
     {% if backups %}
