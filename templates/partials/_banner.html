@@ -1,5 +1,5 @@
-{# Shared error / notice banner. `error` → red; `notice` → amber if it carries a
-   "⚠" warning, otherwise sky (info). See STYLE.md. #}
+{% comment %}Shared error / notice banner. error → red; notice → amber if it
+carries a "⚠" warning, otherwise sky (info). See STYLE.md.{% endcomment %}
 {% if error %}
   <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-2.5 text-sm text-red-200/90 mono">{{ error }}</div>
 {% endif %}

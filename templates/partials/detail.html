@@ -1,344 +1,342 @@
-<div class="space-y-5" x-data="{ ren: false }">
+{% comment %}Table detail. Subtabs (Columns | Indexes | Data | Danger) keep the
+panel a clean read-only view; every mutation happens in the shared right drawer
+or, for one-click destructive ops, behind an hx-confirm. `drawer` holds the open
+form's kind; `ctx` carries the row the drawer is acting on. Submits target
+#detail, so the whole panel (drawer included) re-renders and resets.{% endcomment %}
+<div class="space-y-5" x-data="{ tab: 'columns', drawer: null, ctx: {} }">
   <div class="flex items-start justify-between gap-3">
     <div>
       <h2 class="text-lg font-semibold mono">{{ schema }}.{{ table }}</h2>
-      <p class="text-xs text-zinc-500">
+      <p class="text-xs text-zinc-400">
         {{ columns|length }} column{{ columns|length|pluralize }} ·
         previewing up to {{ preview_rows|length }} row{{ preview_rows|length|pluralize }}
       </p>
     </div>
     <div class="shrink-0 flex items-center gap-1.5">
       <button hx-get="{% url 'query' connection.pk %}?sql={{ query_sql|urlencode }}"
-              hx-target="#detail" hx-swap="innerHTML"
-              class="text-xs text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1.5
-                     hover:border-zinc-600 transition flex items-center gap-1.5">
+              hx-target="#detail" hx-swap="innerHTML" class="btn btn-sm btn-neutral">
         <span>▷</span> Open in SQL
       </button>
       <!-- Backup this table (pg_dump -t). Fetched via JS for an in-page spinner. -->
-      <span x-data="dumpLinks()" class="flex items-center gap-1.5 text-xs border border-zinc-800 rounded-lg px-3 py-1.5 text-zinc-500">
+      <span x-data="dumpLinks()" class="btn btn-sm btn-neutral gap-2 cursor-default">
         backup
         <a href="#" @click.prevent="download('{% url 'table_dump' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=plain')"
            :class="busy && 'opacity-40 pointer-events-none'" title="pg_dump this table as plain SQL"
-           class="text-sky-300/80 hover:text-sky-200">.sql ↓</a>
+           class="btn-link">.sql ↓</a>
         <a href="#" @click.prevent="download('{% url 'table_dump' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=custom')"
            :class="busy && 'opacity-40 pointer-events-none'" title="pg_dump this table in custom format"
-           class="text-sky-300/80 hover:text-sky-200">.dump ↓</a>
+           class="btn-link">.dump ↓</a>
         <span x-show="busy" class="spinner text-sky-300"></span>
         <span x-show="err" x-text="err" class="text-red-400/90 max-w-[160px] truncate"></span>
       </span>
-      <button @click="ren = !ren"
-              :class="ren ? 'border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
-              class="text-xs border rounded-lg px-3 py-1.5 hover:border-zinc-600 transition">
-        rename
-      </button>
-      <form hx-post="{% url 'table_truncate' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-            hx-confirm="Truncate &quot;{{ schema }}.{{ table }}&quot;? This permanently deletes every row.">
-        <input type="hidden" name="schema" value="{{ schema }}">
-        <input type="hidden" name="table" value="{{ table }}">
-        <button type="submit"
-                class="text-xs text-amber-300/80 border border-amber-900/60 rounded-lg px-3 py-1.5
-                       hover:border-amber-500 transition">truncate</button>
-      </form>
-      <form hx-post="{% url 'table_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-            hx-confirm="Drop table &quot;{{ schema }}.{{ table }}&quot;? This cannot be undone.">
-        <input type="hidden" name="schema" value="{{ schema }}">
-        <input type="hidden" name="table" value="{{ table }}">
-        <button type="submit"
-                class="text-xs text-red-400/80 border border-red-900/60 rounded-lg px-3 py-1.5
-                       hover:border-red-500 transition">drop</button>
-      </form>
+      <button @click="drawer = 'rename'" class="btn btn-sm btn-neutral">rename</button>
     </div>
   </div>
 
-  <!-- Rename: inline, toggled from the header. ALTER TABLE … RENAME TO. -->
-  <form x-show="ren" x-cloak hx-post="{% url 'table_rename' connection.pk %}"
-        hx-target="#detail" hx-swap="innerHTML"
-        class="flex items-center gap-2 bg-zinc-900/60 border border-zinc-800 rounded-lg px-3 py-2">
-    <input type="hidden" name="schema" value="{{ schema }}">
-    <input type="hidden" name="table" value="{{ table }}">
-    <span class="text-xs text-zinc-500 shrink-0">Rename to</span>
-    <input name="new_name" value="{{ table }}" autocomplete="off" required
-           class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono text-sm w-56
-                  text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
-    <button type="submit"
-            class="bg-emerald-400 text-zinc-950 font-medium rounded px-3 py-1 text-sm hover:bg-emerald-300">
-      Rename
-    </button>
-    <button type="button" @click="ren = false" class="text-xs text-zinc-500 hover:text-zinc-300">cancel</button>
-  </form>
+  {% include "partials/_banner.html" %}
 
-  {% if error %}
-    <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-2.5 text-sm text-red-200/90 mono">{{ error }}</div>
-  {% endif %}
-  {% if notice %}
-    <div class="{% if '⚠' in notice %}bg-amber-950/40 border-amber-900 text-amber-200/90{% else %}bg-sky-950/40 border-sky-900 text-sky-200/90{% endif %} border rounded-lg px-4 py-2.5 text-sm">{{ notice }}</div>
-  {% endif %}
+  <!-- Subtabs -->
+  <nav class="flex items-center gap-1 border-b border-zinc-800 pb-2">
+    <button class="subtab" :class="tab === 'columns' && 'subtab-on'" @click="tab = 'columns'">Columns</button>
+    <button class="subtab" :class="tab === 'indexes' && 'subtab-on'" @click="tab = 'indexes'">Indexes</button>
+    <button class="subtab" :class="tab === 'data' && 'subtab-on'" @click="tab = 'data'">Data</button>
+    <button class="subtab ml-auto" :class="tab === 'danger' && 'subtab-on text-red-300'"
+            @click="tab = 'danger'">Danger</button>
+  </nav>
 
-  <!-- Columns: the \d table view, now with add / rename / drop -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
-      Columns
+  <!-- Columns tab -->
+  <section x-show="tab === 'columns'" class="space-y-3">
+    <div class="flex justify-end">
+      <button @click="drawer = 'add-col'" class="btn btn-sm btn-primary">+ Add column</button>
     </div>
-    <table class="w-full text-sm">
-      <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
-        <tr class="border-b border-zinc-800">
-          <th class="px-5 py-2 font-medium">Name</th>
-          <th class="px-5 py-2 font-medium">Type</th>
-          <th class="px-5 py-2 font-medium">Nullable</th>
-          <th class="px-5 py-2 font-medium">Default</th>
-          <th class="px-5 py-2 font-medium w-px"></th>
-        </tr>
-      </thead>
-      {% for col in columns %}
-        <tbody x-data="{ ren: false, ed: false }">
-          <tr class="border-b border-zinc-800/60">
-            <td class="px-5 py-2 mono">{{ col.name }}</td>
-            <td class="px-5 py-2 text-zinc-400 mono">{{ col.type }}</td>
-            <td class="px-5 py-2 text-zinc-400">{% if col.nullable %}yes{% else %}<span class="text-zinc-300">no</span>{% endif %}</td>
-            <td class="px-5 py-2 text-zinc-400 mono truncate max-w-[200px]">{{ col.default|default:"—" }}</td>
-            <td class="px-5 py-2 text-right whitespace-nowrap">
-              <div x-show="!ren" class="flex items-center gap-3 justify-end">
-                <button @click="ed = !ed" type="button"
-                        :class="ed ? 'text-zinc-200' : 'text-zinc-400'"
-                        class="text-xs hover:text-zinc-200">edit</button>
-                <button @click="ren = true; ed = false" type="button" class="text-xs text-zinc-400 hover:text-zinc-200">rename</button>
-                <form hx-post="{% url 'column_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                      hx-confirm="Drop column &quot;{{ col.name }}&quot; from {{ schema }}.{{ table }}? This permanently deletes its data.">
-                  <input type="hidden" name="schema" value="{{ schema }}">
-                  <input type="hidden" name="table" value="{{ table }}">
-                  <input type="hidden" name="column" value="{{ col.name }}">
-                  <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
-                </form>
-              </div>
-              <form x-show="ren" x-cloak hx-post="{% url 'column_rename' connection.pk %}"
-                    hx-target="#detail" hx-swap="innerHTML"
-                    class="flex items-center gap-1.5 justify-end">
-                <input type="hidden" name="schema" value="{{ schema }}">
-                <input type="hidden" name="table" value="{{ table }}">
-                <input type="hidden" name="column" value="{{ col.name }}">
-                <input name="new_name" value="{{ col.name }}" autocomplete="off"
-                       class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 text-xs mono w-32
-                              text-zinc-100 focus:outline-none focus:border-emerald-400">
-                <button type="submit" class="text-xs text-emerald-400 hover:text-emerald-300">save</button>
-                <button @click="ren = false" type="button" class="text-xs text-zinc-500 hover:text-zinc-300">cancel</button>
-              </form>
-            </td>
-          </tr>
-
-          <!-- Editor: type / nullability / default, each its own explicit ALTER. -->
-          <tr x-show="ed" x-cloak class="border-b border-zinc-800/60 bg-zinc-950/40">
-            <td colspan="5" class="px-5 py-3">
-              <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-                <!-- change type -->
-                <form hx-post="{% url 'column_retype' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                      class="flex items-center gap-1.5">
-                  <input type="hidden" name="schema" value="{{ schema }}">
-                  <input type="hidden" name="table" value="{{ table }}">
-                  <input type="hidden" name="column" value="{{ col.name }}">
-                  <input type="hidden" name="cur_type" value="{{ col.type }}">
-                  <span class="text-xs uppercase tracking-wide text-zinc-500">Type</span>
-                  <select name="type"
-                          class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 text-xs mono text-zinc-100 focus:outline-none focus:border-emerald-400">
-                    <option value="{{ col.type }}" selected>{{ col.type }} (current)</option>
-                    {% for t in column_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
-                  </select>
-                  <button type="submit" class="text-xs text-emerald-400 hover:text-emerald-300">change</button>
-                </form>
-
-                <!-- nullability flip -->
-                <form hx-post="{% url 'column_set_null' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                      class="flex items-center gap-1.5">
-                  <input type="hidden" name="schema" value="{{ schema }}">
-                  <input type="hidden" name="table" value="{{ table }}">
-                  <input type="hidden" name="column" value="{{ col.name }}">
-                  <span class="text-xs uppercase tracking-wide text-zinc-500">Nullable</span>
-                  {% if col.nullable %}
-                    <input type="hidden" name="nullable" value="0">
-                    <button type="submit" class="text-xs text-zinc-300 border border-zinc-700 rounded px-2 py-0.5 hover:border-zinc-500">set NOT NULL</button>
-                  {% else %}
-                    <input type="hidden" name="nullable" value="1">
-                    <button type="submit" class="text-xs text-zinc-300 border border-zinc-700 rounded px-2 py-0.5 hover:border-zinc-500">drop NOT NULL</button>
-                  {% endif %}
-                </form>
-
-                <!-- default set / drop -->
-                <form hx-post="{% url 'column_set_default' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                      class="flex items-center gap-1.5">
-                  <input type="hidden" name="schema" value="{{ schema }}">
-                  <input type="hidden" name="table" value="{{ table }}">
-                  <input type="hidden" name="column" value="{{ col.name }}">
-                  <span class="text-xs uppercase tracking-wide text-zinc-500">Default</span>
-                  <input name="default" value="{{ col.default|default:'' }}" placeholder="(none)" autocomplete="off"
-                         class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 text-xs mono w-36
-                                text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
-                  <button type="submit" class="text-xs text-emerald-400 hover:text-emerald-300">set</button>
-                  <span class="text-zinc-600">·</span>
-                  <span class="text-xs text-zinc-500">clear the box + set to drop it</span>
-                </form>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      {% endfor %}
-    </table>
-
-    <!-- Add column: name + type (allow-list) + optional default + NOT NULL. -->
-    <form hx-post="{% url 'column_add' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          hx-disabled-elt="find button[type=submit]"
-          class="px-5 py-3 border-t border-zinc-800 flex flex-wrap items-center gap-2 text-sm">
-      <input type="hidden" name="schema" value="{{ schema }}">
-      <input type="hidden" name="table" value="{{ table }}">
-      <span class="text-xs uppercase tracking-wide text-zinc-500 mr-1">Add column</span>
-      <input name="name" placeholder="column name" autocomplete="off" required
-             class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono w-40
-                    text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
-      <select name="type"
-              class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono text-zinc-100 focus:outline-none focus:border-emerald-400">
-        {% for t in column_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
-      </select>
-      <input name="default" placeholder="default (optional)" autocomplete="off"
-             class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono w-36
-                    text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
-      <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="notnull" class="accent-emerald-400"> not null</label>
-      <button type="submit"
-              class="bg-emerald-400 text-zinc-950 font-medium rounded px-3 py-1 hover:bg-emerald-300">
-        + Add
-      </button>
-    </form>
-  </section>
-
-  <!-- Indexes: the index list from \d table, now with create / drop -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
-      <span class="text-xs uppercase tracking-wide text-zinc-500">
-        Indexes <span class="mono lowercase text-zinc-600">\d {{ table }}</span>
-      </span>
-      <button hx-get="{% url 'index_lab' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}"
-              hx-target="#detail" hx-swap="innerHTML"
-              title="Try an index and measure it before creating it for real"
-              class="text-xs text-amber-200/90 border border-amber-800/60 rounded-lg px-3 py-1.5
-                     hover:border-amber-500 transition flex items-center gap-1.5">
-        <span>⚗</span> Try an index
-      </button>
-    </div>
-    {% if indexes %}
+    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
           <tr class="border-b border-zinc-800">
             <th class="px-5 py-2 font-medium">Name</th>
-            <th class="px-5 py-2 font-medium">Columns</th>
-            <th class="px-5 py-2 font-medium">Method</th>
-            <th class="px-5 py-2 font-medium text-right">Size</th>
+            <th class="px-5 py-2 font-medium">Type</th>
+            <th class="px-5 py-2 font-medium">Nullable</th>
+            <th class="px-5 py-2 font-medium">Default</th>
             <th class="px-5 py-2 font-medium w-px"></th>
           </tr>
         </thead>
         <tbody>
-          {% for ix in indexes %}
+          {% for col in columns %}
             <tr class="border-b border-zinc-800/60">
-              <td class="px-5 py-2 mono">
-                {{ ix.name }}
-                {% if ix.primary %}<span class="inline-block text-xs text-amber-300/90 bg-amber-950/50 rounded px-1.5 py-0.5 ml-1">primary</span>
-                {% elif ix.unique %}<span class="inline-block text-xs text-sky-300/90 bg-sky-950/50 rounded px-1.5 py-0.5 ml-1">unique</span>{% endif %}
-                {% if not ix.valid %}<span class="inline-block text-xs text-red-300/90 bg-red-950/50 rounded px-1.5 py-0.5 ml-1" title="A concurrent build failed — this index is unusable; drop it.">invalid</span>{% endif %}
-              </td>
-              <td class="px-5 py-2 text-zinc-400 mono truncate max-w-[280px]">{{ ix.columns_text }}</td>
-              <td class="px-5 py-2 text-zinc-400 mono">{{ ix.method }}</td>
-              <td class="px-5 py-2 text-zinc-400 mono text-right">{{ ix.size|default:"—" }}</td>
+              <td class="px-5 py-2 mono">{{ col.name }}</td>
+              <td class="px-5 py-2 text-zinc-400 mono">{{ col.type }}</td>
+              <td class="px-5 py-2 text-zinc-400">{% if col.nullable %}yes{% else %}<span class="text-zinc-200">no</span>{% endif %}</td>
+              <td class="px-5 py-2 text-zinc-400 mono truncate max-w-[200px]">{{ col.default|default:"—" }}</td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
-                {% if ix.primary %}
-                  <span class="text-xs text-zinc-600">pk</span>
-                {% else %}
-                  <form hx-post="{% url 'index_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                        hx-confirm="Drop index &quot;{{ ix.name }}&quot;?">
+                <div class="flex items-center gap-3 justify-end">
+                  <button type="button" class="text-xs text-zinc-400 hover:text-zinc-100"
+                          @click="ctx = { column: '{{ col.name|escapejs }}', type: '{{ col.type|escapejs }}', nullable: {{ col.nullable|yesno:'true,false' }}, default: '{{ col.default|default:''|escapejs }}' }; drawer = 'col-edit'">edit</button>
+                  <form hx-post="{% url 'column_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                        hx-confirm="Drop column &quot;{{ col.name }}&quot; from {{ schema }}.{{ table }}? This permanently deletes its data.">
                     <input type="hidden" name="schema" value="{{ schema }}">
                     <input type="hidden" name="table" value="{{ table }}">
-                    <input type="hidden" name="name" value="{{ ix.name }}">
+                    <input type="hidden" name="column" value="{{ col.name }}">
                     <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
                   </form>
-                {% endif %}
+                </div>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
-    {% else %}
-      <p class="px-5 py-6 text-center text-zinc-500 text-sm">No indexes on this table yet.</p>
-    {% endif %}
-
-    <!-- Create index: pick columns IN ORDER, access method, uniqueness.
-         Column order is significant for composite indexes, so we don't rely on
-         checkbox/DOM order — clicking builds an explicit ordered list (Alpine),
-         emitted as hidden inputs in that order. -->
-    <form hx-post="{% url 'index_create' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          hx-disabled-elt="find button[type=submit]"
-          x-data="{
-            picked: [],
-            toggle(c) { const i = this.picked.indexOf(c); i >= 0 ? this.picked.splice(i, 1) : this.picked.push(c); },
-            pos(c) { return this.picked.indexOf(c); }
-          }"
-          class="px-5 py-3 border-t border-zinc-800 space-y-2.5">
-      <input type="hidden" name="schema" value="{{ schema }}">
-      <input type="hidden" name="table" value="{{ table }}">
-      <template x-for="c in picked" :key="c"><input type="hidden" name="columns" :value="c"></template>
-      <div class="text-xs uppercase tracking-wide text-zinc-500">
-        Create index <span class="normal-case text-zinc-600">— click columns in the order you want them indexed</span>
-      </div>
-      <div class="flex flex-wrap gap-1.5">
-        {% for col in columns %}
-          <button type="button" @click="toggle('{{ col.name|escapejs }}')"
-                  :class="pos('{{ col.name|escapejs }}') >= 0 ? 'border-emerald-400 text-emerald-300 bg-emerald-950/40' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'"
-                  class="flex items-center gap-1.5 border rounded px-2 py-1 text-sm mono transition">
-            <span x-show="pos('{{ col.name|escapejs }}') >= 0" x-text="pos('{{ col.name|escapejs }}') + 1"
-                  class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-400 text-zinc-950 text-[10px] font-bold"></span>
-            {{ col.name }}
-          </button>
-        {% endfor %}
-      </div>
-      <div class="flex flex-wrap items-center gap-2 text-sm">
-        <input name="name" placeholder="index name (optional)" autocomplete="off"
-               class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono w-52
-                      text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
-        <select name="method"
-                class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono text-zinc-100 focus:outline-none focus:border-emerald-400">
-          {% for m in index_methods %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
-        </select>
-        <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="unique" class="accent-emerald-400"> unique</label>
-        <button type="submit" :disabled="picked.length === 0"
-                class="bg-emerald-400 text-zinc-950 font-medium rounded px-3 py-1 hover:bg-emerald-300
-                       disabled:opacity-40 disabled:cursor-not-allowed">
-          + Create
-        </button>
-        <span class="text-xs text-zinc-600">built CONCURRENTLY</span>
-      </div>
-    </form>
+    </div>
   </section>
 
-  <!-- Data preview: the SELECT * ... LIMIT view -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
-      Data preview
+  <!-- Indexes tab -->
+  <section x-show="tab === 'indexes'" x-cloak class="space-y-3">
+    <div class="flex justify-end gap-1.5">
+      <button hx-get="{% url 'index_lab' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML"
+              title="Try an index and measure it before creating it for real"
+              class="btn btn-sm btn-warn"><span>⚗</span> Try an index</button>
+      <button @click="drawer = 'create-index'" class="btn btn-sm btn-primary">+ Create index</button>
     </div>
-    {% if preview_rows %}
-      <div class="overflow-x-auto">
+    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+      {% if indexes %}
         <table class="w-full text-sm">
-          <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+          <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
             <tr class="border-b border-zinc-800">
-              {% for c in preview_columns %}<th class="px-4 py-2 font-medium mono whitespace-nowrap">{{ c }}</th>{% endfor %}
+              <th class="px-5 py-2 font-medium">Name</th>
+              <th class="px-5 py-2 font-medium">Columns</th>
+              <th class="px-5 py-2 font-medium">Method</th>
+              <th class="px-5 py-2 font-medium text-right">Size</th>
+              <th class="px-5 py-2 font-medium w-px"></th>
             </tr>
           </thead>
           <tbody>
-            {% for row in preview_rows %}
-              <tr class="border-b border-zinc-800/60 hover:bg-zinc-800/40">
-                {% for v in row %}
-                  <td class="px-4 py-2 mono text-zinc-300 max-w-[260px] truncate whitespace-nowrap">{{ v }}</td>
-                {% endfor %}
+            {% for ix in indexes %}
+              <tr class="border-b border-zinc-800/60">
+                <td class="px-5 py-2 mono">
+                  {{ ix.name }}
+                  {% if ix.primary %}<span class="inline-block text-xs text-amber-300/90 bg-amber-950/50 rounded px-1.5 py-0.5 ml-1">primary</span>
+                  {% elif ix.unique %}<span class="inline-block text-xs text-sky-300/90 bg-sky-950/50 rounded px-1.5 py-0.5 ml-1">unique</span>{% endif %}
+                  {% if not ix.valid %}<span class="inline-block text-xs text-red-300/90 bg-red-950/50 rounded px-1.5 py-0.5 ml-1" title="A concurrent build failed — this index is unusable; drop it.">invalid</span>{% endif %}
+                </td>
+                <td class="px-5 py-2 text-zinc-400 mono truncate max-w-[280px]">{{ ix.columns_text }}</td>
+                <td class="px-5 py-2 text-zinc-400 mono">{{ ix.method }}</td>
+                <td class="px-5 py-2 text-zinc-400 mono text-right">{{ ix.size|default:"—" }}</td>
+                <td class="px-5 py-2 text-right whitespace-nowrap">
+                  {% if ix.primary %}
+                    <span class="text-xs text-zinc-500">pk</span>
+                  {% else %}
+                    <form hx-post="{% url 'index_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                          hx-confirm="Drop index &quot;{{ ix.name }}&quot;?">
+                      <input type="hidden" name="schema" value="{{ schema }}">
+                      <input type="hidden" name="table" value="{{ table }}">
+                      <input type="hidden" name="name" value="{{ ix.name }}">
+                      <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
+                    </form>
+                  {% endif %}
+                </td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
-      </div>
-    {% else %}
-      <p class="px-5 py-8 text-center text-zinc-500 text-sm">This table is empty.</p>
-    {% endif %}
+      {% else %}
+        <p class="px-5 py-6 text-center text-zinc-400 text-sm">No indexes on this table yet.</p>
+      {% endif %}
+    </div>
   </section>
+
+  <!-- Data tab -->
+  <section x-show="tab === 'data'" x-cloak>
+    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+      {% if preview_rows %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+              <tr class="border-b border-zinc-800">
+                {% for c in preview_columns %}<th class="px-4 py-2 font-medium mono whitespace-nowrap">{{ c }}</th>{% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in preview_rows %}
+                <tr class="border-b border-zinc-800/60 hover:bg-zinc-800/40">
+                  {% for v in row %}
+                    <td class="px-4 py-2 mono text-zinc-300 max-w-[260px] truncate whitespace-nowrap">{{ v }}</td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="px-5 py-8 text-center text-zinc-400 text-sm">This table is empty.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- Danger tab: destructive ops, isolated. -->
+  <section x-show="tab === 'danger'" x-cloak class="space-y-3">
+    <div class="bg-red-950/20 border border-red-900/50 rounded-xl divide-y divide-red-900/30">
+      <div class="px-5 py-3 flex items-center justify-between gap-4">
+        <div>
+          <p class="text-sm text-zinc-200">Truncate table</p>
+          <p class="text-xs text-zinc-400">Delete every row. A safety snapshot is taken first.</p>
+        </div>
+        <form hx-post="{% url 'table_truncate' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+              hx-confirm="Truncate &quot;{{ schema }}.{{ table }}&quot;? This permanently deletes every row.">
+          <input type="hidden" name="schema" value="{{ schema }}">
+          <input type="hidden" name="table" value="{{ table }}">
+          <button type="submit" class="btn btn-sm btn-warn">Truncate</button>
+        </form>
+      </div>
+      <div class="px-5 py-3 flex items-center justify-between gap-4">
+        <div>
+          <p class="text-sm text-zinc-200">Drop table</p>
+          <p class="text-xs text-zinc-400">Remove the table and all its data. A safety snapshot is taken first.</p>
+        </div>
+        <form hx-post="{% url 'table_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+              hx-confirm="Drop table &quot;{{ schema }}.{{ table }}&quot;? This cannot be undone.">
+          <input type="hidden" name="schema" value="{{ schema }}">
+          <input type="hidden" name="table" value="{{ table }}">
+          <button type="submit" class="btn btn-sm btn-danger">Drop table</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Shared drawer ===== -->
+  <div x-show="drawer" x-cloak class="drawer-backdrop" @click="drawer = null"></div>
+  <aside class="drawer" :class="drawer && 'open'" x-cloak>
+    <div class="drawer-head">
+      <h3 class="font-medium text-sm" x-text="{
+        'rename': 'Rename table', 'add-col': 'Add column',
+        'col-edit': 'Edit column', 'create-index': 'Create index'
+      }[drawer] || ''"></h3>
+      <button @click="drawer = null" class="text-zinc-400 hover:text-zinc-100 text-lg leading-none">&times;</button>
+    </div>
+    <div class="drawer-body">
+
+      <!-- Rename table -->
+      <form x-show="drawer === 'rename'" hx-post="{% url 'table_rename' connection.pk %}"
+            hx-target="#detail" hx-swap="innerHTML" class="space-y-3">
+        <input type="hidden" name="schema" value="{{ schema }}">
+        <input type="hidden" name="table" value="{{ table }}">
+        <label class="block text-xs uppercase tracking-wide text-zinc-400">New name</label>
+        <input name="new_name" value="{{ table }}" autocomplete="off" required class="field mono w-full">
+        <button type="submit" class="btn btn-primary w-full justify-center">Rename</button>
+      </form>
+
+      <!-- Add column -->
+      <form x-show="drawer === 'add-col'" hx-post="{% url 'column_add' connection.pk %}"
+            hx-target="#detail" hx-swap="innerHTML" hx-disabled-elt="find button[type=submit]"
+            class="space-y-3">
+        <input type="hidden" name="schema" value="{{ schema }}">
+        <input type="hidden" name="table" value="{{ table }}">
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Name</label>
+          <input name="name" placeholder="column name" autocomplete="off" required class="field mono w-full">
+        </div>
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Type</label>
+          <select name="type" class="field mono w-full">
+            {% for t in column_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Default <span class="normal-case text-zinc-500">(optional)</span></label>
+          <input name="default" placeholder="default" autocomplete="off" class="field mono w-full">
+        </div>
+        <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="notnull" class="accent-emerald-400"> not null</label>
+        <button type="submit" class="btn btn-primary w-full justify-center">+ Add column</button>
+      </form>
+
+      <!-- Edit column: rename / type / nullability / default, each its own ALTER. -->
+      <div x-show="drawer === 'col-edit'" class="space-y-5">
+        <p class="text-sm mono text-zinc-300" x-text="ctx.column"></p>
+
+        <form hx-post="{% url 'column_rename' connection.pk %}" hx-target="#detail" hx-swap="innerHTML" class="space-y-2">
+          <input type="hidden" name="schema" value="{{ schema }}">
+          <input type="hidden" name="table" value="{{ table }}">
+          <input type="hidden" name="column" :value="ctx.column">
+          <label class="block text-xs uppercase tracking-wide text-zinc-400">Rename to</label>
+          <div class="flex gap-2">
+            <input name="new_name" :value="ctx.column" autocomplete="off" class="field field-sm mono flex-1">
+            <button type="submit" class="btn btn-sm btn-neutral">Rename</button>
+          </div>
+        </form>
+
+        <form hx-post="{% url 'column_retype' connection.pk %}" hx-target="#detail" hx-swap="innerHTML" class="space-y-2">
+          <input type="hidden" name="schema" value="{{ schema }}">
+          <input type="hidden" name="table" value="{{ table }}">
+          <input type="hidden" name="column" :value="ctx.column">
+          <input type="hidden" name="cur_type" :value="ctx.type">
+          <label class="block text-xs uppercase tracking-wide text-zinc-400">Type</label>
+          <div class="flex gap-2">
+            <select name="type" class="field field-sm mono flex-1">
+              <option :value="ctx.type" x-text="ctx.type + ' (current)'"></option>
+              {% for t in column_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm btn-neutral">Change</button>
+          </div>
+        </form>
+
+        <form hx-post="{% url 'column_set_null' connection.pk %}" hx-target="#detail" hx-swap="innerHTML" class="space-y-2">
+          <input type="hidden" name="schema" value="{{ schema }}">
+          <input type="hidden" name="table" value="{{ table }}">
+          <input type="hidden" name="column" :value="ctx.column">
+          <input type="hidden" name="nullable" :value="ctx.nullable ? '0' : '1'">
+          <label class="block text-xs uppercase tracking-wide text-zinc-400">Nullability</label>
+          <button type="submit" class="btn btn-sm btn-neutral"
+                  x-text="ctx.nullable ? 'set NOT NULL' : 'drop NOT NULL'"></button>
+        </form>
+
+        <form hx-post="{% url 'column_set_default' connection.pk %}" hx-target="#detail" hx-swap="innerHTML" class="space-y-2">
+          <input type="hidden" name="schema" value="{{ schema }}">
+          <input type="hidden" name="table" value="{{ table }}">
+          <input type="hidden" name="column" :value="ctx.column">
+          <label class="block text-xs uppercase tracking-wide text-zinc-400">Default <span class="normal-case text-zinc-500">(empty drops it)</span></label>
+          <div class="flex gap-2">
+            <input name="default" :value="ctx.default" placeholder="(none)" autocomplete="off" class="field field-sm mono flex-1">
+            <button type="submit" class="btn btn-sm btn-neutral">Set</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Create index: pick columns IN ORDER, access method, uniqueness. -->
+      <form x-show="drawer === 'create-index'" hx-post="{% url 'index_create' connection.pk %}"
+            hx-target="#detail" hx-swap="innerHTML" hx-disabled-elt="find button[type=submit]"
+            x-data="{
+              picked: [],
+              toggle(c) { const i = this.picked.indexOf(c); i >= 0 ? this.picked.splice(i, 1) : this.picked.push(c); },
+              pos(c) { return this.picked.indexOf(c); }
+            }" class="space-y-3">
+        <input type="hidden" name="schema" value="{{ schema }}">
+        <input type="hidden" name="table" value="{{ table }}">
+        <template x-for="c in picked" :key="c"><input type="hidden" name="columns" :value="c"></template>
+        <p class="text-xs text-zinc-400">Click columns in the order you want them indexed.</p>
+        <div class="flex flex-wrap gap-1.5">
+          {% for col in columns %}
+            <button type="button" @click="toggle('{{ col.name|escapejs }}')"
+                    :class="pos('{{ col.name|escapejs }}') >= 0 ? 'border-emerald-400 text-emerald-300 bg-emerald-950/40' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'"
+                    class="flex items-center gap-1.5 border rounded-lg px-2 py-1 text-sm mono transition">
+              <span x-show="pos('{{ col.name|escapejs }}') >= 0" x-text="pos('{{ col.name|escapejs }}') + 1"
+                    class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-400 text-zinc-950 text-[10px] font-bold"></span>
+              {{ col.name }}
+            </button>
+          {% endfor %}
+        </div>
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Name <span class="normal-case text-zinc-500">(optional)</span></label>
+          <input name="name" placeholder="index name" autocomplete="off" class="field mono w-full">
+        </div>
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Method</label>
+          <select name="method" class="field mono w-full">
+            {% for m in index_methods %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+          </select>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="unique" class="accent-emerald-400"> unique</label>
+        <button type="submit" :disabled="picked.length === 0" class="btn btn-primary w-full justify-center">+ Create index</button>
+        <p class="text-xs text-zinc-500 text-center">built CONCURRENTLY</p>
+      </form>
+
+    </div>
+  </aside>
 </div>
