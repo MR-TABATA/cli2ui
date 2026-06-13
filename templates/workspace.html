@@ -36,97 +36,85 @@
 
       <button hx-get="{% url 'overview' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               @click="sel = '__home__'"
-              :class="sel === '__home__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
-              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
-                     hover:border-zinc-600 transition flex items-center gap-2">
+              :class="sel === '__home__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
+              class="nav-btn">
         <span>⌂</span><span class="text-sm font-medium mono">overview</span>
       </button>
 
       <button hx-get="{% url 'query' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               @click="sel = '__sql__'"
-              :class="sel === '__sql__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
-              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
-                     hover:border-zinc-600 transition flex items-center gap-2">
+              :class="sel === '__sql__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
+              class="nav-btn">
         <span>▷</span><span class="text-sm font-medium mono">SQL</span>
       </button>
 
       <button hx-get="{% url 'history' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               @click="sel = '__history__'"
-              :class="sel === '__history__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
-              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
-                     hover:border-zinc-600 transition flex items-center gap-2">
+              :class="sel === '__history__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
+              class="nav-btn">
         <span>≡</span><span class="text-sm font-medium mono">history</span>
       </button>
 
       <button hx-get="{% url 'activity' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               @click="sel = '__activity__'"
-              :class="sel === '__activity__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
-              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
-                     hover:border-zinc-600 transition flex items-center gap-2">
+              :class="sel === '__activity__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
+              class="nav-btn">
         <span>⚡</span><span class="text-sm font-medium mono">activity</span>
       </button>
 
       <button hx-get="{% url 'locks' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               @click="sel = '__locks__'"
-              :class="sel === '__locks__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
-              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
-                     hover:border-zinc-600 transition flex items-center gap-2">
+              :class="sel === '__locks__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
+              class="nav-btn">
         <span>🔒</span><span class="text-sm font-medium mono">locks</span>
       </button>
 
       <button hx-get="{% url 'replication' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               @click="sel = '__replication__'"
-              :class="sel === '__replication__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
-              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
-                     hover:border-zinc-600 transition flex items-center gap-2">
+              :class="sel === '__replication__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
+              class="nav-btn">
         <span>🔁</span><span class="text-sm font-medium mono">replication</span>
       </button>
 
       <button hx-get="{% url 'snapshots' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               @click="sel = '__snapshots__'"
-              :class="sel === '__snapshots__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
-              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
-                     hover:border-zinc-600 transition flex items-center gap-2">
+              :class="sel === '__snapshots__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
+              class="nav-btn">
         <span>◫</span><span class="text-sm font-medium mono">snapshots</span>
       </button>
 
       <button hx-get="{% url 'index_lab' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               @click="sel = '__lab__'"
-              :class="sel === '__lab__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
-              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
-                     hover:border-zinc-600 transition flex items-center gap-2">
+              :class="sel === '__lab__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
+              class="nav-btn">
         <span>⚗</span><span class="text-sm font-medium mono">index lab</span>
       </button>
 
       <button hx-get="{% url 'health' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               @click="sel = '__health__'"
-              :class="sel === '__health__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
-              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
-                     hover:border-zinc-600 transition flex items-center gap-2">
+              :class="sel === '__health__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
+              class="nav-btn">
         <span>🩺</span><span class="text-sm font-medium mono">health</span>
       </button>
 
       <button hx-get="{% url 'backups' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               @click="sel = '__backups__'"
-              :class="sel === '__backups__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
-              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
-                     hover:border-zinc-600 transition flex items-center gap-2">
+              :class="sel === '__backups__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
+              class="nav-btn">
         <span>💾</span><span class="text-sm font-medium mono">backups</span>
       </button>
 
       <button hx-get="{% url 'objects' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               @click="sel = '__objects__'"
-              :class="sel === '__objects__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
-              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
-                     hover:border-zinc-600 transition flex items-center gap-2">
+              :class="sel === '__objects__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
+              class="nav-btn">
         <span>🗄</span><span class="text-sm font-medium mono">objects</span>
       </button>
 
       <button hx-get="{% url 'settings' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               @click="sel = '__config__'"
-              :class="sel === '__config__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : 'border-zinc-800 text-zinc-300'"
-              class="w-full text-left bg-zinc-900/60 border rounded-lg px-3.5 py-2.5
-                     hover:border-zinc-600 transition flex items-center gap-2">
+              :class="sel === '__config__' ? 'bg-zinc-800 border-zinc-600 text-zinc-100' : ''"
+              class="nav-btn">
         <span>⚙</span><span class="text-sm font-medium mono">postgresql.conf</span>
       </button>
 
