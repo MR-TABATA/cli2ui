@@ -19,6 +19,12 @@ A colour is a signal, never decoration. Pick by intent, not by looks:
 Do **not** introduce a decorative blue/indigo/violet. If a thing isn't an
 action, a warning, or a link, it's `zinc`.
 
+**Exception — the overview bento.** The workspace home (and its hover menu) is
+an expressive launcher, so its tiles carry a per-group accent purely for wayfinding:
+Live ops = `sky`, Catalog & data = `violet`, Query & planner = `emerald`, applied
+to the tile icon and a faint tint/border only. This is the one place decorative
+colour is allowed; every actual panel still follows the intent rules above.
+
 ## Buttons — use the shared classes, not ad-hoc Tailwind
 
 Defined in `base.html`. Compose `.btn` with one intent modifier:
