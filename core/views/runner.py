@@ -70,7 +70,7 @@ def _log_command(connection, sql_text, *, read_only, result=None, error=None):
             duration_ms=result.duration_ms if result else None,
             error=error or "",
         )
-    except Exception:  # noqa: BLE001 — logging is best-effort
+    except Exception:  # noqa: BLE001  # nosec B110 — logging is best-effort; a failed history write must never break the user's query
         pass
 
 
