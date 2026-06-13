@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cli2ui — CLI のDB操作を、ボタンで。</title>
+  <meta name="description" content="うろ覚えの psql/mysql 操作を Web UI に。AIなし・SaaSなし — CLI のDB操作をクリックに変え、すべて自分のマシン上で動く。">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="cli2ui">
+  <meta property="og:title" content="cli2ui — CLI のDB操作を、ボタンで。">
+  <meta property="og:description" content="うろ覚えの psql コマンドを、クリックに。AIなし・SaaSなし・ローカル完結。">
+  <meta property="og:url" content="https://mr-tabata.github.io/cli2ui/">
+  <meta property="og:image" content="https://mr-tabata.github.io/cli2ui/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="cli2ui — CLI のDB操作を、ボタンで。">
+  <meta name="twitter:description" content="うろ覚えの psql コマンドを、クリックに。AIなし・SaaSなし・ローカル完結。">
+  <meta name="twitter:image" content="https://mr-tabata.github.io/cli2ui/og-image.png">
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='25' font-size='24' fill='%2334d399' font-family='monospace'>%E2%96%B8</text></svg>">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: "class" }</script>
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+
+    /* パレットはアプリ（STYLE.md）に準拠: zinc-950=面, emerald=主操作,
+       red=破壊的, amber=警告, sky=情報。色＝意図、装飾には使わない。 */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+           white-space: nowrap; border: 1px solid transparent; border-radius: .5rem;
+           padding: .625rem 1.1rem; font-size: .9rem; font-weight: 500; cursor: pointer;
+           transition: color .15s, background-color .15s, border-color .15s; }
+    .btn-primary { background: #34d399; color: #09090b; }
+    .btn-primary:hover { background: #6ee7b7; }
+    .btn-neutral { border-color: #3f3f46; color: #d4d4d8; }
+    .btn-neutral:hover { border-color: #71717a; color: #f4f4f5; }
+
+    .hero-grid {
+      background-image:
+        radial-gradient(60rem 30rem at 50% -8rem, rgba(52,211,153,.10), transparent 70%),
+        linear-gradient(rgba(63,63,70,.18) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(63,63,70,.18) 1px, transparent 1px);
+      background-size: 100% 100%, 2.5rem 2.5rem, 2.5rem 2.5rem;
+      -webkit-mask-image: linear-gradient(#000, transparent 92%);
+              mask-image: linear-gradient(#000, transparent 92%);
+    }
+    .card { background: rgba(24,24,27,.6); border: 1px solid #27272a; border-radius: .75rem; }
+    .prompt::before { content: "$ "; color: #34d399; }
+    .scroll-link { scroll-margin-top: 4rem; }
+    .lang select { background: transparent; color: #a1a1aa; border: 1px solid #3f3f46;
+                   border-radius: .5rem; padding: .25rem .5rem; font-size: .8rem; cursor: pointer; }
+    .lang select:hover { color: #f4f4f5; border-color: #71717a; }
+    .lang option { background: #18181b; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 antialiased selection:bg-emerald-400/30">
+
+  <!-- ヘッダー -->
+  <header class="sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950/85 backdrop-blur">
+    <div class="max-w-6xl mx-auto px-6 h-14 flex items-center gap-4">
+      <a href="#top" class="text-lg font-semibold tracking-tight">
+        cli<span class="text-emerald-400">2</span>ui
+      </a>
+      <nav class="ml-auto flex items-center gap-1 text-sm text-zinc-400">
+        <a href="#how" class="hidden sm:inline px-3 py-1.5 rounded-lg hover:text-zinc-100 hover:bg-zinc-900 transition">仕組み</a>
+        <a href="#screens" class="hidden sm:inline px-3 py-1.5 rounded-lg hover:text-zinc-100 hover:bg-zinc-900 transition">画面</a>
+        <a href="#features" class="hidden md:inline px-3 py-1.5 rounded-lg hover:text-zinc-100 hover:bg-zinc-900 transition">機能</a>
+        <a href="#principles" class="hidden md:inline px-3 py-1.5 rounded-lg hover:text-zinc-100 hover:bg-zinc-900 transition">設計思想</a>
+        <a href="https://github.com/MR-TABATA/cli2ui" class="btn btn-neutral !py-1.5 !px-3 ml-1">GitHub</a>
+        <span class="lang ml-1">
+          <select onchange="location.href=this.value;" aria-label="言語">
+            <option value="index.ja.html" selected>JP</option>
+            <option value="index.en.html">EN</option>
+          </select>
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ヒーロー -->
+  <section id="top" class="relative overflow-hidden">
+    <div class="hero-grid absolute inset-0 -z-10"></div>
+    <div class="max-w-6xl mx-auto px-6 pt-20 pb-16 sm:pt-28 sm:pb-24">
+      <div class="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1 text-xs text-zinc-400 mb-6">
+        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+        ローカル完結 · AIなし · SaaSなし
+      </div>
+
+      <h1 class="text-4xl sm:text-6xl font-semibold tracking-tight leading-[1.15] max-w-3xl">
+        CLI のDB操作を、<br><span class="text-emerald-400">ボタンで。</span>
+      </h1>
+
+      <p class="mt-6 text-lg text-zinc-300 max-w-2xl leading-relaxed">
+        うろ覚えの DB CLI コマンドを Web UI に。AIなし、魔法なし —
+        <span class="mono text-zinc-100">psql</span> /
+        <span class="mono text-zinc-100">mysql</span> の操作をクリックに変え、
+        すべて自分のマシン上で動きます。
+      </p>
+
+      <div class="mt-8 flex flex-wrap items-center gap-3">
+        <a href="#quickstart" class="btn btn-primary">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          はじめる
+        </a>
+        <a href="https://github.com/MR-TABATA/cli2ui" class="btn btn-neutral">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12 11.5 11.5 0 0 0 8.36 23c.6.11.82-.26.82-.58v-2c-3.34.73-4.04-1.6-4.04-1.6-.55-1.39-1.34-1.76-1.34-1.76-1.1-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.8 1.3 3.49 1 .1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.3-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
+          GitHub で見る
+        </a>
+        <span class="text-sm text-zinc-500 mono ml-1">MIT · PostgreSQL</span>
+      </div>
+
+      <p class="mt-10 text-zinc-400 max-w-2xl leading-relaxed">
+        対象は <span class="text-zinc-200">アプリ開発者・個人開発者</span> —— DBA ではありません。
+        コンセプトは <span class="text-zinc-100">「やろうと決めて3分後にはテーブルを眺めている」</span>。
+        インストールの長旅も、接続ウィザードの迷路も、入れ子ツリーの探索もなし。
+      </p>
+    </div>
+  </section>
+
+  <!-- 仕組み: before → after -->
+  <section id="how" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">仕組み</h2>
+    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">
+      毎回ググるコマンドを、ワンクリックに畳む。
+    </p>
+
+    <div class="mt-10 grid gap-4 md:grid-cols-3">
+      <div class="card p-5">
+        <div class="text-xs text-zinc-500 mb-3">本来打つコマンド</div>
+        <code class="mono block text-[13px] text-zinc-300 break-all">psql -c "SELECT * FROM<br>pg_stat_activity"</code>
+        <div class="my-4 flex items-center gap-2 text-zinc-600">
+          <span class="h-px flex-1 bg-zinc-800"></span>
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
+          <span class="h-px flex-1 bg-zinc-800"></span>
+        </div>
+        <div class="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-sm text-emerald-300">▸ 実行中クエリ</div>
+      </div>
+
+      <div class="card p-5">
+        <div class="text-xs text-zinc-500 mb-3">本来打つコマンド</div>
+        <code class="mono block text-[13px] text-zinc-300 break-all">pg_dump -t users mydb</code>
+        <div class="my-4 flex items-center gap-2 text-zinc-600">
+          <span class="h-px flex-1 bg-zinc-800"></span>
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
+          <span class="h-px flex-1 bg-zinc-800"></span>
+        </div>
+        <div class="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-sm text-emerald-300">▸ このテーブルをバックアップ</div>
+      </div>
+
+      <div class="card p-5">
+        <div class="text-xs text-zinc-500 mb-3">本来打つコマンド</div>
+        <code class="mono block text-[13px] text-zinc-300 break-all">SELECT<br>pg_terminate_backend(pid)</code>
+        <div class="my-4 flex items-center gap-2 text-zinc-600">
+          <span class="h-px flex-1 bg-zinc-800"></span>
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
+          <span class="h-px flex-1 bg-zinc-800"></span>
+        </div>
+        <div class="inline-flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-sm text-red-300">▸ このプロセスを kill</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- スクリーンショット -->
+  <section id="screens" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">実際の画面</h2>
+    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">
+      本物の DB クライアントが、自分のマシンで動く。
+    </p>
+
+    <div class="mt-10 space-y-10 max-w-4xl">
+      <figure>
+        <div class="overflow-hidden rounded-xl border border-zinc-800 shadow-2xl shadow-black/40">
+          <img src="screenshots/overview.png" alt="cli2ui ワークスペース概要 — 全パネルの bento" loading="lazy" class="w-full block">
+        </div>
+        <figcaption class="mt-3 text-sm text-zinc-400">ワークスペース概要 —— 各パネルがワンクリック、ライブな件数つき。</figcaption>
+      </figure>
+
+      <div class="grid gap-10 md:grid-cols-2">
+        <figure>
+          <div class="overflow-hidden rounded-xl border border-zinc-800 shadow-2xl shadow-black/40">
+            <img src="screenshots/table-detail.png" alt="cli2ui テーブル詳細 — 列・型・デフォルト" loading="lazy" class="w-full block">
+          </div>
+          <figcaption class="mt-3 text-sm text-zinc-400">テーブル詳細 —— 列・インデックス・行プレビュー、ワンクリックでバックアップやリネーム。</figcaption>
+        </figure>
+        <figure>
+          <div class="overflow-hidden rounded-xl border border-zinc-800 shadow-2xl shadow-black/40">
+            <img src="screenshots/sql-runner.png" alt="cli2ui SQL ランナー — リードオンリーのクエリと結果" loading="lazy" class="w-full block">
+          </div>
+          <figcaption class="mt-3 text-sm text-zinc-400">SQL ランナー —— 既定はリードオンリー。EXPLAIN・スケール・インデックスの what-if も。</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- 機能 -->
+  <section id="features" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">できること</h2>
+    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">
+      本物の DB クライアント風レイアウト。1仕事＝1パネル。
+    </p>
+
+    <div class="mt-10 grid gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">SQL ランナー</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">既定はリードオンリーのアドホッククエリ（<span class="mono">READ ONLY</span> + 文タイムアウト + 1000行上限）。明示オプトインの書込みモードはコミットしますが、毎回 DB 全体の安全スナップショットで保護されます。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">EXPLAIN スナップショット + 差分</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">実行計画を保存し、インデックス追加の前後など2つを差分表示。計画をメモ帳にコピペして見比べる作業から解放されます。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">アクティビティ</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed"><span class="mono">pg_stat_activity</span> から実行中クエリと接続を表示。ワンクリックで cancel / kill。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">ロック</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">ロック待ちのセッションを保持側（<span class="mono">pg_blocking_pids</span>）とペアで表示。ブロッカーをワンクリックで cancel / kill。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">バックアップ / リストア</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">破壊的・構造的な変更の前に自動でテーブルスナップショット。アップロードしたダンプの復元は、メモリに溜め込まずクライアントツールへストリーミング。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">レプリケーション</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">準備状況チェック（<span class="mono">wal_level</span> / <span class="mono">max_wal_senders</span>）+ WAL 位置、接続中のスタンバイ、スロットの作成 / 削除。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">ヘルス · bloat 推定</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">統計ベース（スキャンなし）のクエリでテーブルの無駄領域を推定。dead-rows / vacuum カードの隣に表示。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">オブジェクトブラウザ</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">データベース・スキーマ・ロール（<span class="mono">\l \dn \du</span>）をリードオンリーで一覧。reload / restart バッジ付きの <span class="mono">postgresql.conf</span> エディタも。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">コマンド履歴</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">実行した SQL をステータス・行数・所要時間つきで記録。ワンクリックで再オープンして再実行。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 設計思想 -->
+  <section id="principles" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">あえて、やらないこと</h2>
+    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">制約こそがプロダクト。</p>
+
+    <div class="mt-10 grid gap-4 md:grid-cols-2">
+      <div class="card p-6">
+        <h3 class="font-medium text-zinc-100 flex items-center gap-2"><span class="text-amber-400">⊘</span> AIなし</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">API キー管理に加え、スキーマを第三者へ送ること自体が、想定ユーザーにとっては論外です。クリックしたコマンドだけを、推測なしで正確に実行します。</p>
+      </div>
+      <div class="card p-6">
+        <h3 class="font-medium text-zinc-100 flex items-center gap-2"><span class="text-amber-400">⊘</span> SaaSなし</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">DB 接続情報を預かった瞬間、責任と暗号化の話がプロジェクトを飲み込みます。ローカル完結だから誠実 —— DB 認証情報がネットワーク外に出ることはありません。</p>
+      </div>
+    </div>
+
+    <div class="mt-12 overflow-hidden rounded-xl border border-zinc-800">
+      <table class="w-full text-sm">
+        <thead class="bg-zinc-900/60 text-zinc-400">
+          <tr><th class="text-left font-medium px-5 py-2.5">レイヤ</th><th class="text-left font-medium px-5 py-2.5">採用</th><th class="text-left font-medium px-5 py-2.5 hidden sm:table-cell">理由</th></tr>
+        </thead>
+        <tbody class="divide-y divide-zinc-800 text-zinc-300">
+          <tr><td class="px-5 py-3">フロント</td><td class="px-5 py-3 mono text-emerald-300">htmx + Alpine.js</td><td class="px-5 py-3 text-zinc-400 hidden sm:table-cell">クリック → HTML を差し替え。SPA ビルド不要。</td></tr>
+          <tr><td class="px-5 py-3">バックエンド</td><td class="px-5 py-3 mono text-emerald-300">Django</td><td class="px-5 py-3 text-zinc-400 hidden sm:table-cell">実績ある psycopg2。管理まわりが標準で揃う。</td></tr>
+          <tr><td class="px-5 py-3">管理用DB</td><td class="px-5 py-3 mono text-emerald-300">SQLite</td><td class="px-5 py-3 text-zinc-400 hidden sm:table-cell">保存済み接続 + 履歴。追加インフラ不要。</td></tr>
+          <tr><td class="px-5 py-3">インフラ</td><td class="px-5 py-3 mono text-emerald-300">Docker</td><td class="px-5 py-3 text-zinc-400 hidden sm:table-cell">ローカル完結・自己完結。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- クイックスタート -->
+  <section id="quickstart" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
+    <div class="card p-8 sm:p-10">
+      <h2 class="text-2xl font-semibold tracking-tight">1コマンドで起動</h2>
+      <p class="mt-2 text-zinc-400 max-w-xl">接続フォームは同梱のサンプル DB を指す状態で初期入力済み。<span class="text-emerald-300">Connect</span> を押せば、もうテーブルを眺めています。</p>
+
+      <div class="mt-6 rounded-lg border border-zinc-800 bg-black/40 p-4 font-mono text-sm">
+        <div class="prompt text-zinc-100">docker compose up</div>
+        <div class="mt-2 text-zinc-500"># ブラウザで <span class="text-sky-300">http://localhost:8000</span> を開く</div>
+      </div>
+
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a href="https://github.com/MR-TABATA/cli2ui" class="btn btn-primary">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12 11.5 11.5 0 0 0 8.36 23c.6.11.82-.26.82-.58v-2c-3.34.73-4.04-1.6-4.04-1.6-.55-1.39-1.34-1.76-1.34-1.76-1.1-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.8 1.3 3.49 1 .1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.3-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
+          リポジトリを clone
+        </a>
+        <span class="text-sm text-zinc-500 self-center mono">Docker が必要</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- フッター -->
+  <footer class="border-t border-zinc-900">
+    <div class="max-w-6xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between text-sm text-zinc-500">
+      <div>
+        <span class="text-zinc-300 font-semibold">cli<span class="text-emerald-400">2</span>ui</span>
+        <span class="mx-2">·</span> CLI のDB操作を、ボタンで。
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="https://github.com/MR-TABATA/cli2ui" class="hover:text-zinc-200 transition">GitHub</a>
+        <span>MIT &copy; TABATA Hitoshi</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
