@@ -10,7 +10,7 @@
         <span class="min-w-0 truncate">
           {% if r.kind == 'changed' %}
             <span class="text-red-300/70 line-through">{{ r.summary_before }}</span>
-            <span class="text-zinc-600">→</span>
+            <span class="text-zinc-500">→</span>
             <span class="text-amber-200">{{ r.summary }}</span>
           {% elif r.kind == 'added' %}
             <span class="text-emerald-500 mr-1">+</span><span class="text-emerald-200">{{ r.summary }}</span>
@@ -22,7 +22,7 @@
         </span>
         <span class="shrink-0 text-[11px] tabular-nums flex items-center gap-2">
           {% if r.rows_before is not None and r.rows_after is not None %}
-            <span class="text-zinc-500">rows {{ r.rows_before|floatformat:0 }}→{{ r.rows_after|floatformat:0 }}</span>
+            <span class="text-zinc-400">rows {{ r.rows_before|floatformat:0 }}→{{ r.rows_after|floatformat:0 }}</span>
             {% if r.rows_factor and r.rows_factor >= 2 %}
               <span class="px-1 rounded bg-amber-500/15 text-amber-300">×{{ r.rows_factor|floatformat:0 }}</span>
             {% endif %}

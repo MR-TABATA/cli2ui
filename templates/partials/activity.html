@@ -2,7 +2,7 @@
   <div class="flex flex-wrap items-start justify-between gap-3">
     <div>
       <h2 class="text-lg font-semibold flex items-center gap-2"><span>⚡</span> Activity</h2>
-      <p class="text-xs text-zinc-500">
+      <p class="text-xs text-zinc-400">
         <span class="mono">pg_stat_activity</span> — running queries and connections
       </p>
     </div>
@@ -17,7 +17,7 @@
     <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
       <div>
         <table class="w-full text-sm table-fixed">
-          <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+          <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
             <tr class="border-b border-zinc-800">
               <th class="px-4 py-2 font-medium w-16">PID</th>
               <th class="px-4 py-2 font-medium w-24">User</th>
@@ -43,11 +43,11 @@
                   {% if s.blocked %}
                     <span class="text-[11px] px-1.5 py-0.5 rounded bg-red-950/50 text-red-400 border border-red-900/60 whitespace-nowrap">blocked by {{ s.blocked_by|join:", " }}</span>
                   {% endif %}
-                  {% if s.wait %}<span class="text-[11px] text-zinc-500 mono">{{ s.wait }}</span>{% endif %}
+                  {% if s.wait %}<span class="text-[11px] text-zinc-400 mono">{{ s.wait }}</span>{% endif %}
                 </td>
                 <td class="px-4 py-2 mono text-zinc-400 whitespace-nowrap">{% if s.state == 'active' and s.query_secs is not None %}{{ s.query_secs }}s{% else %}—{% endif %}</td>
                 <td class="px-4 py-2 mono text-xs truncate" title="{{ s.query }}">
-                  {% if s.is_self %}<span class="text-zinc-500">— cli2ui (this request) —</span>{% else %}<span class="text-zinc-300">{{ s.query|default:"—" }}</span>{% endif %}
+                  {% if s.is_self %}<span class="text-zinc-400">— cli2ui (this request) —</span>{% else %}<span class="text-zinc-300">{{ s.query|default:"—" }}</span>{% endif %}
                 </td>
                 <td class="px-4 py-2 text-right whitespace-nowrap space-x-3">
                   {% if s.is_self %}
@@ -68,7 +68,7 @@
           </tbody>
         </table>
       </div>
-      <div class="px-4 py-2 border-t border-zinc-800 text-xs text-zinc-500">
+      <div class="px-4 py-2 border-t border-zinc-800 text-xs text-zinc-400">
         {{ sessions|length }} client session{{ sessions|length|pluralize }} ·
         <span class="text-amber-400/80">cancel</span> stops the query,
         <span class="text-red-400/80">kill</span> drops the connection
@@ -77,13 +77,13 @@
   {% else %}
     <div class="border border-dashed border-zinc-800 rounded-xl py-12 px-6 text-center">
       <p class="text-zinc-300 font-medium">No client sessions</p>
-      <p class="text-zinc-500 text-sm mt-1">Nothing is connected to this database right now.</p>
+      <p class="text-zinc-400 text-sm mt-1">Nothing is connected to this database right now.</p>
     </div>
   {% endif %}
 
   <div>
     <div class="flex items-center justify-between mb-1.5">
-      <p class="text-xs text-zinc-500">The query behind this view</p>
+      <p class="text-xs text-zinc-400">The query behind this view</p>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ query_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
               class="text-xs text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1

@@ -2,7 +2,7 @@
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
       <h2 class="text-lg font-semibold flex items-center gap-2"><span>▷</span> SQL</h2>
-      <p class="text-xs text-zinc-500 mono" x-show="!write">
+      <p class="text-xs text-zinc-400 mono" x-show="!write">
         read-only · SET TRANSACTION READ ONLY · statement_timeout 15s · capped at 1000 rows
       </p>
       <p class="text-xs text-amber-400/90 mono" x-show="write" x-cloak>
@@ -60,12 +60,12 @@
               title="Try an index against this query and measure it before creating it"
               class="border border-amber-700/60 hover:border-amber-500 text-amber-200 rounded-lg
                      px-4 py-2 text-sm transition">Try an index ▸</button>
-      <span class="text-xs text-zinc-600 ml-1">⌘/Ctrl + Enter to run</span>
+      <span class="text-xs text-zinc-500 ml-1">⌘/Ctrl + Enter to run</span>
     </div>
   </form>
 
   <div id="query-result">
-    <p class="text-sm text-zinc-500">Run a query to see results here.</p>
+    <p class="text-sm text-zinc-400">Run a query to see results here.</p>
   </div>
 </div>
 

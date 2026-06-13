@@ -2,7 +2,7 @@
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
       <h2 class="text-lg font-semibold flex items-center gap-2"><span>⚗</span> Index lab</h2>
-      <p class="text-xs text-zinc-500 mono">
+      <p class="text-xs text-zinc-400 mono">
         what-if · the index is built then rolled back — real EXPLAIN ANALYZE timing, nothing persisted
       </p>
     </div>
@@ -42,8 +42,8 @@
         <template x-for="c in picked" :key="c"><input type="hidden" name="columns" :value="c"></template>
 
         <div>
-          <div class="text-xs uppercase tracking-wide text-zinc-500 mb-1.5">
-            Index to try <span class="normal-case text-zinc-600">— click columns in order</span>
+          <div class="text-xs uppercase tracking-wide text-zinc-400 mb-1.5">
+            Index to try <span class="normal-case text-zinc-500">— click columns in order</span>
           </div>
           <div class="flex flex-wrap gap-1.5">
             {% for col in columns %}
@@ -66,8 +66,8 @@
         </div>
 
         <div>
-          <div class="text-xs uppercase tracking-wide text-zinc-500 mb-1.5">
-            Target query <span class="normal-case text-zinc-600">— measured with EXPLAIN ANALYZE (read query)</span>
+          <div class="text-xs uppercase tracking-wide text-zinc-400 mb-1.5">
+            Target query <span class="normal-case text-zinc-500">— measured with EXPLAIN ANALYZE (read query)</span>
           </div>
           <textarea name="sql" rows="4" spellcheck="false" autocomplete="off"
                     placeholder="SELECT … the query you want this index to speed up"
@@ -81,11 +81,11 @@
                          transition disabled:opacity-40 disabled:cursor-not-allowed">
             Preview index ▸
           </button>
-          <span class="text-xs text-zinc-600">⌘/Ctrl + Enter</span>
+          <span class="text-xs text-zinc-500">⌘/Ctrl + Enter</span>
         </div>
       </form>
     {% else %}
-      <p class="text-sm text-zinc-500">Pick a table to choose which columns to index.</p>
+      <p class="text-sm text-zinc-400">Pick a table to choose which columns to index.</p>
     {% endif %}
   </section>
 
