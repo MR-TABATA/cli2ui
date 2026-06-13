@@ -1277,8 +1277,13 @@ class IndexManagementSmokeE2E(_BrowserE2E):
 
         # Open the orders table detail (the trailing match avoids order_items).
         page.locator('button[hx-get$="table=orders"]').click()
+        page.locator("#detail h2").wait_for()
+
+        # Indexes subtab → open the Create index drawer.
+        page.get_by_role("button", name="Indexes", exact=True).click()
+        page.get_by_role("button", name="+ Create index").first.click()
         create = page.locator('form[hx-post*="indexes/create"]')
-        create.wait_for()
+        create.wait_for(state="visible")
 
         # Pick two columns in the REVERSE of their table order (orders is
         # …, customer_id, total, …) to prove the ordered picker controls the
@@ -1286,9 +1291,11 @@ class IndexManagementSmokeE2E(_BrowserE2E):
         create.get_by_role("button", name="total", exact=True).click()
         create.get_by_role("button", name="customer_id", exact=True).click()
         create.locator('input[name=name]').fill(self.IDX)
-        create.get_by_role("button", name="Create").click()
+        create.get_by_role("button", name="+ Create index").click()
 
-        # It shows up in the index list, with its columns in the chosen order.
+        # The swap resets the panel to Columns; reopen Indexes to see the row,
+        # with its columns in the chosen order.
+        page.get_by_role("button", name="Indexes", exact=True).click()
         row = page.locator("#detail tr", has_text=self.IDX)
         expect(row).to_contain_text("total, customer_id")
 
@@ -1398,9 +1405,9 @@ class SchemaAlterSmokeE2E(_BrowserE2E):
 @unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
                      "needs playwright + chromium and a reachable sample DB")
 class TableManagementSmokeE2E(_BrowserE2E):
-    """Open a table, rename it from the header (main pane AND sidebar tree update
-    in one round trip), then drop it — driving the real htmx swaps, the inline
-    rename toggle, and the hx-confirm dialog on drop."""
+    """Open a table, rename it from the header drawer (main pane AND sidebar tree
+    update in one round trip), then drop it from the Danger subtab — driving the
+    real htmx swaps, the rename drawer, and the hx-confirm dialog on drop."""
 
     TBL, TBL2 = "cli2ui_e2e_tbl", "cli2ui_e2e_tbl2"
 
@@ -1423,10 +1430,8 @@ class TableManagementSmokeE2E(_BrowserE2E):
         page.locator(f'button[hx-get$="table={self.TBL}"]').click()
         expect(page.locator("#detail h2")).to_have_text(f"public.{self.TBL}")
 
-        # Rename it via the header toggle; both panes update from one response.
-        # (The header rename is the first "rename" in the pane; column rows add
-        # their own below.)
-        page.locator("#detail").get_by_role("button", name="rename", exact=True).first.click()
+        # Rename it via the header drawer; both panes update from one response.
+        page.locator("#detail").get_by_role("button", name="rename", exact=True).click()
         form = page.locator('form[hx-post*="table/rename"]')
         form.locator("input[name=new_name]").fill(self.TBL2)
         form.get_by_role("button", name="Rename").click()
@@ -1436,18 +1441,19 @@ class TableManagementSmokeE2E(_BrowserE2E):
         expect(tree.locator(f'button[hx-get$="table={self.TBL2}"]')).to_have_count(1)
         expect(tree.locator(f'button[hx-get$="table={self.TBL}"]')).to_have_count(0)
 
-        # Drop it (hx-confirm → window.confirm, auto-accepted). Header drop is
-        # the first "drop" in the pane; column rows add their own below.
+        # Drop it from the Danger subtab (hx-confirm → window.confirm, accepted).
         page.on("dialog", lambda d: d.accept())
-        page.locator("#detail").get_by_role("button", name="drop", exact=True).first.click()
+        page.get_by_role("button", name="Danger", exact=True).click()
+        page.get_by_role("button", name="Drop table", exact=True).click()
         expect(tree.locator(f'button[hx-get$="table={self.TBL2}"]')).to_have_count(0)
 
 
 @unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
                      "needs playwright + chromium and a reachable sample DB")
 class ColumnManagementSmokeE2E(_BrowserE2E):
-    """Open a table, add a column from the footer form, rename it inline, then
-    drop it — driving the real htmx swaps and the hx-confirm dialog on drop."""
+    """Open a table, add a column from the drawer, rename it from the edit
+    drawer, then drop it — driving the real htmx swaps and the hx-confirm
+    dialog on drop."""
 
     TBL = "cli2ui_e2e_col_tbl"
 
@@ -1465,34 +1471,36 @@ class ColumnManagementSmokeE2E(_BrowserE2E):
         page = self.page
         page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
         page.locator(f'button[hx-get$="table={self.TBL}"]').click()
+        page.locator("#detail h2").wait_for()
 
-        # Add a column via the footer form.
+        # Add a column via the drawer.
+        page.get_by_role("button", name="+ Add column").first.click()
         add = page.locator('form[hx-post*="columns/add"]')
-        add.wait_for()
+        add.wait_for(state="visible")
         add.locator("input[name=name]").fill("note")
         add.locator("select[name=type]").select_option("text")
-        add.get_by_role("button", name="+ Add").click()
+        add.get_by_role("button", name="+ Add column").click()
         row = page.locator("#detail tbody tr", has_text="note")
         expect(row).to_be_visible()
 
-        # Rename it inline (same-cell toggle).
-        row.get_by_role("button", name="rename").click()
-        row.locator("input[name=new_name]").fill("memo")
-        row.get_by_role("button", name="save").click()
+        # Rename it via the edit drawer.
+        row.get_by_role("button", name="edit").click()
+        rename = page.locator('form[hx-post*="columns/rename"]')
+        rename.locator("input[name=new_name]").fill("memo")
+        rename.get_by_role("button", name="Rename").click()
         memo = page.locator("#detail tbody tr", has_text="memo")
         expect(memo).to_be_visible()
 
-        # Drop it (hx-confirm → window.confirm, auto-accepted). Each column is
-        # its own <tbody>, so assert no column tbody carries "memo" any more.
+        # Drop it from the grid (hx-confirm → window.confirm, auto-accepted).
         page.on("dialog", lambda d: d.accept())
         memo.get_by_role("button", name="drop").click()
-        expect(page.locator("#detail tbody", has_text="memo")).to_have_count(0)
+        expect(page.locator("#detail tbody tr", has_text="memo")).to_have_count(0)
 
 
 @unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
                      "needs playwright + chromium and a reachable sample DB")
 class ColumnAlterSmokeE2E(_BrowserE2E):
-    """Open a table, expand a column's editor, change its type and flip its
+    """Open a table, open a column's edit drawer, change its type and flip its
     nullability — checking the Columns grid reflects each ALTER."""
 
     TBL = "cli2ui_e2e_alter_tbl"
@@ -1508,26 +1516,26 @@ class ColumnAlterSmokeE2E(_BrowserE2E):
         super().tearDown()
 
     def _amount_row(self):
-        # The column's <tbody> holds its data row + editor row.
-        return self.page.locator("#detail tbody", has_text="amount")
+        return self.page.locator("#detail tbody tr", has_text="amount")
 
     def test_change_type_then_set_not_null(self):
         page = self.page
         page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
         page.locator(f'button[hx-get$="table={self.TBL}"]').click()
+        page.locator("#detail h2").wait_for()
 
-        # Expand the editor and change text → integer.
-        tb = self._amount_row()
-        tb.get_by_role("button", name="edit").click()
-        tb.locator("select[name=type]").select_option("integer")
-        tb.get_by_role("button", name="change").click()
+        # Open the edit drawer and change text → integer.
+        self._amount_row().get_by_role("button", name="edit").click()
+        retype = page.locator('form[hx-post*="columns/type"]')
+        retype.locator("select[name=type]").select_option("integer")
+        retype.get_by_role("button", name="Change").click()
         # Type cell (2nd column) reflects the change.
         expect(self._amount_row().locator("td").nth(1)).to_have_text("integer")
 
-        # Re-open the editor and add a NOT NULL constraint.
-        tb = self._amount_row()
-        tb.get_by_role("button", name="edit").click()
-        tb.get_by_role("button", name="set NOT NULL").click()
+        # Re-open the edit drawer and add a NOT NULL constraint.
+        self._amount_row().get_by_role("button", name="edit").click()
+        setnull = page.locator('form[hx-post*="columns/null"]')
+        setnull.get_by_role("button", name="set NOT NULL").click()
         # Nullable cell (3rd column) flips to "no".
         expect(self._amount_row().locator("td").nth(2)).to_have_text("no")
 
