@@ -1354,10 +1354,11 @@ class DatabaseManagementSmokeE2E(_BrowserE2E):
         page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
         page.get_by_role("button", name="🗄 objects", exact=True).click()
 
+        page.get_by_role("button", name="+ New database").click()
         create = page.locator('form[hx-post*="databases/create"]')
-        create.wait_for()
+        create.wait_for(state="visible")
         create.locator("input[name=name]").fill(self.DB)
-        create.get_by_role("button", name="Create").click()
+        create.get_by_role("button", name="+ Create database").click()
 
         row = page.locator("#detail tr", has_text=self.DB)
         expect(row).to_be_visible()
@@ -1370,7 +1371,7 @@ class DatabaseManagementSmokeE2E(_BrowserE2E):
 @unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
                      "needs playwright + chromium and a reachable sample DB")
 class SchemaAlterSmokeE2E(_BrowserE2E):
-    """Rename a schema through the Objects panel's inline edit toggle."""
+    """Rename a schema through the Objects panel's edit drawer."""
 
     SCH, SCH2 = "cli2ui_e2e_sch", "cli2ui_e2e_sch2"
 
@@ -1391,11 +1392,13 @@ class SchemaAlterSmokeE2E(_BrowserE2E):
         page = self.page
         page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
         page.get_by_role("button", name="🗄 objects", exact=True).click()
+        page.get_by_role("button", name="Schemas", exact=True).click()
 
         row = page.locator("#detail tr", has_text=self.SCH)
         row.get_by_role("button", name="edit").click()
-        row.locator("input[name=new]").fill(self.SCH2)
-        row.get_by_role("button", name="save").click()
+        edit = page.locator('form[hx-post*="schemas/alter"]')
+        edit.locator("input[name=new]").fill(self.SCH2)
+        edit.get_by_role("button", name="Save").click()
 
         objects = page.locator("#detail")
         expect(objects).to_contain_text(self.SCH2)
