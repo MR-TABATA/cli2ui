@@ -11,9 +11,7 @@
                    hover:border-zinc-600 transition">↻ Refresh</button>
   </div>
 
-  {% if error %}
-    <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-2.5 text-sm text-red-200/90 mono">{{ error }}</div>
-  {% endif %}
+  {% include "partials/_banner.html" %}
 
   {% if waits %}
     <div class="space-y-3">

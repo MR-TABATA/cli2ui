@@ -26,20 +26,20 @@
               hx-swap="outerHTML" hx-disabled-elt="find button" class="flex items-center gap-2">
           <input type="hidden" name="name" value="{{ s.name }}">
           {% if s.vartype == 'bool' %}
-            <select name="value" class="cfg-ctl">
+            <select name="value" class="field field-sm">
               <option value="on" {% if s.value == 'on' %}selected{% endif %}>on</option>
               <option value="off" {% if s.value == 'off' %}selected{% endif %}>off</option>
             </select>
           {% elif s.vartype == 'enum' %}
-            <select name="value" class="cfg-ctl">
+            <select name="value" class="field field-sm">
               {% for ev in s.enumvals %}<option value="{{ ev }}" {% if ev == s.value %}selected{% endif %}>{{ ev }}</option>{% endfor %}
             </select>
           {% else %}
-            <input name="value" value="{{ s.value }}" autocomplete="off" class="cfg-input"
+            <input name="value" value="{{ s.value }}" autocomplete="off" class="field field-sm mono w-36"
                    title="{% if s.min_val %}range {{ s.min_val }}–{{ s.max_val }}{% endif %}{% if s.unit %} ({{ s.unit }}){% endif %}">
             {% if s.unit %}<span class="text-xs text-zinc-500">{{ s.unit }}</span>{% endif %}
           {% endif %}
-          <button type="submit" class="cfg-set">Set</button>
+          <button type="submit" class="btn btn-sm btn-primary">Set</button>
         </form>
         <form hx-post="{% url 'settings_reset' connection.pk %}" hx-target="#setting-{{ s.name }}" hx-swap="outerHTML">
           <input type="hidden" name="name" value="{{ s.name }}">
