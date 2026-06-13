@@ -14,6 +14,17 @@ Built for **app developers and solo developers** — not DBAs. The pitch is
 *"you're looking at your tables 3 minutes after deciding to"* — no install
 marathon, no connection-wizard maze, no digging through nested trees.
 
+The UI ships in **English and Japanese** — a header toggle switches between
+them, and it auto-detects your browser's language on first visit.
+
+## What it looks like
+
+![Workspace overview — every panel one click away, with live counts](docs/screenshots/overview.png)
+
+| Table detail | SQL runner |
+| :----------: | :--------: |
+| ![Table detail](docs/screenshots/table-detail.png) | ![SQL runner](docs/screenshots/sql-runner.png) |
+
 ## Quick start
 
 ```bash
@@ -95,7 +106,10 @@ MVP. `docker compose up` → connect → browse your tables in a DB-client layou
   every destructive or structural change (drop / truncate / rename / alter), plus
   restore of an uploaded dump — streamed to the client tool (not buffered in
   memory) — into a new database or, with a type-gate, an existing one
-- ⬜ Bento ops overview once a few panels exist
+- ✅ Workspace overview: a bento dashboard summarizing every panel (live counts
+  for activity, snapshots, backups, replication readiness…), one click away
+- ✅ Internationalization: full English / Japanese UI with a header toggle
+  (cookie-persisted, falling back to the browser's `Accept-Language`)
 - ⬜ MySQL (the engine layer is ready for it)
 
 ## Stack
@@ -114,6 +128,17 @@ MVP. `docker compose up` → connect → browse your tables in a DB-client layou
 - **No SaaS.** The moment we'd hold your DB connection info, the liability and
   encryption story swamps the project. Local-only keeps it honest.
 
+## Security
+
+cli2ui is **local-only by design** — no SaaS, no auth, no outbound calls — so the
+threat model is narrow: it runs next to your database on your machine. Even so,
+the destructive surface is taken seriously: identifiers are bound with
+`psycopg2.sql.Identifier`, the SQL runner defaults to `SET TRANSACTION READ ONLY`,
+what-if features always `ROLLBACK`, CSRF is enforced, and `DEBUG` is off by
+default. The full threat model and static-analysis results live in
+[specs/security-check.md](specs/security-check.md). To report a vulnerability,
+see [SECURITY.md](SECURITY.md).
+
 ## Local development (without Docker)
 
 ```bash
@@ -127,6 +152,12 @@ You'll need a PostgreSQL to connect to (the `sampledb` service in
 
 `DEBUG` is **off by default** so error pages don't leak tracebacks, settings, or
 SQL. Set `DJANGO_DEBUG=1` while developing if you want Django's rich error pages.
+
+## Contributing
+
+Issues and PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to run the
+app, the test suite, and the UI conventions ([STYLE.md](STYLE.md)) new panels
+follow.
 
 ## License
 
