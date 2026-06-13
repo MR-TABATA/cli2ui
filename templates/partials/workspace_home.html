@@ -1,17 +1,17 @@
-{% comment %}Workspace home (#detail landing). The section bento now lives in the
-overview hover menu, so the landing is just a slim welcome that points there.{% endcomment %}
-<div class="space-y-5">
+{% comment %}Workspace home (#detail landing). Heading + the section bento box —
+the same makunouchi grid the overview hover menu shows, so clicking ⌂ overview
+lands you on it and hovering gives the same as a quick menu.{% endcomment %}
+<div class="space-y-4">
   {% include "partials/_banner.html" %}
-  <div class="border border-zinc-800 rounded-xl bg-zinc-900/40 px-6 py-10 text-center">
-    <h2 class="text-xl font-semibold">Connected to {{ connection.display_name }}</h2>
-    <p class="text-sm text-zinc-400 mt-1 mono">{{ connection.host }}:{{ connection.port }}/{{ connection.dbname }}</p>
-    <p class="text-sm text-zinc-400 mt-5">
-      Hover <span class="mono text-zinc-200">⌂ overview</span> to jump to a section,
-      or pick a table in the sidebar.
-    </p>
-    <p class="text-xs text-zinc-500 mt-3">
-      Read-only by default — changes are always explicit. cli2ui runs locally;
-      your DB credentials never leave this machine.
-    </p>
+  <div>
+    <h2 class="text-lg font-semibold">Connected to {{ connection.display_name }}</h2>
+    <p class="text-xs text-zinc-400 mt-0.5 mono">{{ connection.host }}:{{ connection.port }}/{{ connection.dbname }}</p>
   </div>
+
+  {% include "partials/_bento.html" %}
+
+  <p class="text-xs text-zinc-500">
+    Read-only by default — changes are always explicit. cli2ui runs locally; your DB
+    credentials never leave this machine.
+  </p>
 </div>

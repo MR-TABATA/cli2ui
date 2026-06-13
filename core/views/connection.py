@@ -138,10 +138,11 @@ def _overview_context(connection):
 
 
 def overview(request, pk, notice=None):
-    """The workspace home (#detail landing): a slim welcome. The section bento
-    lives in the overview hover menu, rendered once with the workspace shell.
-    `notice` is an optional info banner (e.g. the auto-backup result after a
-    table drop)."""
+    """The workspace home (#detail landing): the section bento. The same grid
+    backs the overview hover menu, so clicking ⌂ overview lands here and hovering
+    shows it as a quick menu. `notice` is an optional info banner (e.g. the
+    auto-backup result after a table drop)."""
     connection = get_object_or_404(Connection, pk=pk)
     return render(request, "partials/workspace_home.html",
-                  {"connection": connection, "notice": notice})
+                  {"connection": connection, "notice": notice,
+                   **_overview_context(connection)})
