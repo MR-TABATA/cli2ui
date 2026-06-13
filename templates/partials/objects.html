@@ -58,7 +58,7 @@ carries the row being acted on. Submits target #detail, so the whole panel
                     <span x-show="err" x-text="err" class="text-xs text-red-400/90 max-w-[200px] truncate"></span>
                   </span>
                   {% if d.name == connection.dbname %}
-                    <span class="text-xs text-zinc-500">current</span>
+                    <span class="text-xs text-zinc-400">current</span>
                   {% else %}
                     <button type="button" class="text-xs text-zinc-400 hover:text-zinc-100"
                             @click="ctx = { name: '{{ d.name|escapejs }}' }; drawer = 'db-rename'">rename</button>
@@ -135,11 +135,11 @@ carries the row being acted on. Submits target #detail, so the whole panel
         <tbody>
           {% for r in roles %}
             <tr class="border-b border-zinc-800/60">
-              <td class="px-5 py-2 mono align-top">{{ r.name }}{% if not r.can_login %}<span class="text-zinc-500"> (group)</span>{% endif %}</td>
+              <td class="px-5 py-2 mono align-top">{{ r.name }}{% if not r.can_login %}<span class="text-zinc-400"> (group)</span>{% endif %}</td>
               <td class="px-5 py-2 align-top">
                 {% for a in r.attributes %}
                   <span class="inline-block text-xs text-zinc-400 bg-zinc-800/70 rounded px-1.5 py-0.5 mr-1 mb-1">{{ a }}</span>
-                {% empty %}<span class="text-zinc-500">—</span>{% endfor %}
+                {% empty %}<span class="text-zinc-400">—</span>{% endfor %}
               </td>
               <td class="px-5 py-2 text-right whitespace-nowrap align-top">
                 <div class="flex items-center gap-3 justify-end">
@@ -180,7 +180,7 @@ carries the row being acted on. Submits target #detail, so the whole panel
           <input name="name" placeholder="new_database" autocomplete="off" required class="field mono w-full">
         </div>
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Template <span class="normal-case text-zinc-500">(optional)</span></label>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Template <span class="normal-case text-zinc-400">(optional)</span></label>
           <select name="template" title="Copy an existing database (CREATE DATABASE … TEMPLATE)" class="field mono w-full">
             <option value="">empty</option>
             {% for d in databases %}<option value="{{ d.name }}">copy of {{ d.name }}</option>{% endfor %}
@@ -238,7 +238,7 @@ carries the row being acted on. Submits target #detail, so the whole panel
         <span class="htmx-indicator flex items-center justify-center gap-1.5 text-xs text-sky-300">
           <span class="spinner"></span> Restoring…
         </span>
-        <p class="text-xs text-zinc-500 text-center">.sql or custom — format auto-detected</p>
+        <p class="text-xs text-zinc-400 text-center">.sql or custom — format auto-detected</p>
       </form>
 
       <!-- New schema -->
@@ -275,7 +275,7 @@ carries the row being acted on. Submits target #detail, so the whole panel
           <input name="name" placeholder="role_name" autocomplete="off" required class="field mono w-full">
         </div>
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Password <span class="normal-case text-zinc-500">(optional)</span></label>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Password <span class="normal-case text-zinc-400">(optional)</span></label>
           <input name="password" type="password" placeholder="password" autocomplete="new-password" class="field w-full">
         </div>
         <div class="space-y-1.5">
@@ -302,7 +302,7 @@ carries the row being acted on. Submits target #detail, so the whole panel
           <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="createrole" class="accent-emerald-400" :checked="ctx.createrole"> createrole</label>
         </div>
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">New password <span class="normal-case text-zinc-500">(optional)</span></label>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">New password <span class="normal-case text-zinc-400">(optional)</span></label>
           <input name="password" type="password" placeholder="new password" autocomplete="new-password" class="field w-full">
         </div>
         <button type="submit" class="btn btn-primary w-full justify-center">Save</button>

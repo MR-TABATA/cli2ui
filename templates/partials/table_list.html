@@ -14,12 +14,12 @@
                 :class="sel === '{{ t.qualified|escapejs }}' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-300'"
                 class="w-full text-left px-3.5 py-1.5 text-sm flex items-center justify-between gap-2 hover:bg-zinc-800/60 transition">
           <span class="mono truncate">{{ t.name }}</span>
-          <span class="text-xs text-zinc-500 shrink-0">{{ t.rows }}</span>
+          <span class="text-xs text-zinc-400 shrink-0">{{ t.rows }}</span>
         </button>
       </li>
     {% endfor %}
   </ul>
-  <div class="px-3.5 py-2 border-t border-zinc-800 text-xs text-zinc-500">
+  <div class="px-3.5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
     {{ tables|length }} table{{ tables|length|pluralize }}
   </div>
 </div><!-- /table box -->

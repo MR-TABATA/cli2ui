@@ -1,7 +1,7 @@
 <div class="space-y-5">
   <div>
     <h2 class="text-lg font-semibold flex items-center gap-2"><span>💾</span> Backups</h2>
-    <p class="text-xs text-zinc-500">Automatic safety snapshots taken just before a destructive operation. Restore one into a <span class="text-zinc-300">new</span> database — an existing one is never overwritten.</p>
+    <p class="text-xs text-zinc-400">Automatic safety snapshots taken just before a destructive operation. Restore one into a <span class="text-zinc-300">new</span> database — an existing one is never overwritten.</p>
   </div>
 
   {% include "partials/_banner.html" %}
@@ -9,7 +9,7 @@
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
     {% if backups %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
           <tr class="border-b border-zinc-800">
             <th class="px-5 py-2 font-medium">Before</th>
             <th class="px-5 py-2 font-medium">Target</th>
@@ -24,9 +24,9 @@
             <tr class="border-b border-zinc-800/60">
               <td class="px-5 py-2 mono text-zinc-300">{{ b.operation }}</td>
               <td class="px-5 py-2 mono text-zinc-400 truncate max-w-[220px]">{{ b.target }}</td>
-              <td class="px-5 py-2 mono text-zinc-500">{{ b.dbname }}</td>
+              <td class="px-5 py-2 mono text-zinc-400">{{ b.dbname }}</td>
               <td class="px-5 py-2 mono text-zinc-400 text-right">{{ b.pretty_size }}</td>
-              <td class="px-5 py-2 text-zinc-500" title="{{ b.created_at }}">{{ b.created_at|timesince }} ago</td>
+              <td class="px-5 py-2 text-zinc-400" title="{{ b.created_at }}">{{ b.created_at|timesince }} ago</td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
                 <div x-show="!res" class="flex items-center gap-3 justify-end">
                   <button @click="res = true" type="button" class="text-xs text-sky-300/80 hover:text-sky-200">restore</button>
@@ -42,13 +42,13 @@
                       hx-target="#detail" hx-swap="innerHTML" hx-disabled-elt="find button[type=submit]"
                       class="flex items-center gap-1.5 justify-end">
                   <input type="hidden" name="id" value="{{ b.pk }}">
-                  <span class="text-xs text-zinc-500">→ new db</span>
+                  <span class="text-xs text-zinc-400">→ new db</span>
                   <input name="name" placeholder="new_database" autocomplete="off" required
                          class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 text-xs mono w-36
                                 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-sky-400">
                   <button type="submit" class="text-xs text-sky-300 hover:text-sky-200">restore</button>
                   <span class="htmx-indicator spinner text-sky-300"></span>
-                  <button @click="res = false" type="button" class="text-xs text-zinc-500 hover:text-zinc-300">cancel</button>
+                  <button @click="res = false" type="button" class="text-xs text-zinc-400 hover:text-zinc-300">cancel</button>
                 </form>
               </td>
             </tr>
@@ -56,7 +56,7 @@
         {% endfor %}
       </table>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-500 text-sm">
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">
         No snapshots yet. One is taken automatically before you drop or truncate something.
       </p>
     {% endif %}

@@ -122,7 +122,7 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
                 <td class="px-5 py-2 text-zinc-400 mono text-right">{{ ix.size|default:"—" }}</td>
                 <td class="px-5 py-2 text-right whitespace-nowrap">
                   {% if ix.primary %}
-                    <span class="text-xs text-zinc-500">pk</span>
+                    <span class="text-xs text-zinc-400">pk</span>
                   {% else %}
                     <form hx-post="{% url 'index_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
                           hx-confirm="Drop index &quot;{{ ix.name }}&quot;?">
@@ -240,7 +240,7 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
           </select>
         </div>
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Default <span class="normal-case text-zinc-500">(optional)</span></label>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Default <span class="normal-case text-zinc-400">(optional)</span></label>
           <input name="default" placeholder="default" autocomplete="off" class="field mono w-full">
         </div>
         <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="notnull" class="accent-emerald-400"> not null</label>
@@ -291,7 +291,7 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
           <input type="hidden" name="schema" value="{{ schema }}">
           <input type="hidden" name="table" value="{{ table }}">
           <input type="hidden" name="column" :value="ctx.column">
-          <label class="block text-xs uppercase tracking-wide text-zinc-400">Default <span class="normal-case text-zinc-500">(empty drops it)</span></label>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400">Default <span class="normal-case text-zinc-400">(empty drops it)</span></label>
           <div class="flex gap-2">
             <input name="default" :value="ctx.default" placeholder="(none)" autocomplete="off" class="field field-sm mono flex-1">
             <button type="submit" class="btn btn-sm btn-neutral">Set</button>
@@ -323,7 +323,7 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
           {% endfor %}
         </div>
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Name <span class="normal-case text-zinc-500">(optional)</span></label>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Name <span class="normal-case text-zinc-400">(optional)</span></label>
           <input name="name" placeholder="index name" autocomplete="off" class="field mono w-full">
         </div>
         <div>
@@ -334,7 +334,7 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
         </div>
         <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="unique" class="accent-emerald-400"> unique</label>
         <button type="submit" :disabled="picked.length === 0" class="btn btn-primary w-full justify-center">+ Create index</button>
-        <p class="text-xs text-zinc-500 text-center">built CONCURRENTLY</p>
+        <p class="text-xs text-zinc-400 text-center">built CONCURRENTLY</p>
       </form>
 
     </div>

@@ -2,7 +2,7 @@
   <div class="flex flex-wrap items-start justify-between gap-3">
     <div>
       <h2 class="text-lg font-semibold flex items-center gap-2"><span>🔒</span> Locks</h2>
-      <p class="text-xs text-zinc-500">
+      <p class="text-xs text-zinc-400">
         <span class="mono">pg_locks</span> — sessions waiting on a lock and who holds it
       </p>
     </div>
@@ -22,23 +22,23 @@
             <div class="flex items-center gap-2 flex-wrap">
               <span class="text-[11px] px-1.5 py-0.5 rounded bg-red-950/50 text-red-400 border border-red-900/60 whitespace-nowrap">blocked</span>
               <span class="mono text-sm text-zinc-200">PID {{ w.blocked_pid }}</span>
-              <span class="text-xs text-zinc-500">{{ w.blocked_user|default:"—" }}</span>
+              <span class="text-xs text-zinc-400">{{ w.blocked_user|default:"—" }}</span>
               {% if w.wait_secs is not None %}<span class="text-xs text-zinc-400 mono">waiting {{ w.wait_secs }}s</span>{% endif %}
               <span class="text-[11px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 mono whitespace-nowrap">{{ w.lock_mode }}</span>
-              <span class="text-xs text-zinc-500">on</span>
+              <span class="text-xs text-zinc-400">on</span>
               <span class="text-xs text-zinc-300 mono">{{ w.object }}</span>
             </div>
             <pre class="mt-2 text-xs mono text-zinc-400 whitespace-pre-wrap break-words">{{ w.blocked_query|default:"—" }}</pre>
           </div>
 
           <!-- Who holds the lock it wants -->
-          <div class="px-5 py-2.5 text-xs uppercase tracking-wide text-zinc-500">blocked by</div>
+          <div class="px-5 py-2.5 text-xs uppercase tracking-wide text-zinc-400">blocked by</div>
           {% for b in w.blockers %}
             <div class="px-5 py-3 border-t border-zinc-800/60 flex items-start justify-between gap-3">
               <div class="min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="mono text-sm text-amber-300">PID {{ b.pid }}</span>
-                  <span class="text-xs text-zinc-500">{{ b.user|default:"—" }}</span>
+                  <span class="text-xs text-zinc-400">{{ b.user|default:"—" }}</span>
                   {% if b.state == 'idle in transaction' %}
                     <span class="text-[11px] px-1.5 py-0.5 rounded bg-amber-950/50 text-amber-400 border border-amber-900/60">idle in txn</span>
                   {% elif b.state %}
@@ -62,7 +62,7 @@
         </div>
       {% endfor %}
     </div>
-    <p class="text-xs text-zinc-500">
+    <p class="text-xs text-zinc-400">
       {{ waits|length }} blocked session{{ waits|length|pluralize }} ·
       <span class="text-amber-400/80">cancel</span> stops the blocker's query,
       <span class="text-red-400/80">kill</span> drops its connection — either frees the wait
@@ -70,13 +70,13 @@
   {% else %}
     <div class="border border-dashed border-zinc-800 rounded-xl py-12 px-6 text-center">
       <p class="text-zinc-300 font-medium">No lock waits</p>
-      <p class="text-zinc-500 text-sm mt-1">Nothing is blocked on a lock right now.</p>
+      <p class="text-zinc-400 text-sm mt-1">Nothing is blocked on a lock right now.</p>
     </div>
   {% endif %}
 
   <div>
     <div class="flex items-center justify-between mb-1.5">
-      <p class="text-xs text-zinc-500">The query behind this view</p>
+      <p class="text-xs text-zinc-400">The query behind this view</p>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ query_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
               class="text-xs text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1

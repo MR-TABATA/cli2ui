@@ -20,7 +20,7 @@ A card whose probe failed (value is None) still renders, showing "—".{% endcom
       {% if summary.activity %}
         <p class="text-2xl font-semibold mt-2">{{ summary.activity.sessions }}<span class="text-sm font-normal text-zinc-400"> session{{ summary.activity.sessions|pluralize }}</span></p>
         <p class="text-xs text-zinc-400 mt-0.5">{{ summary.activity.active }} active now</p>
-      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-600">—</p>{% endif %}
+      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-500">—</p>{% endif %}
     </button>
 
     {% comment %}Health{% endcomment %}
@@ -33,7 +33,7 @@ A card whose probe failed (value is None) still renders, showing "—".{% endcom
       {% if summary.health %}
         <p class="text-2xl font-semibold mt-2">{% if summary.health.largest %}{{ summary.health.largest.total }}{% else %}0{% endif %}<span class="text-sm font-normal text-zinc-400"> largest table</span></p>
         <p class="text-xs text-zinc-400 mt-0.5 truncate">{% if summary.health.largest %}{{ summary.health.largest.qualified }} · {% endif %}{{ summary.health.dead }} dead row{{ summary.health.dead|pluralize }}</p>
-      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-600">—</p>{% endif %}
+      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-500">—</p>{% endif %}
     </button>
 
     {% comment %}Tables{% endcomment %}
@@ -43,7 +43,7 @@ A card whose probe failed (value is None) still renders, showing "—".{% endcom
       {% if summary.tables %}
         <p class="text-2xl font-semibold mt-2">{{ summary.tables.count }}<span class="text-sm font-normal text-zinc-400"> table{{ summary.tables.count|pluralize }}</span></p>
         <p class="text-xs text-zinc-400 mt-0.5">≈{{ summary.tables.rows }} rows · pick one in the sidebar</p>
-      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-600">—</p>{% endif %}
+      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-500">—</p>{% endif %}
     </button>
 
     {% comment %}Objects{% endcomment %}
@@ -53,7 +53,7 @@ A card whose probe failed (value is None) still renders, showing "—".{% endcom
       {% if summary.objects %}
         <p class="text-2xl font-semibold mt-2">{{ summary.objects.databases }}<span class="text-sm font-normal text-zinc-400"> database{{ summary.objects.databases|pluralize }}</span></p>
         <p class="text-xs text-zinc-400 mt-0.5">{{ summary.objects.schemas }} schema{{ summary.objects.schemas|pluralize }} · {{ summary.objects.roles }} role{{ summary.objects.roles|pluralize }}</p>
-      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-600">—</p>{% endif %}
+      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-500">—</p>{% endif %}
     </button>
 
     {% comment %}Replication{% endcomment %}
@@ -69,7 +69,7 @@ A card whose probe failed (value is None) still renders, showing "—".{% endcom
       {% if summary.replication %}
         <p class="text-2xl font-semibold mt-2 mono">{{ summary.replication.wal_level }}<span class="text-sm font-normal text-zinc-400"> wal_level</span></p>
         <p class="text-xs text-zinc-400 mt-0.5">{{ summary.replication.max_wal_senders }} wal sender{{ summary.replication.max_wal_senders|pluralize }}{% if summary.replication.is_standby %} · standby{% endif %}</p>
-      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-600">—</p>{% endif %}
+      {% else %}<p class="text-2xl font-semibold mt-2 text-zinc-500">—</p>{% endif %}
     </button>
 
     {% comment %}SQL runner / history{% endcomment %}
@@ -82,7 +82,7 @@ A card whose probe failed (value is None) still renders, showing "—".{% endcom
 
   </div>
 
-  <p class="text-xs text-zinc-500">
+  <p class="text-xs text-zinc-400">
     Read-only by default — changes are always explicit. cli2ui runs locally; your DB
     credentials never leave this machine.
   </p>

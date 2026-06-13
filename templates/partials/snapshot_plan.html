@@ -4,8 +4,8 @@
     {% if snapshot.analyzed %}
       <span class="px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/60 text-[10px] uppercase tracking-wide">analyze</span>
     {% endif %}
-    <span class="text-zinc-600">·</span>
-    <span class="text-xs text-zinc-500 mono truncate">{{ snapshot.sql }}</span>
+    <span class="text-zinc-500">·</span>
+    <span class="text-xs text-zinc-400 mono truncate">{{ snapshot.sql }}</span>
   </p>
   <pre class="bg-zinc-950 border border-zinc-800 rounded-lg p-4 text-xs mono text-zinc-200 overflow-x-auto whitespace-pre">{{ snapshot.plan_text }}</pre>
 </div>

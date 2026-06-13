@@ -1,5 +1,5 @@
 {% if missing %}
-  <p class="text-sm text-zinc-500">Pick two snapshots to compare.</p>
+  <p class="text-sm text-zinc-400">Pick two snapshots to compare.</p>
 {% elif identical %}
   <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-400">
     The two plans are identical.
@@ -8,7 +8,7 @@
   <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
     <div class="px-4 py-2 border-b border-zinc-800 text-xs flex flex-wrap items-center gap-2">
       <span class="text-red-300 mono">A · {{ a.label }}</span>
-      <span class="text-zinc-600">→</span>
+      <span class="text-zinc-500">→</span>
       <span class="text-emerald-300 mono">B · {{ b.label }}</span>
       {% if structured.has_shape_change %}
         <span class="ml-auto px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[10px] uppercase tracking-wide">plan changed</span>
@@ -20,7 +20,7 @@
   <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
     <div class="px-4 py-2 border-b border-zinc-800 text-xs flex flex-wrap items-center gap-2">
       <span class="text-red-300 mono">− {{ a.label }}</span>
-      <span class="text-zinc-600">→</span>
+      <span class="text-zinc-500">→</span>
       <span class="text-emerald-300 mono">+ {{ b.label }}</span>
     </div>
     <div class="overflow-x-auto text-xs mono leading-relaxed py-1">
@@ -28,7 +28,7 @@
         <div class="px-4 whitespace-pre
           {% if line.kind == 'add' %}bg-emerald-950/40 text-emerald-300
           {% elif line.kind == 'del' %}bg-red-950/40 text-red-300
-          {% elif line.kind == 'hunk' %}text-zinc-500
+          {% elif line.kind == 'hunk' %}text-zinc-400
           {% else %}text-zinc-400{% endif %}">{{ line.text }}</div>
       {% endfor %}
     </div>

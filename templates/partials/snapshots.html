@@ -1,7 +1,7 @@
 <div class="space-y-4">
   <div>
     <h2 class="text-lg font-semibold flex items-center gap-2"><span>◫</span> Plan snapshots</h2>
-    <p class="text-xs text-zinc-500">Saved EXPLAIN plans — pick two to diff (e.g. before vs after an index).</p>
+    <p class="text-xs text-zinc-400">Saved EXPLAIN plans — pick two to diff (e.g. before vs after an index).</p>
   </div>
 
   {% if snapshots %}
@@ -12,7 +12,7 @@
           {% for s in snapshots %}<option value="{{ s.pk }}" {% if forloop.counter == 2 %}selected{% endif %}>{{ s.label }}</option>{% endfor %}
         </select>
       </label>
-      <span class="text-zinc-500 pb-2">→</span>
+      <span class="text-zinc-400 pb-2">→</span>
       <label class="text-xs text-zinc-400">B · after
         <select name="b" class="snap-sel">
           {% for s in snapshots %}<option value="{{ s.pk }}" {% if forloop.first %}selected{% endif %}>{{ s.label }}</option>{% endfor %}
@@ -28,7 +28,7 @@
 
     <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
           <tr class="border-b border-zinc-800">
             <th class="px-4 py-2 font-medium">Name</th>
             <th class="px-4 py-2 font-medium">Query</th>
@@ -44,7 +44,7 @@
                 {% if s.analyzed %}<span class="ml-1 text-[10px] uppercase tracking-wide px-1 py-0.5 rounded bg-emerald-950/50 text-emerald-400">analyze</span>{% endif %}
               </td>
               <td class="px-4 py-2 mono text-xs text-zinc-400 max-w-[320px] truncate">{{ s.sql }}</td>
-              <td class="px-4 py-2 text-xs text-zinc-500 whitespace-nowrap">{{ s.created_at|date:"m-d H:i" }}</td>
+              <td class="px-4 py-2 text-xs text-zinc-400 whitespace-nowrap">{{ s.created_at|date:"m-d H:i" }}</td>
               <td class="px-4 py-2 text-right whitespace-nowrap space-x-3">
                 <button hx-get="{% url 'snapshot_plan' connection.pk %}?id={{ s.pk }}"
                         hx-target="#snapshot-output" hx-swap="innerHTML"
@@ -55,7 +55,7 @@
                 <button hx-post="{% url 'snapshot_delete' connection.pk %}" hx-vals='{"id": "{{ s.pk }}"}'
                         hx-target="#detail" hx-swap="innerHTML"
                         hx-confirm="Delete snapshot “{{ s.label }}”?"
-                        class="text-xs text-zinc-500 hover:text-red-300 underline">delete</button>
+                        class="text-xs text-zinc-400 hover:text-red-300 underline">delete</button>
               </td>
             </tr>
           {% endfor %}
@@ -67,7 +67,7 @@
   {% else %}
     <div class="border border-dashed border-zinc-800 rounded-xl py-12 px-6 text-center">
       <p class="text-zinc-300 font-medium">No snapshots yet</p>
-      <p class="text-zinc-500 text-sm mt-1">
+      <p class="text-zinc-400 text-sm mt-1">
         Open <span class="mono">▷ SQL</span>, run <span class="text-zinc-300">Explain</span> on a query,
         and save the plan. Save another after a change to diff them.
       </p>

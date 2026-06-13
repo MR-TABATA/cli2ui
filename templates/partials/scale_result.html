@@ -2,7 +2,7 @@
   <div class="flex flex-wrap items-center gap-2 text-xs">
     <span class="text-zinc-300 font-medium">Scale simulation</span>
     <span class="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[10px] uppercase tracking-wide">what-if · plan shape</span>
-    <span class="text-zinc-600">
+    <span class="text-zinc-500">
       planner stats scaled in a rolled-back transaction — no data written, invisible to other sessions
     </span>
   </div>
@@ -17,11 +17,11 @@
         <div class="text-[11px] mono text-zinc-400 mt-0.5 tabular-nums">
           rows {{ p.plan.plan_rows|floatformat:0 }}
         </div>
-        <div class="text-[11px] mono text-zinc-500 tabular-nums">
+        <div class="text-[11px] mono text-zinc-400 tabular-nums">
           cost {{ p.plan.total_cost|floatformat:0 }}
         </div>
       </div>
-      {% if not forloop.last %}<div class="self-center text-zinc-600">→</div>{% endif %}
+      {% if not forloop.last %}<div class="self-center text-zinc-500">→</div>{% endif %}
     {% endfor %}
   </div>
 
@@ -35,14 +35,14 @@
         {% if step.diff.has_shape_change %}
           <span class="ml-auto px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[10px] uppercase tracking-wide">plan changed</span>
         {% else %}
-          <span class="ml-auto px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500 text-[10px] uppercase tracking-wide">same shape</span>
+          <span class="ml-auto px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[10px] uppercase tracking-wide">same shape</span>
         {% endif %}
       </div>
       {% include "partials/plan_diff_rows.html" with diff=step.diff %}
     </div>
   {% endfor %}
 
-  <p class="text-[11px] text-zinc-600 mono">
+  <p class="text-[11px] text-zinc-500 mono">
     Shows the plan's <em>shape</em>, not real runtime. Selectivity is held constant
     (uniform growth). Requires a superuser connection.
   </p>
