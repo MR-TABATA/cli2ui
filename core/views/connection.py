@@ -56,7 +56,9 @@ def connect(request):
 
 
 def workspace(request, pk):
-    """DB-client view: table list in the sidebar, table detail in the main pane."""
+    """DB-client view: table list in the sidebar, table detail in the main pane.
+    The main pane starts on the bento overview, so the summaries are gathered
+    here too (a static include — no extra round trip that could race a click)."""
     connection = get_object_or_404(Connection, pk=pk)
     try:
         tables = get_engine(connection).list_tables()
@@ -65,19 +67,71 @@ def workspace(request, pk):
             request,
             "workspace.html",
             {"connection": connection, "tables": [], "error": str(exc),
-             "connections": Connection.objects.all()},
+             "connections": Connection.objects.all(),
+             "summary": {}, "commands": 0},
         )
     return render(
         request,
         "workspace.html",
         {"connection": connection, "tables": tables,
-         "connections": Connection.objects.all()},
+         "connections": Connection.objects.all(),
+         "summary": _overview_summary(connection),
+         "commands": connection.commands.count()},
     )
 
 
+def _overview_summary(connection):
+    """At-a-glance operational stats for the bento overview. Each group is
+    guarded on its own so one failing probe (or a locked-down DB) degrades that
+    card to '—' rather than breaking the whole home page. Returns a dict whose
+    values are None when their probe failed."""
+    engine = get_engine(connection)
+    s = {"tables": None, "activity": None, "health": None,
+         "objects": None, "replication": None}
+    try:
+        tables = engine.list_tables()
+        s["tables"] = {"count": len(tables), "rows": sum(t.rows for t in tables)}
+    except EngineError:
+        pass
+    try:
+        acts = [a for a in engine.list_activity() if not a.is_self]
+        s["activity"] = {
+            "sessions": len(acts),
+            "active": sum(1 for a in acts if a.state == "active"),
+            "blocked": sum(1 for a in acts if a.blocked),
+        }
+    except EngineError:
+        pass
+    try:
+        sizes = engine.table_sizes(limit=1)
+        s["health"] = {
+            "largest": sizes[0] if sizes else None,
+            "unused": len(engine.unused_indexes()),
+            "dead": sum(v.dead for v in engine.vacuum_stats()),
+        }
+    except EngineError:
+        pass
+    try:
+        s["objects"] = {
+            "databases": len(engine.list_databases()),
+            "schemas": len(engine.list_schemas()),
+            "roles": len(engine.list_roles()),
+        }
+    except EngineError:
+        pass
+    try:
+        s["replication"] = engine.replication_status()
+    except EngineError:
+        pass
+    return s
+
+
 def overview(request, pk, notice=None):
-    """The workspace home: what each section is and where to start. `notice` is
-    an optional info banner (e.g. the auto-backup result after a table drop)."""
+    """The workspace home: a bento of live operational summaries that drill down
+    into each panel. `notice` is an optional info banner (e.g. the auto-backup
+    result after a table drop)."""
     connection = get_object_or_404(Connection, pk=pk)
     return render(request, "partials/workspace_home.html",
-                  {"connection": connection, "notice": notice})
+                  {"connection": connection, "notice": notice,
+                   "summary": _overview_summary(connection),
+                   "commands": connection.commands.count()})
