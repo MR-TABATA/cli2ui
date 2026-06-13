@@ -1,279 +1,313 @@
-<div class="space-y-5">
-  <div>
-    <h2 class="text-lg font-semibold flex items-center gap-2"><span>🗄</span> Objects</h2>
-    <p class="text-xs text-zinc-500 mono">\l databases · \dn schemas · \du roles</p>
+{% comment %}Catalog objects. Subtabs (Databases | Schemas | Roles) keep each a
+clean read-only table; create/rename/alter/restore happen in the shared right
+drawer, drops behind an hx-confirm. `drawer` holds the open form's kind; `ctx`
+carries the row being acted on. Submits target #detail, so the whole panel
+(drawer included) re-renders and resets.{% endcomment %}
+<div class="space-y-5" x-data="{ tab: 'databases', drawer: null, ctx: {} }">
+  <div class="flex items-start justify-between gap-3">
+    <div>
+      <h2 class="text-lg font-semibold flex items-center gap-2"><span>🗄</span> Objects</h2>
+      <p class="text-xs text-zinc-400 mono">\l databases · \dn schemas · \du roles</p>
+    </div>
   </div>
 
-  {% if error %}
-    <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-2.5 text-sm text-red-200/90 mono">{{ error }}</div>
-  {% endif %}
-  {% if notice %}
-    <div class="{% if '⚠' in notice %}bg-amber-950/40 border-amber-900 text-amber-200/90{% else %}bg-sky-950/40 border-sky-900 text-sky-200/90{% endif %} border rounded-lg px-4 py-2.5 text-sm">{{ notice }}</div>
-  {% endif %}
+  {% include "partials/_banner.html" %}
 
-  <!-- Databases: the \l view, now with create / clone / rename / drop -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 flex flex-wrap items-center justify-between gap-3">
-      <span class="text-xs uppercase tracking-wide text-zinc-500">
-        Databases <span class="mono lowercase text-zinc-600">\l</span>
-      </span>
-      <form hx-post="{% url 'database_create' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-            hx-disabled-elt="find button" class="flex items-center gap-2">
-        <input name="name" placeholder="new_database" autocomplete="off"
-               class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm mono w-40
-                      text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
-        <select name="template" title="Copy an existing database (CREATE DATABASE … TEMPLATE)"
-                class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm mono text-zinc-300 focus:outline-none focus:border-emerald-400">
-          <option value="">empty</option>
-          {% for d in databases %}<option value="{{ d.name }}">copy of {{ d.name }}</option>{% endfor %}
-        </select>
-        <button type="submit"
-                class="bg-emerald-400 text-zinc-950 font-medium text-sm rounded px-3 py-1 hover:bg-emerald-300">
-          + Create
-        </button>
-      </form>
+  <!-- Subtabs -->
+  <nav class="flex items-center gap-1 border-b border-zinc-800 pb-2">
+    <button class="subtab" :class="tab === 'databases' && 'subtab-on'" @click="tab = 'databases'">Databases</button>
+    <button class="subtab" :class="tab === 'schemas' && 'subtab-on'" @click="tab = 'schemas'">Schemas</button>
+    <button class="subtab" :class="tab === 'roles' && 'subtab-on'" @click="tab = 'roles'">Roles</button>
+  </nav>
+
+  <!-- Databases tab -->
+  <section x-show="tab === 'databases'" class="space-y-3">
+    <div class="flex justify-end gap-1.5">
+      <button @click="drawer = 'db-restore'" class="btn btn-sm btn-neutral">↥ Restore</button>
+      <button @click="drawer = 'db-create'" class="btn btn-sm btn-primary">+ New database</button>
     </div>
-    <table class="w-full text-sm">
-      <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
-        <tr class="border-b border-zinc-800">
-          <th class="px-5 py-2 font-medium">Name</th>
-          <th class="px-5 py-2 font-medium">Owner</th>
-          <th class="px-5 py-2 font-medium">Encoding</th>
-          <th class="px-5 py-2 font-medium text-right">Size</th>
-          <th class="px-5 py-2 font-medium text-right w-px"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for d in databases %}
-          <tr x-data="{ ren: false }" class="border-b border-zinc-800/60">
-            <td class="px-5 py-2 mono">{{ d.name }}</td>
-            <td class="px-5 py-2 text-zinc-400 mono">{{ d.owner }}</td>
-            <td class="px-5 py-2 text-zinc-400 mono">{{ d.encoding }}</td>
-            <td class="px-5 py-2 text-zinc-400 mono text-right">{{ d.size|default:"—" }}</td>
-            <td class="px-5 py-2 text-right whitespace-nowrap">
-              <div x-show="!ren" class="flex items-center gap-3 justify-end">
-                <!-- Backup: fetched via JS so an in-page spinner shows while
-                     pg_dump runs, then the browser downloads the blob. -->
-                <span x-data="dumpLinks()" class="flex items-center gap-2">
-                  <a href="#" @click.prevent="download('{% url 'database_dump' connection.pk %}?name={{ d.name|urlencode }}&format=plain')"
-                     :class="busy && 'opacity-40 pointer-events-none'" title="pg_dump as plain SQL"
-                     class="text-xs text-sky-300/80 hover:text-sky-200">.sql ↓</a>
-                  <a href="#" @click.prevent="download('{% url 'database_dump' connection.pk %}?name={{ d.name|urlencode }}&format=custom')"
-                     :class="busy && 'opacity-40 pointer-events-none'" title="pg_dump in custom (compressed) format"
-                     class="text-xs text-sky-300/80 hover:text-sky-200">.dump ↓</a>
-                  <span x-show="busy" class="spinner text-sky-300"></span>
-                  <span x-show="err" x-text="err" class="text-xs text-red-400/90 max-w-[200px] truncate"></span>
-                </span>
-                {% if d.name == connection.dbname %}
-                  <span class="text-xs text-zinc-600">current</span>
-                {% else %}
-                  <button @click="ren = true" type="button" class="text-xs text-zinc-400 hover:text-zinc-200">rename</button>
-                  <form hx-post="{% url 'database_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                        hx-confirm="Drop database &quot;{{ d.name }}&quot;? This permanently deletes all its data.">
-                    <input type="hidden" name="name" value="{{ d.name }}">
-                    <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
-                  </form>
-                {% endif %}
-              </div>
-              <form x-show="ren" x-cloak hx-post="{% url 'database_rename' connection.pk %}"
-                    hx-target="#detail" hx-swap="innerHTML"
-                    class="flex items-center gap-1.5 justify-end">
-                <input type="hidden" name="old" value="{{ d.name }}">
-                <input name="new" value="{{ d.name }}" autocomplete="off"
-                       class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 text-xs mono w-32
-                              text-zinc-100 focus:outline-none focus:border-emerald-400">
-                <button type="submit" class="text-xs text-emerald-400 hover:text-emerald-300">save</button>
-                <button @click="ren = false" type="button" class="text-xs text-zinc-500 hover:text-zinc-300">cancel</button>
-              </form>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <!-- Restore from a dump file. Into a brand-new database (default, safe: an
-         existing DB is never touched, the unused name is the gate) or, with a
-         type-gate confirmation, into an existing database. The upload is
-         streamed to the client tool; the format (.sql / custom) is
-         auto-detected server-side. -->
-    <form hx-post="{% url 'database_restore' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-          hx-encoding="multipart/form-data" hx-disabled-elt="find button[type=submit]"
-          x-data="{ target: 'new', name: '', confirm: '' }"
-          class="px-5 py-3 border-t border-zinc-800 flex flex-wrap items-center gap-2 text-sm">
-      <span class="text-xs uppercase tracking-wide text-zinc-500 mr-1">Restore into</span>
-      <select name="target" x-model="target"
-              class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200
-                     focus:outline-none focus:border-sky-400">
-        <option value="new">a new DB</option>
-        <option value="existing">an existing DB</option>
-      </select>
-      <input name="name" x-model="name" autocomplete="off" required
-             :placeholder="target === 'existing' ? 'existing_database' : 'new_database'"
-             class="bg-zinc-950 border rounded px-2 py-1 mono w-40 text-zinc-100
-                    placeholder-zinc-600 focus:outline-none"
-             :class="target === 'existing' ? 'border-amber-800 focus:border-amber-500' : 'border-zinc-700 focus:border-sky-400'">
-      <span class="text-zinc-600">←</span>
-      <input type="file" name="dump" accept=".sql,.dump" required
-             class="text-xs text-zinc-400 file:mr-2 file:rounded file:border-0 file:bg-zinc-800
-                    file:px-2 file:py-1 file:text-zinc-200 file:cursor-pointer hover:file:bg-zinc-700">
-      <!-- Type-gate: only for an existing DB; the typed name must match. -->
-      <input x-show="target === 'existing'" x-cloak name="confirm" x-model="confirm" autocomplete="off"
-             :placeholder="'type ' + (name || 'name') + ' to confirm'"
-             class="bg-zinc-950 border border-amber-800 rounded px-2 py-1 mono w-48
-                    text-amber-100 placeholder-amber-700/70 focus:outline-none focus:border-amber-500">
-      <button type="submit"
-              :hx-confirm="target === 'existing'
-                ? 'Restore into the EXISTING database “' + name + '”? This runs your dump against a live database and is not auto-snapshotted.'
-                : 'Create a new database and restore the uploaded dump into it?'"
-              :disabled="target === 'existing' && confirm !== name"
-              class="font-medium rounded px-3 py-1 disabled:opacity-40 disabled:cursor-not-allowed"
-              :class="target === 'existing' ? 'bg-amber-400 text-zinc-950 hover:bg-amber-300'
-                                            : 'bg-sky-400 text-zinc-950 hover:bg-sky-300'">
-        Restore ↥
-      </button>
-      <span class="htmx-indicator flex items-center gap-1.5 text-xs text-sky-300">
-        <span class="spinner"></span> Restoring…
-      </span>
-      <span class="text-xs text-zinc-600">.sql or custom — format auto-detected</span>
-    </form>
-  </section>
-
-  <!-- Schemas: the \dn view, now with create / drop -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
-      <span class="text-xs uppercase tracking-wide text-zinc-500">
-        Schemas <span class="mono lowercase text-zinc-600">\dn</span>
-      </span>
-      <form hx-post="{% url 'schema_create' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-            hx-disabled-elt="find button" class="flex items-center gap-2">
-        <input name="name" placeholder="new_schema" autocomplete="off"
-               class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm mono w-40
-                      text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
-        <button type="submit"
-                class="bg-emerald-400 text-zinc-950 font-medium text-sm rounded px-3 py-1 hover:bg-emerald-300">
-          + Create
-        </button>
-      </form>
-    </div>
-    {% if schemas %}
+    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
           <tr class="border-b border-zinc-800">
             <th class="px-5 py-2 font-medium">Name</th>
             <th class="px-5 py-2 font-medium">Owner</th>
-            <th class="px-5 py-2 font-medium w-px"></th>
+            <th class="px-5 py-2 font-medium">Encoding</th>
+            <th class="px-5 py-2 font-medium text-right">Size</th>
+            <th class="px-5 py-2 font-medium text-right w-px"></th>
           </tr>
         </thead>
         <tbody>
-          {% for s in schemas %}
-            <tr x-data="{ ed: false }" class="border-b border-zinc-800/60">
-              <td class="px-5 py-2 mono">{{ s.name }}</td>
-              <td class="px-5 py-2 text-zinc-400 mono">{{ s.owner }}</td>
+          {% for d in databases %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono">{{ d.name }}</td>
+              <td class="px-5 py-2 text-zinc-400 mono">{{ d.owner }}</td>
+              <td class="px-5 py-2 text-zinc-400 mono">{{ d.encoding }}</td>
+              <td class="px-5 py-2 text-zinc-400 mono text-right">{{ d.size|default:"—" }}</td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
-                <div x-show="!ed" class="flex items-center gap-3 justify-end">
-                  <button @click="ed = true" type="button" class="text-xs text-zinc-400 hover:text-zinc-200">edit</button>
-                  <form hx-post="{% url 'schema_delete' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                        hx-confirm="Drop schema &quot;{{ s.name }}&quot;? This only works if it's empty.">
-                    <input type="hidden" name="name" value="{{ s.name }}">
-                    <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
-                  </form>
+                <div class="flex items-center gap-3 justify-end">
+                  <!-- Backup: fetched via JS so an in-page spinner shows. -->
+                  <span x-data="dumpLinks()" class="flex items-center gap-2">
+                    <a href="#" @click.prevent="download('{% url 'database_dump' connection.pk %}?name={{ d.name|urlencode }}&format=plain')"
+                       :class="busy && 'opacity-40 pointer-events-none'" title="pg_dump as plain SQL"
+                       class="btn-link text-xs">.sql ↓</a>
+                    <a href="#" @click.prevent="download('{% url 'database_dump' connection.pk %}?name={{ d.name|urlencode }}&format=custom')"
+                       :class="busy && 'opacity-40 pointer-events-none'" title="pg_dump in custom (compressed) format"
+                       class="btn-link text-xs">.dump ↓</a>
+                    <span x-show="busy" class="spinner text-sky-300"></span>
+                    <span x-show="err" x-text="err" class="text-xs text-red-400/90 max-w-[200px] truncate"></span>
+                  </span>
+                  {% if d.name == connection.dbname %}
+                    <span class="text-xs text-zinc-500">current</span>
+                  {% else %}
+                    <button type="button" class="text-xs text-zinc-400 hover:text-zinc-100"
+                            @click="ctx = { name: '{{ d.name|escapejs }}' }; drawer = 'db-rename'">rename</button>
+                    <form hx-post="{% url 'database_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                          hx-confirm="Drop database &quot;{{ d.name }}&quot;? This permanently deletes all its data.">
+                      <input type="hidden" name="name" value="{{ d.name }}">
+                      <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
+                    </form>
+                  {% endif %}
                 </div>
-                <form x-show="ed" x-cloak hx-post="{% url 'schema_alter' connection.pk %}"
-                      hx-target="#detail" hx-swap="innerHTML"
-                      class="flex items-center gap-1.5 justify-end">
-                  <input type="hidden" name="old" value="{{ s.name }}">
-                  <input type="hidden" name="cur_owner" value="{{ s.owner }}">
-                  <input name="new" value="{{ s.name }}" autocomplete="off"
-                         class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 text-xs mono w-28
-                                text-zinc-100 focus:outline-none focus:border-emerald-400">
-                  <select name="owner" title="Owner"
-                          class="bg-zinc-950 border border-zinc-700 rounded px-1 py-0.5 text-xs mono text-zinc-300 focus:outline-none focus:border-emerald-400">
-                    {% for r in roles %}<option value="{{ r.name }}" {% if r.name == s.owner %}selected{% endif %}>{{ r.name }}</option>{% endfor %}
-                  </select>
-                  <button type="submit" class="text-xs text-emerald-400 hover:text-emerald-300">save</button>
-                  <button @click="ed = false" type="button" class="text-xs text-zinc-500 hover:text-zinc-300">cancel</button>
-                </form>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
-    {% else %}
-      <p class="px-5 py-8 text-center text-zinc-500 text-sm">No user schemas yet — create one above.</p>
-    {% endif %}
+    </div>
   </section>
 
-  <!-- Roles: the \du view, now with create / drop -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
-      Roles <span class="mono lowercase text-zinc-600">\du</span>
+  <!-- Schemas tab -->
+  <section x-show="tab === 'schemas'" x-cloak class="space-y-3">
+    <div class="flex justify-end">
+      <button @click="drawer = 'schema-create'" class="btn btn-sm btn-primary">+ New schema</button>
     </div>
-    <div class="px-5 py-3 border-b border-zinc-800/60">
-      <form hx-post="{% url 'role_create' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-            hx-disabled-elt="find button" class="flex flex-wrap items-center gap-2 text-sm">
-        <input name="name" placeholder="role_name" autocomplete="off"
-               class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono w-36
-                      text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
-        <input name="password" type="password" placeholder="password (optional)" autocomplete="new-password"
-               class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 w-44
-                      text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
-        <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="login" class="accent-emerald-400"> login</label>
-        <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="superuser" class="accent-emerald-400"> superuser</label>
-        <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="createdb" class="accent-emerald-400"> createdb</label>
-        <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="createrole" class="accent-emerald-400"> createrole</label>
-        <button type="submit"
-                class="bg-emerald-400 text-zinc-950 font-medium rounded px-3 py-1 hover:bg-emerald-300">
-          + Create
-        </button>
-      </form>
+    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+      {% if schemas %}
+        <table class="w-full text-sm">
+          <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+            <tr class="border-b border-zinc-800">
+              <th class="px-5 py-2 font-medium">Name</th>
+              <th class="px-5 py-2 font-medium">Owner</th>
+              <th class="px-5 py-2 font-medium w-px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in schemas %}
+              <tr class="border-b border-zinc-800/60">
+                <td class="px-5 py-2 mono">{{ s.name }}</td>
+                <td class="px-5 py-2 text-zinc-400 mono">{{ s.owner }}</td>
+                <td class="px-5 py-2 text-right whitespace-nowrap">
+                  <div class="flex items-center gap-3 justify-end">
+                    <button type="button" class="text-xs text-zinc-400 hover:text-zinc-100"
+                            @click="ctx = { name: '{{ s.name|escapejs }}', owner: '{{ s.owner|escapejs }}' }; drawer = 'schema-edit'">edit</button>
+                    <form hx-post="{% url 'schema_delete' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                          hx-confirm="Drop schema &quot;{{ s.name }}&quot;? This only works if it's empty.">
+                      <input type="hidden" name="name" value="{{ s.name }}">
+                      <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="px-5 py-8 text-center text-zinc-400 text-sm">No user schemas yet — create one above.</p>
+      {% endif %}
     </div>
-    <table class="w-full text-sm">
-      <thead class="text-left text-xs uppercase tracking-wide text-zinc-500">
-        <tr class="border-b border-zinc-800">
-          <th class="px-5 py-2 font-medium">Role</th>
-          <th class="px-5 py-2 font-medium">Attributes</th>
-          <th class="px-5 py-2 font-medium w-px"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in roles %}
-          <tr x-data="{ ed: false }" class="border-b border-zinc-800/60">
-            <td class="px-5 py-2 mono align-top">{{ r.name }}{% if not r.can_login %}<span class="text-zinc-600"> (group)</span>{% endif %}</td>
-            <td class="px-5 py-2 align-top">
-              {% for a in r.attributes %}
-                <span class="inline-block text-xs text-zinc-400 bg-zinc-800/70 rounded px-1.5 py-0.5 mr-1 mb-1">{{ a }}</span>
-              {% empty %}<span class="text-zinc-600">—</span>{% endfor %}
-            </td>
-            <td class="px-5 py-2 text-right whitespace-nowrap align-top">
-              <div x-show="!ed" class="flex items-center gap-3 justify-end">
-                <button @click="ed = true" type="button" class="text-xs text-zinc-400 hover:text-zinc-200">edit</button>
-                <form hx-post="{% url 'role_delete' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                      hx-confirm="Drop role &quot;{{ r.name }}&quot;? This fails if it owns objects or is connected.">
-                  <input type="hidden" name="name" value="{{ r.name }}">
-                  <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
-                </form>
-              </div>
-              <form x-show="ed" x-cloak hx-post="{% url 'role_alter' connection.pk %}"
-                    hx-target="#detail" hx-swap="innerHTML"
-                    class="flex flex-wrap items-center gap-2 justify-end text-xs">
-                <input type="hidden" name="old" value="{{ r.name }}">
-                <input name="new" value="{{ r.name }}" autocomplete="off"
-                       class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 mono w-28
-                              text-zinc-100 focus:outline-none focus:border-emerald-400">
-                <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="login" class="accent-emerald-400" {% if r.can_login %}checked{% endif %}> login</label>
-                <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="superuser" class="accent-emerald-400" {% if r.superuser %}checked{% endif %}> superuser</label>
-                <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="createdb" class="accent-emerald-400" {% if r.createdb %}checked{% endif %}> createdb</label>
-                <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="createrole" class="accent-emerald-400" {% if r.createrole %}checked{% endif %}> createrole</label>
-                <input name="password" type="password" placeholder="new password (optional)" autocomplete="new-password"
-                       class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 w-36
-                              text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
-                <button type="submit" class="text-emerald-400 hover:text-emerald-300">save</button>
-                <button @click="ed = false" type="button" class="text-zinc-500 hover:text-zinc-300">cancel</button>
-              </form>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
   </section>
+
+  <!-- Roles tab -->
+  <section x-show="tab === 'roles'" x-cloak class="space-y-3">
+    <div class="flex justify-end">
+      <button @click="drawer = 'role-create'" class="btn btn-sm btn-primary">+ New role</button>
+    </div>
+    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">Role</th>
+            <th class="px-5 py-2 font-medium">Attributes</th>
+            <th class="px-5 py-2 font-medium w-px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in roles %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono align-top">{{ r.name }}{% if not r.can_login %}<span class="text-zinc-500"> (group)</span>{% endif %}</td>
+              <td class="px-5 py-2 align-top">
+                {% for a in r.attributes %}
+                  <span class="inline-block text-xs text-zinc-400 bg-zinc-800/70 rounded px-1.5 py-0.5 mr-1 mb-1">{{ a }}</span>
+                {% empty %}<span class="text-zinc-500">—</span>{% endfor %}
+              </td>
+              <td class="px-5 py-2 text-right whitespace-nowrap align-top">
+                <div class="flex items-center gap-3 justify-end">
+                  <button type="button" class="text-xs text-zinc-400 hover:text-zinc-100"
+                          @click="ctx = { name: '{{ r.name|escapejs }}', login: {{ r.can_login|yesno:'true,false' }}, superuser: {{ r.superuser|yesno:'true,false' }}, createdb: {{ r.createdb|yesno:'true,false' }}, createrole: {{ r.createrole|yesno:'true,false' }} }; drawer = 'role-edit'">edit</button>
+                  <form hx-post="{% url 'role_delete' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                        hx-confirm="Drop role &quot;{{ r.name }}&quot;? This fails if it owns objects or is connected.">
+                    <input type="hidden" name="name" value="{{ r.name }}">
+                    <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== Shared drawer ===== -->
+  <div x-show="drawer" x-cloak class="drawer-backdrop" @click="drawer = null"></div>
+  <aside class="drawer" :class="drawer && 'open'" x-cloak>
+    <div class="drawer-head">
+      <h3 class="font-medium text-sm" x-text="{
+        'db-create': 'New database', 'db-rename': 'Rename database', 'db-restore': 'Restore from dump',
+        'schema-create': 'New schema', 'schema-edit': 'Edit schema',
+        'role-create': 'New role', 'role-edit': 'Edit role'
+      }[drawer] || ''"></h3>
+      <button @click="drawer = null" class="text-zinc-400 hover:text-zinc-100 text-lg leading-none">&times;</button>
+    </div>
+    <div class="drawer-body">
+
+      <!-- New database -->
+      <form x-show="drawer === 'db-create'" hx-post="{% url 'database_create' connection.pk %}"
+            hx-target="#detail" hx-swap="innerHTML" hx-disabled-elt="find button[type=submit]" class="space-y-3">
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Name</label>
+          <input name="name" placeholder="new_database" autocomplete="off" required class="field mono w-full">
+        </div>
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Template <span class="normal-case text-zinc-500">(optional)</span></label>
+          <select name="template" title="Copy an existing database (CREATE DATABASE … TEMPLATE)" class="field mono w-full">
+            <option value="">empty</option>
+            {% for d in databases %}<option value="{{ d.name }}">copy of {{ d.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary w-full justify-center">+ Create database</button>
+      </form>
+
+      <!-- Rename database -->
+      <form x-show="drawer === 'db-rename'" hx-post="{% url 'database_rename' connection.pk %}"
+            hx-target="#detail" hx-swap="innerHTML" class="space-y-3">
+        <input type="hidden" name="old" :value="ctx.name">
+        <label class="block text-xs uppercase tracking-wide text-zinc-400">New name</label>
+        <input name="new" :value="ctx.name" autocomplete="off" required class="field mono w-full">
+        <button type="submit" class="btn btn-primary w-full justify-center">Rename</button>
+      </form>
+
+      <!-- Restore from a dump file: into a new DB (safe) or, type-gated, existing. -->
+      <form x-show="drawer === 'db-restore'" hx-post="{% url 'database_restore' connection.pk %}"
+            hx-target="#detail" hx-swap="innerHTML" hx-encoding="multipart/form-data"
+            hx-disabled-elt="find button[type=submit]"
+            x-data="{ target: 'new', name: '', confirm: '' }" class="space-y-3">
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Restore into</label>
+          <select name="target" x-model="target" class="field w-full">
+            <option value="new">a new database</option>
+            <option value="existing">an existing database</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Database name</label>
+          <input name="name" x-model="name" autocomplete="off" required
+                 :placeholder="target === 'existing' ? 'existing_database' : 'new_database'"
+                 class="field mono w-full"
+                 :class="target === 'existing' && 'border-amber-700'">
+        </div>
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Dump file</label>
+          <input type="file" name="dump" accept=".sql,.dump" required
+                 class="text-xs text-zinc-400 file:mr-2 file:rounded file:border-0 file:bg-zinc-800
+                        file:px-2 file:py-1 file:text-zinc-200 file:cursor-pointer hover:file:bg-zinc-700">
+        </div>
+        <!-- Type-gate: only for an existing DB; the typed name must match. -->
+        <div x-show="target === 'existing'" x-cloak>
+          <label class="block text-xs uppercase tracking-wide text-amber-300/80 mb-1">Type the name to confirm</label>
+          <input name="confirm" x-model="confirm" autocomplete="off"
+                 :placeholder="name || 'name'"
+                 class="field mono w-full border-amber-800">
+          <p class="text-xs text-amber-300/70 mt-1">This runs your dump against a live database and is not auto-snapshotted.</p>
+        </div>
+        <button type="submit"
+                :disabled="target === 'existing' && confirm !== name"
+                class="btn w-full justify-center"
+                :class="target === 'existing' ? 'btn-warn' : 'btn-primary'">Restore ↥</button>
+        <span class="htmx-indicator flex items-center justify-center gap-1.5 text-xs text-sky-300">
+          <span class="spinner"></span> Restoring…
+        </span>
+        <p class="text-xs text-zinc-500 text-center">.sql or custom — format auto-detected</p>
+      </form>
+
+      <!-- New schema -->
+      <form x-show="drawer === 'schema-create'" hx-post="{% url 'schema_create' connection.pk %}"
+            hx-target="#detail" hx-swap="innerHTML" hx-disabled-elt="find button[type=submit]" class="space-y-3">
+        <label class="block text-xs uppercase tracking-wide text-zinc-400">Name</label>
+        <input name="name" placeholder="new_schema" autocomplete="off" required class="field mono w-full">
+        <button type="submit" class="btn btn-primary w-full justify-center">+ Create schema</button>
+      </form>
+
+      <!-- Edit schema: rename and/or change owner. -->
+      <form x-show="drawer === 'schema-edit'" hx-post="{% url 'schema_alter' connection.pk %}"
+            hx-target="#detail" hx-swap="innerHTML" class="space-y-3">
+        <input type="hidden" name="old" :value="ctx.name">
+        <input type="hidden" name="cur_owner" :value="ctx.owner">
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Name</label>
+          <input name="new" :value="ctx.name" autocomplete="off" class="field mono w-full">
+        </div>
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Owner</label>
+          <select name="owner" class="field mono w-full">
+            {% for r in roles %}<option value="{{ r.name }}" :selected="ctx.owner === '{{ r.name|escapejs }}'">{{ r.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary w-full justify-center">Save</button>
+      </form>
+
+      <!-- New role -->
+      <form x-show="drawer === 'role-create'" hx-post="{% url 'role_create' connection.pk %}"
+            hx-target="#detail" hx-swap="innerHTML" hx-disabled-elt="find button[type=submit]" class="space-y-3">
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Name</label>
+          <input name="name" placeholder="role_name" autocomplete="off" required class="field mono w-full">
+        </div>
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Password <span class="normal-case text-zinc-500">(optional)</span></label>
+          <input name="password" type="password" placeholder="password" autocomplete="new-password" class="field w-full">
+        </div>
+        <div class="space-y-1.5">
+          <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="login" class="accent-emerald-400"> login</label>
+          <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="superuser" class="accent-emerald-400"> superuser</label>
+          <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="createdb" class="accent-emerald-400"> createdb</label>
+          <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="createrole" class="accent-emerald-400"> createrole</label>
+        </div>
+        <button type="submit" class="btn btn-primary w-full justify-center">+ Create role</button>
+      </form>
+
+      <!-- Edit role: attributes and/or rename. -->
+      <form x-show="drawer === 'role-edit'" hx-post="{% url 'role_alter' connection.pk %}"
+            hx-target="#detail" hx-swap="innerHTML" class="space-y-3">
+        <input type="hidden" name="old" :value="ctx.name">
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Name</label>
+          <input name="new" :value="ctx.name" autocomplete="off" class="field mono w-full">
+        </div>
+        <div class="space-y-1.5">
+          <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="login" class="accent-emerald-400" :checked="ctx.login"> login</label>
+          <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="superuser" class="accent-emerald-400" :checked="ctx.superuser"> superuser</label>
+          <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="createdb" class="accent-emerald-400" :checked="ctx.createdb"> createdb</label>
+          <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="createrole" class="accent-emerald-400" :checked="ctx.createrole"> createrole</label>
+        </div>
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">New password <span class="normal-case text-zinc-500">(optional)</span></label>
+          <input name="password" type="password" placeholder="new password" autocomplete="new-password" class="field w-full">
+        </div>
+        <button type="submit" class="btn btn-primary w-full justify-center">Save</button>
+      </form>
+
+    </div>
+  </aside>
 </div>
