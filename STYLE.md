@@ -61,3 +61,17 @@ of hand-rolling the red/amber/sky box. It picks the tone from `error` (red) or
 Keep the text hierarchy legible on `zinc-950`: primary text `zinc-100`,
 secondary `zinc-300`, muted/labels `zinc-400` (not `zinc-500`), faint hints
 `zinc-500`. Borders `zinc-700` for controls, `zinc-800` for card edges.
+
+## i18n (JP / EN)
+
+Every panel is translatable. New templates need `{% load i18n %}` at the top,
+then wrap **user-visible text** with `{% trans "…" %}` (or `{% blocktrans %}` for
+text with `{{ vars }}` / plurals). Python user-facing messages (errors, notices)
+use `from django.utils.translation import gettext as _` and `_("…")`.
+
+Do **not** wrap: SQL, `pg_*` identifiers, config keys, code samples, or anything
+inside `mono`/`<code>` — those stay verbatim in both languages. JA strings live in
+`locale/ja/LC_MESSAGES/django.po`; after adding strings run
+`django-admin makemessages -l ja` then `compilemessages -l ja` and commit both
+`.po` and `.mo`. The header toggle (`set_language`, cookie-based) switches
+language; with no cookie it falls back to the browser's `Accept-Language`.

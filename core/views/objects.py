@@ -6,6 +6,7 @@ import io
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
+from django.utils.translation import gettext as _
 
 from ..engines import EngineError, get_engine
 from ..models import Backup, Connection
@@ -35,7 +36,7 @@ def database_create(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     name = (request.POST.get("name") or "").strip()
     if not name:
-        return _render_objects(request, connection, error="Database name is required.")
+        return _render_objects(request, connection, error=_("Database name is required."))
     template = (request.POST.get("template") or "").strip() or None
     try:
         get_engine(connection).create_database(name, template=template)
@@ -49,7 +50,7 @@ def database_drop(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     name = (request.POST.get("name") or "").strip()
     if not name:
-        return _render_objects(request, connection, error="Database name is required.")
+        return _render_objects(request, connection, error=_("Database name is required."))
     notice = _auto_backup(connection, operation="drop database",
                           kind=Backup.KIND_DATABASE, dbname=name)
     try:
@@ -66,7 +67,7 @@ def database_rename(request, pk):
     old = (request.POST.get("old") or "").strip()
     new = (request.POST.get("new") or "").strip()
     if not old or not new:
-        return _render_objects(request, connection, error="Both names are required.")
+        return _render_objects(request, connection, error=_("Both names are required."))
     try:
         get_engine(connection).rename_database(old, new)
     except EngineError as exc:
@@ -102,7 +103,7 @@ def _restore_into_new_db(connection, name, stream):
     just-made database so a failed attempt leaves nothing behind. Returns an
     error string, or None on success."""
     if not name:
-        return "Provide a new database name."
+        return _("Provide a new database name.")
     engine = get_engine(connection)
     try:
         engine.create_database(name, template="template0")
@@ -113,7 +114,7 @@ def _restore_into_new_db(connection, name, stream):
     except EngineError as exc:
         with contextlib.suppress(EngineError):
             engine.drop_database(name, force=True)
-        return f"Restore failed — database not created. {exc}"
+        return _("Restore failed — database not created. %(err)s") % {"err": exc}
     return None
 
 
@@ -122,11 +123,11 @@ def _restore_into_existing_db(connection, name, stream):
     dropping anything. The caller is responsible for the type-gate confirmation —
     this overwrites/merges into a live database. Returns an error or None."""
     if not name:
-        return "Provide the database name."
+        return _("Provide the database name.")
     try:
         get_engine(connection).restore_stream(name, stream)
     except EngineError as exc:
-        return f"Restore failed. {exc}"
+        return _("Restore failed. %(err)s") % {"err": exc}
     return None
 
 
@@ -141,19 +142,19 @@ def database_restore(request, pk):
     if not name or not upload:
         return _render_objects(
             request, connection,
-            error="Provide a database name and a dump file to restore.")
+            error=_("Provide a database name and a dump file to restore."))
     if target == "existing":
         # Type-gate: the user must type the database name to confirm overwriting
         # a live database (there's no auto-snapshot here — it's their own dump).
         if (request.POST.get("confirm") or "").strip() != name:
             return _render_objects(
                 request, connection,
-                error=f"To restore into the existing “{name}”, type its name to confirm.")
+                error=_("To restore into the existing “%(name)s”, type its name to confirm.") % {"name": name})
         err = _restore_into_existing_db(connection, name, upload)
-        notice = f"Restored into existing database “{name}”."
+        notice = _("Restored into existing database “%(name)s”.") % {"name": name}
     else:
         err = _restore_into_new_db(connection, name, upload)
-        notice = f"Restored into new database “{name}”."
+        notice = _("Restored into new database “%(name)s”.") % {"name": name}
     if err:
         return _render_objects(request, connection, error=err)
     return _render_objects(request, connection, notice=notice)
@@ -212,7 +213,7 @@ def backup_restore(request, pk):
         return _render_backups(request, connection, error=err)
     return _render_backups(
         request, connection,
-        notice=f"Restored “{backup.target}” into new database “{name}”.")
+        notice=_("Restored “%(target)s” into new database “%(name)s”.") % {"target": backup.target, "name": name})
 
 
 def schema_create(request, pk):
@@ -220,7 +221,7 @@ def schema_create(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     name = (request.POST.get("name") or "").strip()
     if not name:
-        return _render_objects(request, connection, error="Schema name is required.")
+        return _render_objects(request, connection, error=_("Schema name is required."))
     try:
         get_engine(connection).create_schema(name)
     except EngineError as exc:
@@ -236,7 +237,7 @@ def schema_alter(request, pk):
     owner = (request.POST.get("owner") or "").strip()
     cur_owner = request.POST.get("cur_owner", "")
     if not old:
-        return _render_objects(request, connection, error="Schema name is required.")
+        return _render_objects(request, connection, error=_("Schema name is required."))
     try:
         engine = get_engine(connection)
         if owner and owner != cur_owner:
@@ -253,7 +254,7 @@ def schema_delete(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     name = (request.POST.get("name") or "").strip()
     if not name:
-        return _render_objects(request, connection, error="Schema name is required.")
+        return _render_objects(request, connection, error=_("Schema name is required."))
     try:
         get_engine(connection).drop_schema(name)
     except EngineError as exc:
@@ -266,7 +267,7 @@ def role_create(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     name = (request.POST.get("name") or "").strip()
     if not name:
-        return _render_objects(request, connection, error="Role name is required.")
+        return _render_objects(request, connection, error=_("Role name is required."))
     try:
         get_engine(connection).create_role(
             name,
@@ -287,7 +288,7 @@ def role_alter(request, pk):
     old = (request.POST.get("old") or "").strip()
     new = (request.POST.get("new") or "").strip()
     if not old:
-        return _render_objects(request, connection, error="Role name is required.")
+        return _render_objects(request, connection, error=_("Role name is required."))
     try:
         engine = get_engine(connection)
         engine.alter_role(
@@ -310,7 +311,7 @@ def role_delete(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     name = (request.POST.get("name") or "").strip()
     if not name:
-        return _render_objects(request, connection, error="Role name is required.")
+        return _render_objects(request, connection, error=_("Role name is required."))
     try:
         get_engine(connection).drop_role(name)
     except EngineError as exc:

@@ -1,9 +1,9 @@
-<div class="space-y-4">
+{% load i18n %}<div class="space-y-4">
   <div class="flex flex-wrap items-center gap-2 text-xs">
-    <span class="text-zinc-300 font-medium">Scale simulation</span>
-    <span class="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[10px] uppercase tracking-wide">what-if · plan shape</span>
+    <span class="text-zinc-300 font-medium">{% trans "Scale simulation" %}</span>
+    <span class="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[10px] uppercase tracking-wide">{% trans "what-if · plan shape" %}</span>
     <span class="text-zinc-500">
-      planner stats scaled in a rolled-back transaction — no data written, invisible to other sessions
+      {% blocktrans %}planner stats scaled in a rolled-back transaction — no data written, invisible to other sessions{% endblocktrans %}
     </span>
   </div>
 
@@ -12,13 +12,13 @@
     {% for p in plans %}
       <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl px-4 py-2.5 min-w-[8rem]">
         <div class="text-sm font-semibold text-zinc-100">
-          {% if p.factor == 1 %}now{% else %}{{ p.factor }}×{% endif %}
+          {% if p.factor == 1 %}{% trans "now" %}{% else %}{{ p.factor }}×{% endif %}
         </div>
         <div class="text-[11px] mono text-zinc-400 mt-0.5 tabular-nums">
-          rows {{ p.plan.plan_rows|floatformat:0 }}
+          {% blocktrans with n=p.plan.plan_rows|floatformat:0 %}rows {{ n }}{% endblocktrans %}
         </div>
         <div class="text-[11px] mono text-zinc-400 tabular-nums">
-          cost {{ p.plan.total_cost|floatformat:0 }}
+          {% blocktrans with n=p.plan.total_cost|floatformat:0 %}cost {{ n }}{% endblocktrans %}
         </div>
       </div>
       {% if not forloop.last %}<div class="self-center text-zinc-500">→</div>{% endif %}
@@ -29,13 +29,13 @@
     <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
       <div class="px-4 py-2 border-b border-zinc-800 text-xs flex flex-wrap items-center gap-2">
         <span class="text-zinc-400 mono">
-          {% if step.a.factor == 1 %}now{% else %}{{ step.a.factor }}×{% endif %}
+          {% if step.a.factor == 1 %}{% trans "now" %}{% else %}{{ step.a.factor }}×{% endif %}
           → {{ step.b.factor }}×
         </span>
         {% if step.diff.has_shape_change %}
-          <span class="ml-auto px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[10px] uppercase tracking-wide">plan changed</span>
+          <span class="ml-auto px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[10px] uppercase tracking-wide">{% trans "plan changed" %}</span>
         {% else %}
-          <span class="ml-auto px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[10px] uppercase tracking-wide">same shape</span>
+          <span class="ml-auto px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[10px] uppercase tracking-wide">{% trans "same shape" %}</span>
         {% endif %}
       </div>
       {% include "partials/plan_diff_rows.html" with diff=step.diff %}
@@ -43,7 +43,7 @@
   {% endfor %}
 
   <p class="text-[11px] text-zinc-500 mono">
-    Shows the plan's <em>shape</em>, not real runtime. Selectivity is held constant
-    (uniform growth). Requires a superuser connection.
+    {% blocktrans %}Shows the plan's <em>shape</em>, not real runtime. Selectivity is held constant
+    (uniform growth). Requires a superuser connection.{% endblocktrans %}
   </p>
 </div>

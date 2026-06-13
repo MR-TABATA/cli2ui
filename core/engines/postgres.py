@@ -9,6 +9,7 @@ import time
 from datetime import datetime
 
 import psycopg2
+from django.utils.translation import gettext as _
 from psycopg2 import sql
 
 from .base import (
@@ -106,9 +107,9 @@ def build_create_index_sql(schema, table, columns, *, method="btree",
     against INDEX_METHODS so the one piece interpolated as raw SQL can't inject.
     """
     if method not in INDEX_METHODS:
-        raise EngineError(f"Unsupported index method: {method}")
+        raise EngineError(_("Unsupported index method: %(method)s") % {"method": method})
     if not columns:
-        raise EngineError("Select at least one column to index.")
+        raise EngineError(_("Select at least one column to index."))
     parts = [sql.SQL("CREATE")]
     if unique:
         parts.append(sql.SQL("UNIQUE"))
@@ -595,7 +596,7 @@ class PostgresEngine(Engine):
         valid = {c.name for c in self.list_columns(schema, table)}
         unknown = [c for c in columns if c not in valid]
         if unknown:
-            raise EngineError(f"No such column(s): {', '.join(unknown)}")
+            raise EngineError(_("No such column(s): %(cols)s") % {"cols": ', '.join(unknown)})
         # CONCURRENTLY can't run inside a transaction — fine here, _connect()
         # is autocommit, so _execute() runs it as a standalone statement.
         self._execute(build_create_index_sql(
@@ -694,7 +695,7 @@ class PostgresEngine(Engine):
 
     def _require_column(self, schema: str, table: str, name: str) -> None:
         if name not in {c.name for c in self.list_columns(schema, table)}:
-            raise EngineError(f"No such column: {name}")
+            raise EngineError(_("No such column: %(name)s") % {"name": name})
 
     # --- backup (pg_dump) ------------------------------------------------
 
@@ -718,7 +719,7 @@ class PostgresEngine(Engine):
 
     def _run_pg_dump(self, scope: list[str], fmt: str, *, base: str) -> Dump:
         if fmt not in DUMP_FORMATS:
-            raise EngineError(f"Unknown dump format: {fmt}")
+            raise EngineError(_("Unknown dump format: %(fmt)s") % {"fmt": fmt})
         flag, ext, ctype = DUMP_FORMATS[fmt]
         conn = self.connection
         argv = [
@@ -736,7 +737,7 @@ class PostgresEngine(Engine):
                 "pg_dump not found — install the postgresql-client package "
                 "(it ships in the Docker image).") from exc
         except subprocess.TimeoutExpired as exc:
-            raise EngineError("pg_dump timed out.") from exc
+            raise EngineError(_("pg_dump timed out.")) from exc
         if proc.returncode != 0:
             raise EngineError(_tool_error(proc.stderr, "pg_dump failed."))
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -800,7 +801,7 @@ class PostgresEngine(Engine):
         except subprocess.TimeoutExpired as exc:
             proc.kill()
             proc.wait()
-            raise EngineError("restore timed out.") from exc
+            raise EngineError(_("restore timed out.")) from exc
         except BrokenPipeError:
             # The tool exited early (e.g. an error mid-stream); fall through to
             # report it from the captured stderr below.
@@ -817,7 +818,7 @@ class PostgresEngine(Engine):
         valid = {c.name for c in self.list_columns(schema, table)}
         unknown = [c for c in columns if c not in valid]
         if unknown:
-            raise EngineError(f"No such column(s): {', '.join(unknown)}")
+            raise EngineError(_("No such column(s): %(cols)s") % {"cols": ', '.join(unknown)})
         # The throwaway index we actually build (named so we can detect use);
         # plain (not CONCURRENTLY) so it can live inside the transaction.
         hypo = build_create_index_sql(schema, table, columns, method=method,
@@ -961,7 +962,7 @@ class PostgresEngine(Engine):
         cur.execute(f"{SETTINGS_SELECT} WHERE name = %s", [name])
         row = cur.fetchone()
         if row is None:
-            raise EngineError(f"Unknown setting: {name}")
+            raise EngineError(_("Unknown setting: %(name)s") % {"name": name})
         return _setting(row)
 
 

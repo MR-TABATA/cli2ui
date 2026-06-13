@@ -3,6 +3,7 @@ EXPLAIN, the scale simulation and the what-if index lab."""
 import json
 
 from django.shortcuts import get_object_or_404, render
+from django.utils.translation import gettext as _
 
 from ..engines import EngineError, get_engine
 from ..engines.postgres import INDEX_METHODS
@@ -155,7 +156,7 @@ def index_lab(request, pk):
     # schema/table separately. partition() keeps the first dot as the boundary.
     qualified = request.GET.get("qualified")
     if qualified:
-        schema, _, table = qualified.partition(".")
+        schema, _sep, table = qualified.partition(".")
     else:
         schema = request.GET.get("schema", "")
         table = request.GET.get("table", "")
@@ -192,7 +193,7 @@ def index_lab_preview(request, pk):
     unique = request.POST.get("unique") == "on"
     if not sql_text or not columns:
         return render(request, "partials/index_lab_result.html",
-                      {"error": "Pick a target query and at least one column."})
+                      {"error": _("Pick a target query and at least one column.")})
     try:
         preview = get_engine(connection).preview_index(
             sql_text, schema, table, columns, method=method, unique=unique)

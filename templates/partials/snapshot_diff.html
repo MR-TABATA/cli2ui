@@ -1,8 +1,8 @@
-{% if missing %}
-  <p class="text-sm text-zinc-400">Pick two snapshots to compare.</p>
+{% load i18n %}{% if missing %}
+  <p class="text-sm text-zinc-400">{% trans "Pick two snapshots to compare." %}</p>
 {% elif identical %}
   <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-400">
-    The two plans are identical.
+    {% trans "The two plans are identical." %}
   </div>
 {% elif structured %}
   <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
@@ -11,7 +11,7 @@
       <span class="text-zinc-500">→</span>
       <span class="text-emerald-300 mono">B · {{ b.label }}</span>
       {% if structured.has_shape_change %}
-        <span class="ml-auto px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[10px] uppercase tracking-wide">plan changed</span>
+        <span class="ml-auto px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[10px] uppercase tracking-wide">{% trans "plan changed" %}</span>
       {% endif %}
     </div>
     {% include "partials/plan_diff_rows.html" with diff=structured %}

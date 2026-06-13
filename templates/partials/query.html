@@ -1,21 +1,21 @@
-<div class="space-y-4" x-data="{ write: false }">
+{% load i18n %}<div class="space-y-4" x-data="{ write: false }">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
       <h2 class="text-lg font-semibold flex items-center gap-2"><span>▷</span> SQL</h2>
       <p class="text-xs text-zinc-400 mono" x-show="!write">
-        read-only · SET TRANSACTION READ ONLY · statement_timeout 15s · capped at 1000 rows
+        {% blocktrans %}read-only · SET TRANSACTION READ ONLY · statement_timeout 15s · capped at 1000 rows{% endblocktrans %}
       </p>
       <p class="text-xs text-amber-400/90 mono" x-show="write" x-cloak>
-        write mode · changes are committed · a safety snapshot is taken first
+        {% blocktrans %}write mode · changes are committed · a safety snapshot is taken first{% endblocktrans %}
       </p>
     </div>
     <label class="flex items-center gap-2 cursor-pointer select-none"
-           title="Allow writes (INSERT / UPDATE / DELETE / DDL). A whole-database snapshot is taken before each write.">
+           title="{% trans 'Allow writes (INSERT / UPDATE / DELETE / DDL). A whole-database snapshot is taken before each write.' %}">
       <input type="checkbox" name="write" value="1" x-model="write" class="accent-amber-500">
       <span class="text-[10px] uppercase tracking-wide px-2 py-1 rounded"
             :class="write ? 'bg-amber-950/50 text-amber-400 border border-amber-900/60'
                           : 'bg-emerald-950/50 text-emerald-400 border border-emerald-900/60'"
-            x-text="write ? 'write mode' : 'read-only'"></span>
+            x-text="write ? '{% trans 'write mode' %}' : '{% trans 'read-only' %}'"></span>
     </label>
   </div>
 
@@ -24,48 +24,48 @@
         @keydown.meta.enter.prevent="$el.requestSubmit()"
         @keydown.ctrl.enter.prevent="$el.requestSubmit()">
     <textarea name="sql" rows="6" spellcheck="false" autocomplete="off"
-              placeholder="SELECT * FROM …   —   ⌘/Ctrl + Enter to run"
+              placeholder="{% trans 'SELECT * FROM …   —   ⌘/Ctrl + Enter to run' %}"
               class="w-full bg-zinc-950 border rounded-lg px-3 py-2.5 mono text-sm
                      text-zinc-100 leading-relaxed focus:outline-none resize-y"
               :class="write ? 'border-amber-800 focus:border-amber-500' : 'border-zinc-800 focus:border-emerald-400'">{{ sql }}</textarea>
     <div class="flex flex-wrap items-center gap-2 mt-2">
       <button type="submit"
-              :hx-confirm="write ? 'Run this in WRITE mode? It will be committed. A whole-database safety snapshot is taken first (recover it from Backups).' : null"
+              :hx-confirm="write ? '{% trans 'Run this in WRITE mode? It will be committed. A whole-database safety snapshot is taken first (recover it from Backups).' %}' : null"
               class="sql-run font-medium rounded-lg px-5 py-2 text-sm transition flex items-center gap-2"
               :class="write ? 'bg-amber-500 hover:bg-amber-400 text-zinc-950'
                             : 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950'">
-        <span class="run-label" x-text="write ? 'Run write' : 'Run'"></span>
+        <span class="run-label" x-text="write ? '{% trans 'Run write' %}' : '{% trans 'Run' %}'"></span>
         <span class="run-spin items-center gap-2">
           <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>Running…
+          </svg>{% trans "Running…" %}
         </span>
       </button>
       <button type="button" hx-post="{% url 'explain_run' connection.pk %}"
               hx-target="#query-result" hx-swap="innerHTML"
               class="border border-zinc-700 hover:border-zinc-500 text-zinc-200 rounded-lg
-                     px-4 py-2 text-sm transition">Explain</button>
+                     px-4 py-2 text-sm transition">{% trans "Explain" %}</button>
       <button type="button" hx-post="{% url 'explain_run' connection.pk %}"
               hx-vals='{"analyze": "1"}' hx-target="#query-result" hx-swap="innerHTML"
               class="border border-zinc-700 hover:border-zinc-500 text-zinc-200 rounded-lg
-                     px-4 py-2 text-sm transition">Explain analyze</button>
+                     px-4 py-2 text-sm transition">{% trans "Explain analyze" %}</button>
       <button type="button" hx-post="{% url 'scale_run' connection.pk %}"
               hx-target="#query-result" hx-swap="innerHTML"
-              title="EXPLAIN at 1× / 100× / 10000× row counts — see where the plan breaks as data grows"
+              title="{% trans 'EXPLAIN at 1× / 100× / 10000× row counts — see where the plan breaks as data grows' %}"
               class="border border-amber-700/60 hover:border-amber-500 text-amber-200 rounded-lg
-                     px-4 py-2 text-sm transition">Scale ▸</button>
+                     px-4 py-2 text-sm transition">{% trans "Scale ▸" %}</button>
       <button type="button" hx-get="{% url 'index_lab' connection.pk %}"
               hx-target="#detail" hx-swap="innerHTML" hx-include="[name='sql']"
-              title="Try an index against this query and measure it before creating it"
+              title="{% trans 'Try an index against this query and measure it before creating it' %}"
               class="border border-amber-700/60 hover:border-amber-500 text-amber-200 rounded-lg
-                     px-4 py-2 text-sm transition">Try an index ▸</button>
-      <span class="text-xs text-zinc-500 ml-1">⌘/Ctrl + Enter to run</span>
+                     px-4 py-2 text-sm transition">{% trans "Try an index ▸" %}</button>
+      <span class="text-xs text-zinc-500 ml-1">{% trans "⌘/Ctrl + Enter to run" %}</span>
     </div>
   </form>
 
   <div id="query-result">
-    <p class="text-sm text-zinc-400">Run a query to see results here.</p>
+    <p class="text-sm text-zinc-400">{% trans "Run a query to see results here." %}</p>
   </div>
 </div>
 

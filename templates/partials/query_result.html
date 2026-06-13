@@ -1,26 +1,26 @@
-{% if empty %}
-  <p class="text-sm text-zinc-400">Enter a query and hit Run.</p>
+{% load i18n %}{% if empty %}
+  <p class="text-sm text-zinc-400">{% trans "Enter a query and hit Run." %}</p>
 {% else %}
   {% if notice %}
     <div class="{% if '⚠' in notice %}bg-amber-950/40 border-amber-900 text-amber-200/90{% else %}bg-sky-950/40 border-sky-900 text-sky-200/90{% endif %} border rounded-lg px-4 py-2.5 text-sm mb-3">{{ notice }}</div>
   {% endif %}
 {% if error %}
   <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-3">
-    <p class="text-sm font-medium text-red-300 mb-1">Query error</p>
+    <p class="text-sm font-medium text-red-300 mb-1">{% trans "Query error" %}</p>
     <p class="text-sm text-red-200/80 mono whitespace-pre-wrap">{{ error }}</p>
   </div>
 {% else %}
   <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm mb-3">
     {% if result.columns %}
-      <span class="text-zinc-200 font-medium">{{ result.rowcount }} row{{ result.rowcount|pluralize }} returned</span>
+      <span class="text-zinc-200 font-medium">{% blocktrans count n=result.rowcount %}{{ n }} row returned{% plural %}{{ n }} rows returned{% endblocktrans %}</span>
     {% elif wrote %}
-      <span class="text-amber-400 font-medium">{{ result.rowcount }} row{{ result.rowcount|pluralize }} affected · committed</span>
+      <span class="text-amber-400 font-medium">{% blocktrans count n=result.rowcount %}{{ n }} row affected · committed{% plural %}{{ n }} rows affected · committed{% endblocktrans %}</span>
     {% else %}
-      <span class="text-emerald-400 font-medium">statement executed</span>
+      <span class="text-emerald-400 font-medium">{% trans "statement executed" %}</span>
     {% endif %}
-    <span class="text-zinc-500">·</span><span class="text-zinc-400">ran in {{ result.duration_ms }} ms</span>
+    <span class="text-zinc-500">·</span><span class="text-zinc-400">{% blocktrans with ms=result.duration_ms %}ran in {{ ms }} ms{% endblocktrans %}</span>
     {% if result.truncated %}
-      <span class="text-zinc-500">·</span><span class="text-amber-400">capped at {{ result.rowcount }} — add a LIMIT to see more</span>
+      <span class="text-zinc-500">·</span><span class="text-amber-400">{% blocktrans with n=result.rowcount %}capped at {{ n }} — add a LIMIT to see more{% endblocktrans %}</span>
     {% endif %}
   </div>
 
@@ -45,7 +45,7 @@
             {% empty %}
               <tr>
                 <td colspan="{{ result.columns|length }}" class="px-4 py-6 text-center text-zinc-400">
-                  The query ran fine, but matched no rows.
+                  {% trans "The query ran fine, but matched no rows." %}
                 </td>
               </tr>
             {% endfor %}

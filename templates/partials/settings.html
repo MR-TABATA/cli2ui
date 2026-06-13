@@ -1,14 +1,14 @@
-<div class="space-y-5" x-data="{ q: '' }">
+{% load i18n %}<div class="space-y-5" x-data="{ q: '' }">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
       <h2 class="text-lg font-semibold flex items-center gap-2"><span>⚙</span> postgresql.conf</h2>
       <p class="text-xs text-zinc-400 mono">pg_settings → ALTER SYSTEM SET → pg_reload_conf()</p>
     </div>
     <div class="flex items-center gap-2">
-      <input type="text" x-model="q" placeholder="Filter settings…" class="field field-sm w-44">
+      <input type="text" x-model="q" placeholder="{% trans 'Filter settings…' %}" class="field field-sm w-44">
       <select name="category" hx-get="{% url 'settings' connection.pk %}" hx-target="#detail"
               hx-swap="innerHTML" class="field field-sm">
-        <option value="" {% if not category %}selected{% endif %}>★ Commonly tuned</option>
+        <option value="" {% if not category %}selected{% endif %}>{% trans "★ Commonly tuned" %}</option>
         {% for cat in categories %}
           <option value="{{ cat }}" {% if cat == category %}selected{% endif %}>{{ cat }}</option>
         {% endfor %}
@@ -23,8 +23,8 @@
       <table class="w-full text-sm">
         <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
           <tr class="border-b border-zinc-800">
-            <th class="px-5 py-2 font-medium">Setting</th>
-            <th class="px-5 py-2 font-medium">Value</th>
+            <th class="px-5 py-2 font-medium">{% trans "Setting" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Value" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -32,13 +32,13 @@
         </tbody>
       </table>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">No settings in this category.</p>
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No settings in this category." %}</p>
     {% endif %}
   </div>
 
   <p class="text-xs text-zinc-400">
-    Changes use <span class="mono">ALTER SYSTEM</span> (writes postgresql.auto.conf) and reload
+    {% blocktrans %}Changes use <span class="mono">ALTER SYSTEM</span> (writes postgresql.auto.conf) and reload
     automatically. <span class="text-amber-400/80">restart</span>-tagged settings only take effect
-    after a server restart. Requires a superuser connection.
+    after a server restart. Requires a superuser connection.{% endblocktrans %}
   </p>
 </div>

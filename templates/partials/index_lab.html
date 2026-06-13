@@ -1,24 +1,24 @@
-<div id="lab" class="space-y-5">
+{% load i18n %}<div id="lab" class="space-y-5">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
-      <h2 class="text-lg font-semibold flex items-center gap-2"><span>⚗</span> Index lab</h2>
+      <h2 class="text-lg font-semibold flex items-center gap-2"><span>⚗</span> {% trans "Index lab" %}</h2>
       <p class="text-xs text-zinc-400 mono">
-        what-if · the index is built then rolled back — real EXPLAIN ANALYZE timing, nothing persisted
+        {% blocktrans %}what-if · the index is built then rolled back — real EXPLAIN ANALYZE timing, nothing persisted{% endblocktrans %}
       </p>
     </div>
     <span class="text-[10px] uppercase tracking-wide px-2 py-1 rounded
-                 bg-amber-950/50 text-amber-300 border border-amber-900/60">preview · reversible</span>
+                 bg-amber-950/50 text-amber-300 border border-amber-900/60">{% trans "preview · reversible" %}</span>
   </div>
 
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-5 space-y-4">
     <!-- Target table: choosing one loads its columns (preserves the query). -->
     <div class="flex flex-wrap items-center gap-2 text-sm">
-      <label class="text-zinc-400">Table</label>
+      <label class="text-zinc-400">{% trans "Table" %}</label>
       <select hx-get="{% url 'index_lab' connection.pk %}" hx-target="#lab" hx-swap="outerHTML"
               hx-include="[name='sql']" name="qualified"
               class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono text-zinc-100
                      focus:outline-none focus:border-emerald-400">
-        <option value="">— pick a table —</option>
+        <option value="">{% trans "— pick a table —" %}</option>
         {% for t in tables %}
           <option value="{{ t.schema }}.{{ t.name }}"
                   {% if t.schema == schema and t.name == table %}selected{% endif %}>{{ t.qualified }}</option>
@@ -43,7 +43,7 @@
 
         <div>
           <div class="text-xs uppercase tracking-wide text-zinc-400 mb-1.5">
-            Index to try <span class="normal-case text-zinc-500">— click columns in order</span>
+            {% trans "Index to try" %} <span class="normal-case text-zinc-500">{% trans "— click columns in order" %}</span>
           </div>
           <div class="flex flex-wrap gap-1.5">
             {% for col in columns %}
@@ -61,16 +61,16 @@
                     class="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 mono text-zinc-100 focus:outline-none focus:border-emerald-400">
               {% for m in index_methods %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
             </select>
-            <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="unique" class="accent-emerald-400"> unique</label>
+            <label class="flex items-center gap-1 text-zinc-400"><input type="checkbox" name="unique" class="accent-emerald-400"> {% trans "unique" %}</label>
           </div>
         </div>
 
         <div>
           <div class="text-xs uppercase tracking-wide text-zinc-400 mb-1.5">
-            Target query <span class="normal-case text-zinc-500">— measured with EXPLAIN ANALYZE (read query)</span>
+            {% trans "Target query" %} <span class="normal-case text-zinc-500">{% trans "— measured with EXPLAIN ANALYZE (read query)" %}</span>
           </div>
           <textarea name="sql" rows="4" spellcheck="false" autocomplete="off"
-                    placeholder="SELECT … the query you want this index to speed up"
+                    placeholder="{% trans 'SELECT … the query you want this index to speed up' %}"
                     class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mono text-sm
                            text-zinc-100 leading-relaxed focus:outline-none focus:border-emerald-400 resize-y">{{ sql }}</textarea>
         </div>
@@ -79,13 +79,13 @@
           <button type="submit" :disabled="picked.length === 0"
                   class="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-medium rounded-lg px-5 py-2 text-sm
                          transition disabled:opacity-40 disabled:cursor-not-allowed">
-            Preview index ▸
+            {% trans "Preview index ▸" %}
           </button>
-          <span class="text-xs text-zinc-500">⌘/Ctrl + Enter</span>
+          <span class="text-xs text-zinc-500">{% trans "⌘/Ctrl + Enter" %}</span>
         </div>
       </form>
     {% else %}
-      <p class="text-sm text-zinc-400">Pick a table to choose which columns to index.</p>
+      <p class="text-sm text-zinc-400">{% trans "Pick a table to choose which columns to index." %}</p>
     {% endif %}
   </section>
 

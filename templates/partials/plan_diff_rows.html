@@ -1,4 +1,4 @@
-{% comment %}Renders a PlanDiff (context var `diff`) as indented node rows. Shared by the snapshot A/B compare and the scale simulation.{% endcomment %}
+{% load i18n %}{% comment %}Renders a PlanDiff (context var `diff`) as indented node rows. Shared by the snapshot A/B compare and the scale simulation.{% endcomment %}
 <div class="text-xs mono leading-relaxed py-1 overflow-x-auto">
   {% for r in diff.rows %}
     <div class="px-3 py-1 border-b border-zinc-800/40
@@ -22,17 +22,17 @@
         </span>
         <span class="shrink-0 text-[11px] tabular-nums flex items-center gap-2">
           {% if r.rows_before is not None and r.rows_after is not None %}
-            <span class="text-zinc-400">rows {{ r.rows_before|floatformat:0 }}→{{ r.rows_after|floatformat:0 }}</span>
+            <span class="text-zinc-400">{% blocktrans with before=r.rows_before|floatformat:0 after=r.rows_after|floatformat:0 %}rows {{ before }}→{{ after }}{% endblocktrans %}</span>
             {% if r.rows_factor and r.rows_factor >= 2 %}
               <span class="px-1 rounded bg-amber-500/15 text-amber-300">×{{ r.rows_factor|floatformat:0 }}</span>
             {% endif %}
           {% elif r.rows_after is not None %}
-            <span class="text-emerald-400">rows {{ r.rows_after|floatformat:0 }}</span>
+            <span class="text-emerald-400">{% blocktrans with after=r.rows_after|floatformat:0 %}rows {{ after }}{% endblocktrans %}</span>
           {% elif r.rows_before is not None %}
-            <span class="text-red-400">rows {{ r.rows_before|floatformat:0 }}</span>
+            <span class="text-red-400">{% blocktrans with before=r.rows_before|floatformat:0 %}rows {{ before }}{% endblocktrans %}</span>
           {% endif %}
           {% if r.cost_factor and r.cost_factor >= 2 %}
-            <span class="px-1 rounded bg-red-500/15 text-red-300">cost ×{{ r.cost_factor|floatformat:0 }}</span>
+            <span class="px-1 rounded bg-red-500/15 text-red-300">{% blocktrans with factor=r.cost_factor|floatformat:0 %}cost ×{{ factor }}{% endblocktrans %}</span>
           {% endif %}
         </span>
       </div>

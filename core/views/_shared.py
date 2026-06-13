@@ -1,5 +1,6 @@
 """Shared view helpers used across more than one panel module."""
 from django.conf import settings as django_settings
+from django.utils.translation import gettext as _
 
 from ..engines import EngineError, get_engine
 from ..models import Backup
@@ -23,12 +24,12 @@ def _auto_backup(connection, *, operation, kind, dbname, schema=None, table=None
             dump = engine.dump_database(dbname, fmt="custom")
             target = dbname
     except EngineError as exc:
-        return f"⚠ No backup taken — the snapshot failed: {exc}"
+        return _("⚠ No backup taken — the snapshot failed: %(err)s") % {"err": exc}
     limit = django_settings.CLI2UI_MAX_AUTO_BACKUP_BYTES
     if len(dump.data) > limit:
-        return (f"⚠ No backup taken — {target} is {_mb(len(dump.data))}, "
-                f"over the {_mb(limit)} limit.")
+        return _("⚠ No backup taken — %(target)s is %(size)s, over the %(limit)s limit.") % {
+            "target": target, "size": _mb(len(dump.data)), "limit": _mb(limit)}
     Backup.objects.create(
         connection=connection, operation=operation, kind=kind, target=target,
         dbname=dbname, data=dump.data, byte_size=len(dump.data))
-    return f"Backup saved before {operation} — recover it from Backups."
+    return _("Backup saved before %(op)s — recover it from Backups.") % {"op": operation}

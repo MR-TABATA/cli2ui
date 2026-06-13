@@ -125,6 +125,9 @@ python manage.py runserver
 You'll need a PostgreSQL to connect to (the `sampledb` service in
 `docker-compose.yml` is one option, exposed on `localhost:5433`).
 
+`DEBUG` is **off by default** so error pages don't leak tracebacks, settings, or
+SQL. Set `DJANGO_DEBUG=1` while developing if you want Django's rich error pages.
+
 ## License
 
 [MIT](LICENSE) © TABATA Hitoshi
