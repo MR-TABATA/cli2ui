@@ -68,15 +68,15 @@ def workspace(request, pk):
             "workspace.html",
             {"connection": connection, "tables": [], "error": str(exc),
              "connections": Connection.objects.all(),
-             "summary": {}, "commands": 0},
+             "summary": {}, "commands": 0,
+             "snapshots_count": 0, "backups_count": 0},
         )
     return render(
         request,
         "workspace.html",
         {"connection": connection, "tables": tables,
          "connections": Connection.objects.all(),
-         "summary": _overview_summary(connection),
-         "commands": connection.commands.count()},
+         **_overview_context(connection)},
     )
 
 
@@ -126,12 +126,22 @@ def _overview_summary(connection):
     return s
 
 
+def _overview_context(connection):
+    """Everything the bento home renders: the live engine summary plus the cheap
+    local-model counts (commands / snapshots / backups)."""
+    return {
+        "summary": _overview_summary(connection),
+        "commands": connection.commands.count(),
+        "snapshots_count": connection.snapshots.count(),
+        "backups_count": connection.backups.count(),
+    }
+
+
 def overview(request, pk, notice=None):
-    """The workspace home: a bento of live operational summaries that drill down
-    into each panel. `notice` is an optional info banner (e.g. the auto-backup
-    result after a table drop)."""
+    """The workspace home (#detail landing): a slim welcome. The section bento
+    lives in the overview hover menu, rendered once with the workspace shell.
+    `notice` is an optional info banner (e.g. the auto-backup result after a
+    table drop)."""
     connection = get_object_or_404(Connection, pk=pk)
     return render(request, "partials/workspace_home.html",
-                  {"connection": connection, "notice": notice,
-                   "summary": _overview_summary(connection),
-                   "commands": connection.commands.count()})
+                  {"connection": connection, "notice": notice})

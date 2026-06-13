@@ -1211,6 +1211,11 @@ class _BrowserE2E(LiveServerTestCase):
     def tearDown(self):
         self.page.close()
 
+    def open_section(self, name):
+        """Navigate to a section through the overview hover menu (the bento)."""
+        self.page.get_by_role("button", name="overview").hover()
+        self.page.locator("#nav-menu").get_by_role("button", name=name).click()
+
 
 @unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
                      "needs playwright + chromium and a reachable sample DB")
@@ -1233,7 +1238,7 @@ class ExplainDiffSmokeE2E(_BrowserE2E):
     def test_explain_save_and_structured_diff(self):
         page = self.page
         page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
-        page.get_by_role("button", name="▷ SQL", exact=True).click()
+        self.open_section("SQL runner")
         page.locator("textarea[name=sql]:not(.hidden)").wait_for()
 
         # Two queries whose plans differ in shape (the ORDER BY adds a Sort node).
@@ -1242,7 +1247,7 @@ class ExplainDiffSmokeE2E(_BrowserE2E):
         self._explain_and_save("SELECT * FROM orders ORDER BY total", "sorted",
                                plan_token="Sort")
 
-        page.get_by_role("button", name="◫ snapshots").click()
+        self.open_section("Snapshots")
         page.locator("select[name=a]").wait_for()
         page.locator("select[name=a]").select_option(label="plain")
         page.locator("select[name=b]").select_option(label="sorted")
@@ -1315,7 +1320,7 @@ class IndexLabSmokeE2E(_BrowserE2E):
     def test_preview_hypothetical_index(self):
         page = self.page
         page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
-        page.get_by_role("button", name="⚗ index lab", exact=True).click()
+        self.open_section("Index lab")
 
         # Choose the orders table; its columns load (htmx swaps #lab).
         page.locator("#lab select[name=qualified]").wait_for()
@@ -1352,7 +1357,7 @@ class DatabaseManagementSmokeE2E(_BrowserE2E):
     def test_create_then_drop_database(self):
         page = self.page
         page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
-        page.get_by_role("button", name="🗄 objects", exact=True).click()
+        self.open_section("Objects")
 
         page.get_by_role("button", name="+ New database").click()
         create = page.locator('form[hx-post*="databases/create"]')
@@ -1391,7 +1396,7 @@ class SchemaAlterSmokeE2E(_BrowserE2E):
     def test_rename_schema_inline(self):
         page = self.page
         page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
-        page.get_by_role("button", name="🗄 objects", exact=True).click()
+        self.open_section("Objects")
         page.get_by_role("button", name="Schemas", exact=True).click()
 
         row = page.locator("#detail tr", has_text=self.SCH)
@@ -1551,7 +1556,7 @@ class HealthSmokeE2E(_BrowserE2E):
     def test_health_panel_shows_sizes(self):
         page = self.page
         page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
-        page.get_by_role("button", name="🩺 health", exact=True).click()
+        self.open_section("Health")
         detail = page.locator("#detail")
         expect(detail).to_contain_text("Table sizes")
         expect(detail).to_contain_text("Unused indexes")
