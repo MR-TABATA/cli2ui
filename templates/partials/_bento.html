@@ -3,7 +3,7 @@ spaced by gaps. Each tile is a launcher (hx-get into #detail; closes the overvie
 hover menu via the always-present navmenu store) except Tables, which is info-
 only (tables open from the sidebar, so it must not navigate). Tiles show a live
 metric where one is cheap. 2 cols on phones, 3 on small, 6 on large.{% endcomment %}
-<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
 
   <button hx-get="{% url 'activity' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
           @click="$store.navmenu.open = false"
