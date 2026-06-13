@@ -2,6 +2,7 @@
 row preview) they re-render into."""
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
+from django.utils.translation import gettext as _
 
 from ..engines import EngineError, get_engine
 from ..engines.postgres import COLUMN_TYPES, INDEX_METHODS
@@ -83,7 +84,7 @@ def index_create(request, pk):
     columns = request.POST.getlist("columns")
     if not columns:
         return _render_detail(request, connection, schema, table,
-                              error="Select at least one column to index.")
+                              error=_("Select at least one column to index."))
     try:
         get_engine(connection).create_index(
             schema, table, columns,
@@ -117,7 +118,7 @@ def table_rename(request, pk):
     new_name = (request.POST.get("new_name") or "").strip()
     if not new_name:
         return _render_detail(request, connection, schema, table,
-                              error="Enter a new table name.")
+                              error=_("Enter a new table name."))
     notice = _auto_backup(connection, operation="rename table", kind=Backup.KIND_TABLE,
                           dbname=connection.dbname, schema=schema, table=table)
     try:
@@ -168,7 +169,7 @@ def column_add(request, pk):
     name = (request.POST.get("name") or "").strip()
     if not name:
         return _render_detail(request, connection, schema, table,
-                              error="Enter a column name.")
+                              error=_("Enter a column name."))
     try:
         get_engine(connection).add_column(
             schema, table, name, request.POST.get("type", ""),
@@ -188,7 +189,7 @@ def column_rename(request, pk):
     new_name = (request.POST.get("new_name") or "").strip()
     if not new_name:
         return _render_detail(request, connection, schema, table,
-                              error="Enter a new column name.")
+                              error=_("Enter a new column name."))
     notice = _auto_backup(connection, operation="rename column", kind=Backup.KIND_TABLE,
                           dbname=connection.dbname, schema=schema, table=table)
     try:

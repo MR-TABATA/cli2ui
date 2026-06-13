@@ -1,17 +1,18 @@
+{% load i18n %}
 {% comment %}Workspace home (#detail landing). Heading + the section bento box —
 the same makunouchi grid the overview hover menu shows, so clicking ⌂ overview
 lands you on it and hovering gives the same as a quick menu.{% endcomment %}
 <div class="space-y-4">
   {% include "partials/_banner.html" %}
   <div>
-    <h2 class="text-lg font-semibold">Connected to {{ connection.display_name }}</h2>
+    <h2 class="text-lg font-semibold">{% blocktrans with name=connection.display_name %}Connected to {{ name }}{% endblocktrans %}</h2>
     <p class="text-xs text-zinc-400 mt-0.5 mono">{{ connection.host }}:{{ connection.port }}/{{ connection.dbname }}</p>
   </div>
 
   {% include "partials/_bento.html" %}
 
   <p class="text-xs text-zinc-500">
-    Read-only by default — changes are always explicit. cli2ui runs locally; your DB
-    credentials never leave this machine.
+    {% blocktrans %}Read-only by default — changes are always explicit. cli2ui runs locally; your DB
+    credentials never leave this machine.{% endblocktrans %}
   </p>
 </div>

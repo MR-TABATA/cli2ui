@@ -6,6 +6,8 @@ should be one thing. So we hide the dialect behind an Engine and pick the
 right one per connection. PostgreSQL ships first; MySQL slots in here later
 without touching views or templates.
 """
+from django.utils.translation import gettext as _
+
 from .base import Engine, EngineError
 
 
@@ -14,7 +16,7 @@ def get_engine(connection) -> Engine:
         from .postgres import PostgresEngine
 
         return PostgresEngine(connection)
-    raise EngineError(f"Unsupported database kind: {connection.kind}")
+    raise EngineError(_("Unsupported database kind: %(kind)s") % {"kind": connection.kind})
 
 
 __all__ = ["Engine", "EngineError", "get_engine"]

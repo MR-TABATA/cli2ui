@@ -1,14 +1,14 @@
-<div class="space-y-4">
+{% load i18n %}<div class="space-y-4">
   <div class="flex flex-wrap items-start justify-between gap-3">
     <div>
-      <h2 class="text-lg font-semibold flex items-center gap-2"><span>🔒</span> Locks</h2>
+      <h2 class="text-lg font-semibold flex items-center gap-2"><span>🔒</span> {% trans "Locks" %}</h2>
       <p class="text-xs text-zinc-400">
-        <span class="mono">pg_locks</span> — sessions waiting on a lock and who holds it
+        <span class="mono">pg_locks</span> {% trans "— sessions waiting on a lock and who holds it" %}
       </p>
     </div>
     <button hx-get="{% url 'locks' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
             class="text-xs text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1.5
-                   hover:border-zinc-600 transition">↻ Refresh</button>
+                   hover:border-zinc-600 transition">{% trans "↻ Refresh" %}</button>
   </div>
 
   {% include "partials/_banner.html" %}
@@ -20,19 +20,19 @@
           <!-- The blocked session -->
           <div class="px-5 py-3 border-b border-zinc-800">
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-[11px] px-1.5 py-0.5 rounded bg-red-950/50 text-red-400 border border-red-900/60 whitespace-nowrap">blocked</span>
+              <span class="text-[11px] px-1.5 py-0.5 rounded bg-red-950/50 text-red-400 border border-red-900/60 whitespace-nowrap">{% trans "blocked" %}</span>
               <span class="mono text-sm text-zinc-200">PID {{ w.blocked_pid }}</span>
               <span class="text-xs text-zinc-400">{{ w.blocked_user|default:"—" }}</span>
-              {% if w.wait_secs is not None %}<span class="text-xs text-zinc-400 mono">waiting {{ w.wait_secs }}s</span>{% endif %}
+              {% if w.wait_secs is not None %}<span class="text-xs text-zinc-400 mono">{% blocktrans with secs=w.wait_secs %}waiting {{ secs }}s{% endblocktrans %}</span>{% endif %}
               <span class="text-[11px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 mono whitespace-nowrap">{{ w.lock_mode }}</span>
-              <span class="text-xs text-zinc-400">on</span>
+              <span class="text-xs text-zinc-400">{% trans "on" %}</span>
               <span class="text-xs text-zinc-300 mono">{{ w.object }}</span>
             </div>
             <pre class="mt-2 text-xs mono text-zinc-400 whitespace-pre-wrap break-words">{{ w.blocked_query|default:"—" }}</pre>
           </div>
 
           <!-- Who holds the lock it wants -->
-          <div class="px-5 py-2.5 text-xs uppercase tracking-wide text-zinc-400">blocked by</div>
+          <div class="px-5 py-2.5 text-xs uppercase tracking-wide text-zinc-400">{% trans "blocked by" %}</div>
           {% for b in w.blockers %}
             <div class="px-5 py-3 border-t border-zinc-800/60 flex items-start justify-between gap-3">
               <div class="min-w-0">
@@ -40,7 +40,7 @@
                   <span class="mono text-sm text-amber-300">PID {{ b.pid }}</span>
                   <span class="text-xs text-zinc-400">{{ b.user|default:"—" }}</span>
                   {% if b.state == 'idle in transaction' %}
-                    <span class="text-[11px] px-1.5 py-0.5 rounded bg-amber-950/50 text-amber-400 border border-amber-900/60">idle in txn</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded bg-amber-950/50 text-amber-400 border border-amber-900/60">{% trans "idle in txn" %}</span>
                   {% elif b.state %}
                     <span class="text-[11px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">{{ b.state }}</span>
                   {% endif %}
@@ -50,12 +50,12 @@
               <div class="text-right whitespace-nowrap space-x-3 shrink-0">
                 <button hx-post="{% url 'locks_cancel' connection.pk %}" hx-vals='{"pid": "{{ b.pid }}"}'
                         hx-target="#detail" hx-swap="innerHTML"
-                        hx-confirm="Cancel the running query on PID {{ b.pid }}?"
-                        class="text-xs text-amber-400 hover:text-amber-300 underline">cancel</button>
+                        hx-confirm="{% blocktrans with pid=b.pid %}Cancel the running query on PID {{ pid }}?{% endblocktrans %}"
+                        class="text-xs text-amber-400 hover:text-amber-300 underline">{% trans "cancel" %}</button>
                 <button hx-post="{% url 'locks_kill' connection.pk %}" hx-vals='{"pid": "{{ b.pid }}"}'
                         hx-target="#detail" hx-swap="innerHTML"
-                        hx-confirm="Force-close session PID {{ b.pid }}? Its transaction will be rolled back."
-                        class="text-xs text-red-400 hover:text-red-300 underline">kill</button>
+                        hx-confirm="{% blocktrans with pid=b.pid %}Force-close session PID {{ pid }}? Its transaction will be rolled back.{% endblocktrans %}"
+                        class="text-xs text-red-400 hover:text-red-300 underline">{% trans "kill" %}</button>
               </div>
             </div>
           {% endfor %}
@@ -63,24 +63,22 @@
       {% endfor %}
     </div>
     <p class="text-xs text-zinc-400">
-      {{ waits|length }} blocked session{{ waits|length|pluralize }} ·
-      <span class="text-amber-400/80">cancel</span> stops the blocker's query,
-      <span class="text-red-400/80">kill</span> drops its connection — either frees the wait
+      {% blocktrans count n=waits|length %}{{ n }} blocked session · <span class="text-amber-400/80">cancel</span> stops the blocker's query, <span class="text-red-400/80">kill</span> drops its connection — either frees the wait{% plural %}{{ n }} blocked sessions · <span class="text-amber-400/80">cancel</span> stops the blocker's query, <span class="text-red-400/80">kill</span> drops its connection — either frees the wait{% endblocktrans %}
     </p>
   {% else %}
     <div class="border border-dashed border-zinc-800 rounded-xl py-12 px-6 text-center">
-      <p class="text-zinc-300 font-medium">No lock waits</p>
-      <p class="text-zinc-400 text-sm mt-1">Nothing is blocked on a lock right now.</p>
+      <p class="text-zinc-300 font-medium">{% trans "No lock waits" %}</p>
+      <p class="text-zinc-400 text-sm mt-1">{% trans "Nothing is blocked on a lock right now." %}</p>
     </div>
   {% endif %}
 
   <div>
     <div class="flex items-center justify-between mb-1.5">
-      <p class="text-xs text-zinc-400">The query behind this view</p>
+      <p class="text-xs text-zinc-400">{% trans "The query behind this view" %}</p>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ query_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
               class="text-xs text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">open in SQL →</button>
+                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
     </div>
     <pre class="bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs mono text-zinc-400 overflow-x-auto whitespace-pre">{{ query_sql }}</pre>
   </div>

@@ -1,28 +1,28 @@
-<div class="space-y-5">
+{% load i18n %}<div class="space-y-5">
   <div>
-    <h2 class="text-lg font-semibold flex items-center gap-2"><span>🩺</span> Health</h2>
-    <p class="text-xs text-zinc-400 mono">disk usage · unused indexes · dead rows</p>
+    <h2 class="text-lg font-semibold flex items-center gap-2"><span>🩺</span> {% trans "Health" %}</h2>
+    <p class="text-xs text-zinc-400 mono">{% trans "disk usage · unused indexes · dead rows" %}</p>
   </div>
 
   <!-- Table sizes: \dt+ sorted by total on-disk footprint -->
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
     <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
       <span class="text-xs uppercase tracking-wide text-zinc-400">
-        Table sizes <span class="mono lowercase text-zinc-500">heap + indexes + toast</span>
+        {% trans "Table sizes" %} <span class="mono lowercase text-zinc-500">heap + indexes + toast</span>
       </span>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ sizes_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
               class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">open in SQL →</button>
+                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
     </div>
     {% if sizes %}
       <table class="w-full text-sm">
         <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
           <tr class="border-b border-zinc-800">
-            <th class="px-5 py-2 font-medium">Table</th>
-            <th class="px-5 py-2 font-medium">Total</th>
-            <th class="px-5 py-2 font-medium text-right">Table</th>
-            <th class="px-5 py-2 font-medium text-right">Indexes</th>
+            <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Total" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Table" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Indexes" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -42,7 +42,7 @@
         </tbody>
       </table>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">No user tables.</p>
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No user tables." %}</p>
     {% endif %}
   </section>
 
@@ -50,21 +50,21 @@
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
     <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
       <span class="text-xs uppercase tracking-wide text-zinc-400">
-        Unused indexes <span class="mono lowercase text-zinc-500">idx_scan = 0 since last stats reset</span>
+        {% trans "Unused indexes" %} <span class="mono lowercase text-zinc-500">idx_scan = 0 since last stats reset</span>
       </span>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ unused_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
               class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">open in SQL →</button>
+                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
     </div>
     {% if unused %}
       <table class="w-full text-sm">
         <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
           <tr class="border-b border-zinc-800">
-            <th class="px-5 py-2 font-medium">Index</th>
-            <th class="px-5 py-2 font-medium">On table</th>
-            <th class="px-5 py-2 font-medium text-right">Scans</th>
-            <th class="px-5 py-2 font-medium text-right">Size</th>
+            <th class="px-5 py-2 font-medium">{% trans "Index" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "On table" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Scans" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Size" %}</th>
             <th class="px-5 py-2 font-medium w-px"></th>
           </tr>
         </thead>
@@ -78,14 +78,14 @@
               <td class="px-5 py-2 text-right whitespace-nowrap">
                 <button hx-get="{% url 'table_detail' connection.pk %}?schema={{ u.schema|urlencode }}&table={{ u.table|urlencode }}"
                         hx-target="#detail" hx-swap="innerHTML"
-                        class="text-xs text-zinc-400 hover:text-zinc-200">manage →</button>
+                        class="text-xs text-zinc-400 hover:text-zinc-200">{% trans "manage →" %}</button>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">No unused indexes — every index has been used. 🎉</p>
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No unused indexes — every index has been used. 🎉" %}</p>
     {% endif %}
   </section>
 
@@ -93,23 +93,23 @@
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
     <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
       <span class="text-xs uppercase tracking-wide text-zinc-400">
-        Dead rows <span class="mono lowercase text-zinc-500">n_dead_tup · last (auto)vacuum</span>
+        {% trans "Dead rows" %} <span class="mono lowercase text-zinc-500">n_dead_tup · last (auto)vacuum</span>
       </span>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ vacuum_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
               class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">open in SQL →</button>
+                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
     </div>
     {% if vacuum %}
       <table class="w-full text-sm">
         <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
           <tr class="border-b border-zinc-800">
-            <th class="px-5 py-2 font-medium">Table</th>
-            <th class="px-5 py-2 font-medium text-right">Live</th>
-            <th class="px-5 py-2 font-medium text-right">Dead</th>
-            <th class="px-5 py-2 font-medium text-right">Dead %</th>
-            <th class="px-5 py-2 font-medium text-right">Last vacuum</th>
-            <th class="px-5 py-2 font-medium text-right">Last analyze</th>
+            <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Live" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Dead" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Dead %" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Last vacuum" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Last analyze" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -124,14 +124,14 @@
                   {% elif v.dead_pct >= 20 %}bg-amber-500/15 text-amber-300
                   {% else %}text-zinc-400{% endif %}">{{ v.dead_pct }}%</span>
               </td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right">{% if v.last_vacuum %}{{ v.last_vacuum|timesince }} ago{% else %}never{% endif %}</td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right">{% if v.last_analyze %}{{ v.last_analyze|timesince }} ago{% else %}never{% endif %}</td>
+              <td class="px-5 py-2 mono text-zinc-400 text-right">{% if v.last_vacuum %}{% blocktrans with t=v.last_vacuum|timesince %}{{ t }} ago{% endblocktrans %}{% else %}{% trans "never" %}{% endif %}</td>
+              <td class="px-5 py-2 mono text-zinc-400 text-right">{% if v.last_analyze %}{% blocktrans with t=v.last_analyze|timesince %}{{ t }} ago{% endblocktrans %}{% else %}{% trans "never" %}{% endif %}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">No table statistics yet.</p>
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No table statistics yet." %}</p>
     {% endif %}
   </section>
 
@@ -139,22 +139,22 @@
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
     <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
       <span class="text-xs uppercase tracking-wide text-zinc-400">
-        Bloat estimate <span class="mono lowercase text-zinc-500">pg_stats · approximate, no scan</span>
+        {% trans "Bloat estimate" %} <span class="mono lowercase text-zinc-500">pg_stats · approximate, no scan</span>
       </span>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ bloat_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
               class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">open in SQL →</button>
+                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
     </div>
     {% if bloat %}
       <table class="w-full text-sm">
         <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
           <tr class="border-b border-zinc-800">
-            <th class="px-5 py-2 font-medium">Table</th>
-            <th class="px-5 py-2 font-medium text-right">Size</th>
-            <th class="px-5 py-2 font-medium text-right">Wasted (est.)</th>
-            <th class="px-5 py-2 font-medium text-right">Wasted %</th>
-            <th class="px-5 py-2 font-medium text-right">Bloat ×</th>
+            <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Size" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Wasted (est.)" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Wasted %" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Bloat ×" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -175,11 +175,11 @@
         </tbody>
       </table>
       <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
-        An estimate from planner statistics — run <span class="mono">VACUUM FULL</span> or
-        <span class="mono">pg_repack</span> to reclaim. Needs a recent <span class="mono">ANALYZE</span> to be accurate.
+        {% blocktrans %}An estimate from planner statistics — run <span class="mono">VACUUM FULL</span> or
+        <span class="mono">pg_repack</span> to reclaim. Needs a recent <span class="mono">ANALYZE</span> to be accurate.{% endblocktrans %}
       </div>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">No bloat to estimate (or stats not collected yet).</p>
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No bloat to estimate (or stats not collected yet)." %}</p>
     {% endif %}
   </section>
 </div>

@@ -11,7 +11,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get(
     "DJANGO_SECRET_KEY", "dev-insecure-key-change-me-for-anything-public"
 )
-DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
+# Off by default: a DEBUG error page leaks tracebacks, settings, and SQL — and
+# this tool sits right next to a database. Set DJANGO_DEBUG=1 when you're
+# developing and want the rich error pages.
+DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
@@ -22,6 +25,12 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Activates the request's language from the cookie set by the header toggle
+    # (via set_language), falling back to the browser's Accept-Language. Must
+    # come before CommonMiddleware, which needs an active language. No
+    # SessionMiddleware is required: set_language stores the choice in a cookie
+    # when there's no session, and LocaleMiddleware reads it from there.
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     # X-Frame-Options: DENY. There's no reason to frame cli2ui, and refusing to
@@ -40,6 +49,7 @@ TEMPLATES = [
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
+                "django.template.context_processors.i18n",
             ],
         },
     },
@@ -65,6 +75,14 @@ CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"]
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 USE_TZ = True
+
+# Internationalization. UI ships in English; the header toggle (set_language)
+# switches to Japanese and persists it in a cookie. New visitors with no cookie
+# get their browser's Accept-Language. Compiled catalogs live in locale/.
+LANGUAGE_CODE = "en"
+LANGUAGES = [("en", "English"), ("ja", "日本語")]
+LOCALE_PATHS = [BASE_DIR / "locale"]
+USE_I18N = True
 
 # Largest automatic safety snapshot (taken before a destructive op) we'll store
 # as a blob in the management DB. Past this, the operation proceeds with a

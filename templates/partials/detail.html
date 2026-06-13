@@ -1,4 +1,4 @@
-{% comment %}Table detail. Subtabs (Columns | Indexes | Data | Danger) keep the
+{% load i18n %}{% comment %}Table detail. Subtabs (Columns | Indexes | Data | Danger) keep the
 panel a clean read-only view; every mutation happens in the shared right drawer
 or, for one-click destructive ops, behind an hx-confirm. `drawer` holds the open
 form's kind; `ctx` carries the row the drawer is acting on. Submits target
@@ -8,28 +8,28 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
     <div>
       <h2 class="text-lg font-semibold mono">{{ schema }}.{{ table }}</h2>
       <p class="text-xs text-zinc-400">
-        {{ columns|length }} column{{ columns|length|pluralize }} ·
-        previewing up to {{ preview_rows|length }} row{{ preview_rows|length|pluralize }}
+        {% blocktrans count nc=columns|length %}{{ nc }} column{% plural %}{{ nc }} columns{% endblocktrans %} ·
+        {% blocktrans count nr=preview_rows|length %}previewing up to {{ nr }} row{% plural %}previewing up to {{ nr }} rows{% endblocktrans %}
       </p>
     </div>
     <div class="shrink-0 flex items-center gap-1.5">
       <button hx-get="{% url 'query' connection.pk %}?sql={{ query_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML" class="btn btn-sm btn-neutral">
-        <span>▷</span> Open in SQL
+        <span>▷</span> {% trans "Open in SQL" %}
       </button>
       <!-- Backup this table (pg_dump -t). Fetched via JS for an in-page spinner. -->
       <span x-data="dumpLinks()" class="btn btn-sm btn-neutral gap-2 cursor-default">
-        backup
+        {% trans "backup" %}
         <a href="#" @click.prevent="download('{% url 'table_dump' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=plain')"
-           :class="busy && 'opacity-40 pointer-events-none'" title="pg_dump this table as plain SQL"
+           :class="busy && 'opacity-40 pointer-events-none'" title="{% trans 'pg_dump this table as plain SQL' %}"
            class="btn-link">.sql ↓</a>
         <a href="#" @click.prevent="download('{% url 'table_dump' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=custom')"
-           :class="busy && 'opacity-40 pointer-events-none'" title="pg_dump this table in custom format"
+           :class="busy && 'opacity-40 pointer-events-none'" title="{% trans 'pg_dump this table in custom format' %}"
            class="btn-link">.dump ↓</a>
         <span x-show="busy" class="spinner text-sky-300"></span>
         <span x-show="err" x-text="err" class="text-red-400/90 max-w-[160px] truncate"></span>
       </span>
-      <button @click="drawer = 'rename'" class="btn btn-sm btn-neutral">rename</button>
+      <button @click="drawer = 'rename'" class="btn btn-sm btn-neutral">{% trans "rename" %}</button>
     </div>
   </div>
 
@@ -37,26 +37,26 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
 
   <!-- Subtabs -->
   <nav class="flex items-center gap-1 border-b border-zinc-800 pb-2">
-    <button class="subtab" :class="tab === 'columns' && 'subtab-on'" @click="tab = 'columns'">Columns</button>
-    <button class="subtab" :class="tab === 'indexes' && 'subtab-on'" @click="tab = 'indexes'">Indexes</button>
-    <button class="subtab" :class="tab === 'data' && 'subtab-on'" @click="tab = 'data'">Data</button>
+    <button class="subtab" :class="tab === 'columns' && 'subtab-on'" @click="tab = 'columns'">{% trans "Columns" %}</button>
+    <button class="subtab" :class="tab === 'indexes' && 'subtab-on'" @click="tab = 'indexes'">{% trans "Indexes" %}</button>
+    <button class="subtab" :class="tab === 'data' && 'subtab-on'" @click="tab = 'data'">{% trans "Data" %}</button>
     <button class="subtab ml-auto" :class="tab === 'danger' && 'subtab-on text-red-300'"
-            @click="tab = 'danger'">Danger</button>
+            @click="tab = 'danger'">{% trans "Danger" %}</button>
   </nav>
 
   <!-- Columns tab -->
   <section x-show="tab === 'columns'" class="space-y-3">
     <div class="flex justify-end">
-      <button @click="drawer = 'add-col'" class="btn btn-sm btn-primary">+ Add column</button>
+      <button @click="drawer = 'add-col'" class="btn btn-sm btn-primary">{% trans "+ Add column" %}</button>
     </div>
     <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
       <table class="w-full text-sm">
         <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
           <tr class="border-b border-zinc-800">
-            <th class="px-5 py-2 font-medium">Name</th>
-            <th class="px-5 py-2 font-medium">Type</th>
-            <th class="px-5 py-2 font-medium">Nullable</th>
-            <th class="px-5 py-2 font-medium">Default</th>
+            <th class="px-5 py-2 font-medium">{% trans "Name" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Type" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Nullable" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Default" %}</th>
             <th class="px-5 py-2 font-medium w-px"></th>
           </tr>
         </thead>
@@ -65,18 +65,18 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
             <tr class="border-b border-zinc-800/60">
               <td class="px-5 py-2 mono">{{ col.name }}</td>
               <td class="px-5 py-2 text-zinc-400 mono">{{ col.type }}</td>
-              <td class="px-5 py-2 text-zinc-400">{% if col.nullable %}yes{% else %}<span class="text-zinc-200">no</span>{% endif %}</td>
+              <td class="px-5 py-2 text-zinc-400">{% if col.nullable %}{% trans "yes" %}{% else %}<span class="text-zinc-200">{% trans "no" %}</span>{% endif %}</td>
               <td class="px-5 py-2 text-zinc-400 mono truncate max-w-[200px]">{{ col.default|default:"—" }}</td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
                 <div class="flex items-center gap-3 justify-end">
                   <button type="button" class="text-xs text-zinc-400 hover:text-zinc-100"
-                          @click="ctx = { column: '{{ col.name|escapejs }}', type: '{{ col.type|escapejs }}', nullable: {{ col.nullable|yesno:'true,false' }}, default: '{{ col.default|default:''|escapejs }}' }; drawer = 'col-edit'">edit</button>
+                          @click="ctx = { column: '{{ col.name|escapejs }}', type: '{{ col.type|escapejs }}', nullable: {{ col.nullable|yesno:'true,false' }}, default: '{{ col.default|default:''|escapejs }}' }; drawer = 'col-edit'">{% trans "edit" %}</button>
                   <form hx-post="{% url 'column_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                        hx-confirm="Drop column &quot;{{ col.name }}&quot; from {{ schema }}.{{ table }}? This permanently deletes its data.">
+                        hx-confirm="{% blocktrans with col=col.name schema=schema table=table %}Drop column &quot;{{ col }}&quot; from {{ schema }}.{{ table }}? This permanently deletes its data.{% endblocktrans %}">
                     <input type="hidden" name="schema" value="{{ schema }}">
                     <input type="hidden" name="table" value="{{ table }}">
                     <input type="hidden" name="column" value="{{ col.name }}">
-                    <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
+                    <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">{% trans "drop" %}</button>
                   </form>
                 </div>
               </td>
@@ -92,19 +92,19 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
     <div class="flex justify-end gap-1.5">
       <button hx-get="{% url 'index_lab' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
-              title="Try an index and measure it before creating it for real"
-              class="btn btn-sm btn-warn"><span>⚗</span> Try an index</button>
-      <button @click="drawer = 'create-index'" class="btn btn-sm btn-primary">+ Create index</button>
+              title="{% trans 'Try an index and measure it before creating it for real' %}"
+              class="btn btn-sm btn-warn"><span>⚗</span> {% trans "Try an index" %}</button>
+      <button @click="drawer = 'create-index'" class="btn btn-sm btn-primary">{% trans "+ Create index" %}</button>
     </div>
     <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
       {% if indexes %}
         <table class="w-full text-sm">
           <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
             <tr class="border-b border-zinc-800">
-              <th class="px-5 py-2 font-medium">Name</th>
-              <th class="px-5 py-2 font-medium">Columns</th>
-              <th class="px-5 py-2 font-medium">Method</th>
-              <th class="px-5 py-2 font-medium text-right">Size</th>
+              <th class="px-5 py-2 font-medium">{% trans "Name" %}</th>
+              <th class="px-5 py-2 font-medium">{% trans "Columns" %}</th>
+              <th class="px-5 py-2 font-medium">{% trans "Method" %}</th>
+              <th class="px-5 py-2 font-medium text-right">{% trans "Size" %}</th>
               <th class="px-5 py-2 font-medium w-px"></th>
             </tr>
           </thead>
@@ -113,23 +113,23 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
               <tr class="border-b border-zinc-800/60">
                 <td class="px-5 py-2 mono">
                   {{ ix.name }}
-                  {% if ix.primary %}<span class="inline-block text-xs text-amber-300/90 bg-amber-950/50 rounded px-1.5 py-0.5 ml-1">primary</span>
-                  {% elif ix.unique %}<span class="inline-block text-xs text-sky-300/90 bg-sky-950/50 rounded px-1.5 py-0.5 ml-1">unique</span>{% endif %}
-                  {% if not ix.valid %}<span class="inline-block text-xs text-red-300/90 bg-red-950/50 rounded px-1.5 py-0.5 ml-1" title="A concurrent build failed — this index is unusable; drop it.">invalid</span>{% endif %}
+                  {% if ix.primary %}<span class="inline-block text-xs text-amber-300/90 bg-amber-950/50 rounded px-1.5 py-0.5 ml-1">{% trans "primary" %}</span>
+                  {% elif ix.unique %}<span class="inline-block text-xs text-sky-300/90 bg-sky-950/50 rounded px-1.5 py-0.5 ml-1">{% trans "unique" %}</span>{% endif %}
+                  {% if not ix.valid %}<span class="inline-block text-xs text-red-300/90 bg-red-950/50 rounded px-1.5 py-0.5 ml-1" title="{% trans 'A concurrent build failed — this index is unusable; drop it.' %}">{% trans "invalid" %}</span>{% endif %}
                 </td>
                 <td class="px-5 py-2 text-zinc-400 mono truncate max-w-[280px]">{{ ix.columns_text }}</td>
                 <td class="px-5 py-2 text-zinc-400 mono">{{ ix.method }}</td>
                 <td class="px-5 py-2 text-zinc-400 mono text-right">{{ ix.size|default:"—" }}</td>
                 <td class="px-5 py-2 text-right whitespace-nowrap">
                   {% if ix.primary %}
-                    <span class="text-xs text-zinc-400">pk</span>
+                    <span class="text-xs text-zinc-400">{% trans "pk" %}</span>
                   {% else %}
                     <form hx-post="{% url 'index_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                          hx-confirm="Drop index &quot;{{ ix.name }}&quot;?">
+                          hx-confirm="{% blocktrans with name=ix.name %}Drop index &quot;{{ name }}&quot;?{% endblocktrans %}">
                       <input type="hidden" name="schema" value="{{ schema }}">
                       <input type="hidden" name="table" value="{{ table }}">
                       <input type="hidden" name="name" value="{{ ix.name }}">
-                      <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">drop</button>
+                      <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">{% trans "drop" %}</button>
                     </form>
                   {% endif %}
                 </td>
@@ -138,7 +138,7 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
           </tbody>
         </table>
       {% else %}
-        <p class="px-5 py-6 text-center text-zinc-400 text-sm">No indexes on this table yet.</p>
+        <p class="px-5 py-6 text-center text-zinc-400 text-sm">{% trans "No indexes on this table yet." %}</p>
       {% endif %}
     </div>
   </section>
@@ -166,7 +166,7 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
           </table>
         </div>
       {% else %}
-        <p class="px-5 py-8 text-center text-zinc-400 text-sm">This table is empty.</p>
+        <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "This table is empty." %}</p>
       {% endif %}
     </div>
   </section>
@@ -176,26 +176,26 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
     <div class="bg-red-950/20 border border-red-900/50 rounded-xl divide-y divide-red-900/30">
       <div class="px-5 py-3 flex items-center justify-between gap-4">
         <div>
-          <p class="text-sm text-zinc-200">Truncate table</p>
-          <p class="text-xs text-zinc-400">Delete every row. A safety snapshot is taken first.</p>
+          <p class="text-sm text-zinc-200">{% trans "Truncate table" %}</p>
+          <p class="text-xs text-zinc-400">{% trans "Delete every row. A safety snapshot is taken first." %}</p>
         </div>
         <form hx-post="{% url 'table_truncate' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              hx-confirm="Truncate &quot;{{ schema }}.{{ table }}&quot;? This permanently deletes every row.">
+              hx-confirm="{% blocktrans with schema=schema table=table %}Truncate &quot;{{ schema }}.{{ table }}&quot;? This permanently deletes every row.{% endblocktrans %}">
           <input type="hidden" name="schema" value="{{ schema }}">
           <input type="hidden" name="table" value="{{ table }}">
-          <button type="submit" class="btn btn-sm btn-warn">Truncate</button>
+          <button type="submit" class="btn btn-sm btn-warn">{% trans "Truncate" %}</button>
         </form>
       </div>
       <div class="px-5 py-3 flex items-center justify-between gap-4">
         <div>
-          <p class="text-sm text-zinc-200">Drop table</p>
-          <p class="text-xs text-zinc-400">Remove the table and all its data. A safety snapshot is taken first.</p>
+          <p class="text-sm text-zinc-200">{% trans "Drop table" %}</p>
+          <p class="text-xs text-zinc-400">{% trans "Remove the table and all its data. A safety snapshot is taken first." %}</p>
         </div>
         <form hx-post="{% url 'table_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              hx-confirm="Drop table &quot;{{ schema }}.{{ table }}&quot;? This cannot be undone.">
+              hx-confirm="{% blocktrans with schema=schema table=table %}Drop table &quot;{{ schema }}.{{ table }}&quot;? This cannot be undone.{% endblocktrans %}">
           <input type="hidden" name="schema" value="{{ schema }}">
           <input type="hidden" name="table" value="{{ table }}">
-          <button type="submit" class="btn btn-sm btn-danger">Drop table</button>
+          <button type="submit" class="btn btn-sm btn-danger">{% trans "Drop table" %}</button>
         </form>
       </div>
     </div>
@@ -206,8 +206,8 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
   <aside class="drawer" :class="drawer && 'open'" x-cloak>
     <div class="drawer-head">
       <h3 class="font-medium text-sm" x-text="{
-        'rename': 'Rename table', 'add-col': 'Add column',
-        'col-edit': 'Edit column', 'create-index': 'Create index'
+        'rename': '{% trans 'Rename table' %}', 'add-col': '{% trans 'Add column' %}',
+        'col-edit': '{% trans 'Edit column' %}', 'create-index': '{% trans 'Create index' %}'
       }[drawer] || ''"></h3>
       <button @click="drawer = null" class="text-zinc-400 hover:text-zinc-100 text-lg leading-none">&times;</button>
     </div>
@@ -218,9 +218,9 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
             hx-target="#detail" hx-swap="innerHTML" class="space-y-3">
         <input type="hidden" name="schema" value="{{ schema }}">
         <input type="hidden" name="table" value="{{ table }}">
-        <label class="block text-xs uppercase tracking-wide text-zinc-400">New name</label>
+        <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "New name" %}</label>
         <input name="new_name" value="{{ table }}" autocomplete="off" required class="field mono w-full">
-        <button type="submit" class="btn btn-primary w-full justify-center">Rename</button>
+        <button type="submit" class="btn btn-primary w-full justify-center">{% trans "Rename" %}</button>
       </form>
 
       <!-- Add column -->
@@ -230,21 +230,21 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
         <input type="hidden" name="schema" value="{{ schema }}">
         <input type="hidden" name="table" value="{{ table }}">
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Name</label>
-          <input name="name" placeholder="column name" autocomplete="off" required class="field mono w-full">
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">{% trans "Name" %}</label>
+          <input name="name" placeholder="{% trans 'column name' %}" autocomplete="off" required class="field mono w-full">
         </div>
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Type</label>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">{% trans "Type" %}</label>
           <select name="type" class="field mono w-full">
             {% for t in column_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
           </select>
         </div>
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Default <span class="normal-case text-zinc-400">(optional)</span></label>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">{% trans "Default" %} <span class="normal-case text-zinc-400">{% trans "(optional)" %}</span></label>
           <input name="default" placeholder="default" autocomplete="off" class="field mono w-full">
         </div>
-        <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="notnull" class="accent-emerald-400"> not null</label>
-        <button type="submit" class="btn btn-primary w-full justify-center">+ Add column</button>
+        <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="notnull" class="accent-emerald-400"> {% trans "not null" %}</label>
+        <button type="submit" class="btn btn-primary w-full justify-center">{% trans "+ Add column" %}</button>
       </form>
 
       <!-- Edit column: rename / type / nullability / default, each its own ALTER. -->
@@ -255,10 +255,10 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
           <input type="hidden" name="schema" value="{{ schema }}">
           <input type="hidden" name="table" value="{{ table }}">
           <input type="hidden" name="column" :value="ctx.column">
-          <label class="block text-xs uppercase tracking-wide text-zinc-400">Rename to</label>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "Rename to" %}</label>
           <div class="flex gap-2">
             <input name="new_name" :value="ctx.column" autocomplete="off" class="field field-sm mono flex-1">
-            <button type="submit" class="btn btn-sm btn-neutral">Rename</button>
+            <button type="submit" class="btn btn-sm btn-neutral">{% trans "Rename" %}</button>
           </div>
         </form>
 
@@ -267,13 +267,13 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
           <input type="hidden" name="table" value="{{ table }}">
           <input type="hidden" name="column" :value="ctx.column">
           <input type="hidden" name="cur_type" :value="ctx.type">
-          <label class="block text-xs uppercase tracking-wide text-zinc-400">Type</label>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "Type" %}</label>
           <div class="flex gap-2">
             <select name="type" class="field field-sm mono flex-1">
-              <option :value="ctx.type" x-text="ctx.type + ' (current)'"></option>
+              <option :value="ctx.type" x-text="ctx.type + ' {% trans '(current)' %}'"></option>
               {% for t in column_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
             </select>
-            <button type="submit" class="btn btn-sm btn-neutral">Change</button>
+            <button type="submit" class="btn btn-sm btn-neutral">{% trans "Change" %}</button>
           </div>
         </form>
 
@@ -282,19 +282,19 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
           <input type="hidden" name="table" value="{{ table }}">
           <input type="hidden" name="column" :value="ctx.column">
           <input type="hidden" name="nullable" :value="ctx.nullable ? '0' : '1'">
-          <label class="block text-xs uppercase tracking-wide text-zinc-400">Nullability</label>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "Nullability" %}</label>
           <button type="submit" class="btn btn-sm btn-neutral"
-                  x-text="ctx.nullable ? 'set NOT NULL' : 'drop NOT NULL'"></button>
+                  x-text="ctx.nullable ? '{% trans 'set NOT NULL' %}' : '{% trans 'drop NOT NULL' %}'"></button>
         </form>
 
         <form hx-post="{% url 'column_set_default' connection.pk %}" hx-target="#detail" hx-swap="innerHTML" class="space-y-2">
           <input type="hidden" name="schema" value="{{ schema }}">
           <input type="hidden" name="table" value="{{ table }}">
           <input type="hidden" name="column" :value="ctx.column">
-          <label class="block text-xs uppercase tracking-wide text-zinc-400">Default <span class="normal-case text-zinc-400">(empty drops it)</span></label>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "Default" %} <span class="normal-case text-zinc-400">{% trans "(empty drops it)" %}</span></label>
           <div class="flex gap-2">
             <input name="default" :value="ctx.default" placeholder="(none)" autocomplete="off" class="field field-sm mono flex-1">
-            <button type="submit" class="btn btn-sm btn-neutral">Set</button>
+            <button type="submit" class="btn btn-sm btn-neutral">{% trans "Set" %}</button>
           </div>
         </form>
       </div>
@@ -310,7 +310,7 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
         <input type="hidden" name="schema" value="{{ schema }}">
         <input type="hidden" name="table" value="{{ table }}">
         <template x-for="c in picked" :key="c"><input type="hidden" name="columns" :value="c"></template>
-        <p class="text-xs text-zinc-400">Click columns in the order you want them indexed.</p>
+        <p class="text-xs text-zinc-400">{% trans "Click columns in the order you want them indexed." %}</p>
         <div class="flex flex-wrap gap-1.5">
           {% for col in columns %}
             <button type="button" @click="toggle('{{ col.name|escapejs }}')"
@@ -323,18 +323,18 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
           {% endfor %}
         </div>
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Name <span class="normal-case text-zinc-400">(optional)</span></label>
-          <input name="name" placeholder="index name" autocomplete="off" class="field mono w-full">
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">{% trans "Name" %} <span class="normal-case text-zinc-400">{% trans "(optional)" %}</span></label>
+          <input name="name" placeholder="{% trans 'index name' %}" autocomplete="off" class="field mono w-full">
         </div>
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">Method</label>
+          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">{% trans "Method" %}</label>
           <select name="method" class="field mono w-full">
             {% for m in index_methods %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
           </select>
         </div>
-        <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="unique" class="accent-emerald-400"> unique</label>
-        <button type="submit" :disabled="picked.length === 0" class="btn btn-primary w-full justify-center">+ Create index</button>
-        <p class="text-xs text-zinc-400 text-center">built CONCURRENTLY</p>
+        <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="unique" class="accent-emerald-400"> {% trans "unique" %}</label>
+        <button type="submit" :disabled="picked.length === 0" class="btn btn-primary w-full justify-center">{% trans "+ Create index" %}</button>
+        <p class="text-xs text-zinc-400 text-center">{% trans "built CONCURRENTLY" %}</p>
       </form>
 
     </div>

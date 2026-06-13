@@ -1,5 +1,5 @@
-<!DOCTYPE html>
-<html lang="en" class="dark">
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" class="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -141,7 +141,15 @@
       <a href="/" class="text-lg font-semibold tracking-tight">
         cli<span class="text-emerald-400">2</span>ui
       </a>
-      <span class="text-zinc-400 text-sm hidden sm:inline">CLI database ops, as buttons.</span>
+      <span class="text-zinc-400 text-sm hidden sm:inline">{% trans "CLI database ops, as buttons." %}</span>
+      <form action="{% url 'set_language' %}" method="post" class="ml-auto flex items-center gap-1">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <button type="submit" name="language" value="en"
+                class="topnav-btn {% if LANGUAGE_CODE == 'en' %}topnav-btn-on{% endif %}">EN</button>
+        <button type="submit" name="language" value="ja"
+                class="topnav-btn {% if LANGUAGE_CODE == 'ja' %}topnav-btn-on{% endif %}">JP</button>
+      </form>
     </div>
     {% block topnav %}{% endblock %}
   </header>

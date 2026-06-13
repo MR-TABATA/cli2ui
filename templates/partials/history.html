@@ -1,18 +1,18 @@
-<div class="space-y-4">
+{% load i18n %}<div class="space-y-4">
   <div class="flex flex-wrap items-start justify-between gap-3">
     <div>
-      <h2 class="text-lg font-semibold flex items-center gap-2"><span>≡</span> History</h2>
-      <p class="text-xs text-zinc-400">SQL you've run through the runner, newest first</p>
+      <h2 class="text-lg font-semibold flex items-center gap-2"><span>≡</span> {% trans "History" %}</h2>
+      <p class="text-xs text-zinc-400">{% trans "SQL you've run through the runner, newest first" %}</p>
     </div>
     <div class="flex items-center gap-2">
       <button hx-get="{% url 'history' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               class="text-xs text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1.5
-                     hover:border-zinc-600 transition">↻ Refresh</button>
+                     hover:border-zinc-600 transition">{% trans "↻ Refresh" %}</button>
       {% if commands %}
         <button hx-post="{% url 'history_clear' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                hx-confirm="Delete the command history for this connection?"
+                hx-confirm="{% trans 'Delete the command history for this connection?' %}"
                 class="text-xs text-red-400 border border-red-900/60 rounded-lg px-3 py-1.5
-                       hover:border-red-700 transition">Clear</button>
+                       hover:border-red-700 transition">{% trans "Clear" %}</button>
       {% endif %}
     </div>
   </div>
@@ -22,28 +22,28 @@
       <table class="w-full text-sm table-fixed">
         <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
           <tr class="border-b border-zinc-800">
-            <th class="px-4 py-2 font-medium w-16">When</th>
-            <th class="px-4 py-2 font-medium w-20">Mode</th>
-            <th class="px-4 py-2 font-medium">Statement</th>
-            <th class="px-4 py-2 font-medium text-right w-24">Result</th>
-            <th class="px-4 py-2 font-medium text-right w-20">Open</th>
+            <th class="px-4 py-2 font-medium w-16">{% trans "When" %}</th>
+            <th class="px-4 py-2 font-medium w-20">{% trans "Mode" %}</th>
+            <th class="px-4 py-2 font-medium">{% trans "Statement" %}</th>
+            <th class="px-4 py-2 font-medium text-right w-24">{% trans "Result" %}</th>
+            <th class="px-4 py-2 font-medium text-right w-20">{% trans "Open" %}</th>
           </tr>
         </thead>
         <tbody>
           {% for c in commands %}
             <tr class="border-b border-zinc-800/60 align-top hover:bg-zinc-800/30">
-              <td class="px-4 py-2 text-xs text-zinc-400 whitespace-nowrap">{{ c.created_at|timesince }} ago</td>
+              <td class="px-4 py-2 text-xs text-zinc-400 whitespace-nowrap">{% blocktrans with t=c.created_at|timesince %}{{ t }} ago{% endblocktrans %}</td>
               <td class="px-4 py-2">
                 {% if c.read_only %}
-                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">read</span>
+                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">{% trans "read" %}</span>
                 {% else %}
-                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-amber-950/50 text-amber-400 border border-amber-900/60">write</span>
+                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-amber-950/50 text-amber-400 border border-amber-900/60">{% trans "write" %}</span>
                 {% endif %}
               </td>
               <td class="px-4 py-2 mono text-xs text-zinc-300 truncate" title="{{ c.sql }}">{{ c.sql }}</td>
               <td class="px-4 py-2 text-right whitespace-nowrap">
                 {% if c.status == 'error' %}
-                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-red-950/50 text-red-400 border border-red-900/60" title="{{ c.error }}">error</span>
+                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-red-950/50 text-red-400 border border-red-900/60" title="{{ c.error }}">{% trans "error" %}</span>
                 {% else %}
                   <span class="mono text-xs text-zinc-400">{{ c.rowcount }}r · {{ c.duration_ms }}ms</span>
                 {% endif %}
@@ -51,20 +51,20 @@
               <td class="px-4 py-2 text-right whitespace-nowrap">
                 <button hx-get="{% url 'query' connection.pk %}?sql={{ c.sql|urlencode }}"
                         hx-target="#detail" hx-swap="innerHTML"
-                        class="text-xs text-emerald-400 hover:text-emerald-300 underline">open →</button>
+                        class="text-xs text-emerald-400 hover:text-emerald-300 underline">{% trans "open →" %}</button>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
       <div class="px-4 py-2 border-t border-zinc-800 text-xs text-zinc-400">
-        {{ commands|length }} command{{ commands|length|pluralize }} shown (most recent 200)
+        {% blocktrans count n=commands|length %}{{ n }} command shown (most recent 200){% plural %}{{ n }} commands shown (most recent 200){% endblocktrans %}
       </div>
     </div>
   {% else %}
     <div class="border border-dashed border-zinc-800 rounded-xl py-12 px-6 text-center">
-      <p class="text-zinc-300 font-medium">No commands yet</p>
-      <p class="text-zinc-400 text-sm mt-1">Run something in the SQL panel and it'll show up here.</p>
+      <p class="text-zinc-300 font-medium">{% trans "No commands yet" %}</p>
+      <p class="text-zinc-400 text-sm mt-1">{% trans "Run something in the SQL panel and it'll show up here." %}</p>
     </div>
   {% endif %}
 </div>

@@ -1,5 +1,6 @@
 """Live operations panels: activity, locks/blocking, replication and health."""
 from django.shortcuts import get_object_or_404, render
+from django.utils.translation import gettext as _
 
 from ..engines import EngineError, get_engine
 from ..models import Connection
@@ -145,7 +146,7 @@ def slot_create(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     name = (request.POST.get("name") or "").strip()
     if not name:
-        return _render_replication(request, connection, error="Slot name is required.")
+        return _render_replication(request, connection, error=_("Slot name is required."))
     try:
         get_engine(connection).create_replication_slot(name)
     except EngineError as exc:
@@ -158,7 +159,7 @@ def slot_drop(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     name = (request.POST.get("name") or "").strip()
     if not name:
-        return _render_replication(request, connection, error="Slot name is required.")
+        return _render_replication(request, connection, error=_("Slot name is required."))
     try:
         get_engine(connection).drop_replication_slot(name)
     except EngineError as exc:

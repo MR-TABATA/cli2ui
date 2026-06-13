@@ -1,8 +1,11 @@
-from django.urls import path
+from django.urls import include, path
 
 from core import views
 
 urlpatterns = [
+    # Exposes set_language, which the header JP/EN toggle POSTs to. It records the
+    # choice in a cookie (no session needed) and redirects back to `next`.
+    path("i18n/", include("django.conf.urls.i18n")),
     path("", views.index, name="index"),
     path("connect", views.connect, name="connect"),
     path("c/<int:pk>/", views.workspace, name="workspace"),
