@@ -84,45 +84,62 @@ def _overview_summary(connection):
     """At-a-glance operational stats for the bento overview. Each group is
     guarded on its own so one failing probe (or a locked-down DB) degrades that
     card to '—' rather than breaking the whole home page. Returns a dict whose
-    values are None when their probe failed."""
+    values are None when their probe failed.
+
+    All probes run over one shared connection (engine.session()) instead of
+    reconnecting per probe. The per-probe guard is broad on purpose: a probe
+    can fail with a raw driver error (e.g. permission denied on
+    pg_stat_replication), not just EngineError, and that must still degrade
+    only its own card."""
     engine = get_engine(connection)
     s = {"tables": None, "activity": None, "health": None,
          "objects": None, "replication": None}
-    try:
-        tables = engine.list_tables()
-        s["tables"] = {"count": len(tables), "rows": sum(t.rows for t in tables)}
-    except EngineError:
-        pass
-    try:
+
+    def _tables():
+        ts = engine.list_tables()
+        return {"count": len(ts), "rows": sum(t.rows for t in ts)}
+
+    def _activity():
         acts = [a for a in engine.list_activity() if not a.is_self]
-        s["activity"] = {
+        return {
             "sessions": len(acts),
             "active": sum(1 for a in acts if a.state == "active"),
             "blocked": sum(1 for a in acts if a.blocked),
         }
-    except EngineError:
-        pass
-    try:
+
+    def _health():
         sizes = engine.table_sizes(limit=1)
-        s["health"] = {
+        return {
             "largest": sizes[0] if sizes else None,
             "unused": len(engine.unused_indexes()),
             "dead": sum(v.dead for v in engine.vacuum_stats()),
         }
-    except EngineError:
-        pass
-    try:
-        s["objects"] = {
+
+    def _objects():
+        return {
             "databases": len(engine.list_databases()),
             "schemas": len(engine.list_schemas()),
             "roles": len(engine.list_roles()),
         }
-    except EngineError:
-        pass
+
+    def _probe(key, fn):
+        # Broad on purpose: a probe can fail with a raw driver error (e.g.
+        # permission denied on pg_stat_replication), not just EngineError, and
+        # that must degrade only its own card — never the whole page.
+        try:
+            s[key] = fn()
+        except Exception:  # noqa: BLE001  # nosec B110 — best-effort card; see comment above
+            pass
+
     try:
-        s["replication"] = engine.replication_status()
+        with engine.session():
+            _probe("tables", _tables)
+            _probe("activity", _activity)
+            _probe("health", _health)
+            _probe("objects", _objects)
+            _probe("replication", engine.replication_status)
     except EngineError:
-        pass
+        pass  # couldn't even connect — every card stays '—'
     return s
 
 

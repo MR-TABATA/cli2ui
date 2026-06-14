@@ -9,6 +9,7 @@ the sample DB (see project notes); here we test the machinery it feeds.
 import contextlib
 import os
 import unittest
+import unittest.mock
 from types import SimpleNamespace
 
 import psycopg2
@@ -19,6 +20,7 @@ from core.engines.base import Activity, Index, PlanNode, Setting, Table
 from core.engines.postgres import (
     HYPO_INDEX_NAME,
     INDEX_METHODS,
+    PostgresEngine,
     _clean,
     _parse_plan,
     _relation_names,
@@ -274,6 +276,50 @@ class BuildCreateIndexSqlValidationTests(SimpleTestCase):
     def test_no_columns_rejected(self):
         with self.assertRaises(EngineError):
             build_create_index_sql("public", "t", [])
+
+
+class SessionConnectionReuseTests(SimpleTestCase):
+    """session() must collapse many default-database probes onto one connection
+    (the workspace overview's reason for existing), while still letting a
+    different-dbname call open its own. No live DB — psycopg2.connect is mocked."""
+
+    def _engine(self):
+        conn = Connection(kind="postgres", host="h", port=5432,
+                          dbname="d", user="u", password="p")
+        return PostgresEngine(conn)
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_session_reuses_one_connection_and_closes_it_once(self, connect):
+        engine = self._engine()
+        with engine.session():
+            with engine._connect() as a:
+                pass
+            with engine._connect() as b:
+                pass
+        self.assertIs(a, b)
+        self.assertEqual(connect.call_count, 1)
+        connect.return_value.close.assert_called_once()
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_without_session_each_connect_dials_fresh(self, connect):
+        connect.side_effect = [unittest.mock.MagicMock(), unittest.mock.MagicMock()]
+        engine = self._engine()
+        with engine._connect():
+            pass
+        with engine._connect():
+            pass
+        self.assertEqual(connect.call_count, 2)
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_session_routes_other_dbname_to_its_own_connection(self, connect):
+        held, other = unittest.mock.MagicMock(), unittest.mock.MagicMock()
+        connect.side_effect = [held, other]
+        engine = self._engine()
+        with engine.session():
+            with engine._connect(dbname="postgres") as c:
+                pass
+        self.assertIs(c, other)
+        self.assertEqual(connect.call_count, 2)
 
 
 class IndexColumnsTextTests(SimpleTestCase):

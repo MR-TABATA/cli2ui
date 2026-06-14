@@ -127,8 +127,19 @@ def build_create_index_sql(schema, table, columns, *, method="btree",
 
 
 class PostgresEngine(Engine):
+    # When inside session(), the one open connection for the default database;
+    # otherwise None and every _connect() dials its own.
+    _held = None
+
     @contextlib.contextmanager
     def _connect(self, dbname=None):
+        # Inside session() reuse the single held connection for the default
+        # database, so a caller firing many small probes (the workspace
+        # overview) pays one connect instead of one per probe. A call to a
+        # *different* dbname (admin ops) always opens its own.
+        if dbname is None and self._held is not None:
+            yield self._held
+            return
         c = self.connection
         try:
             conn = psycopg2.connect(
@@ -147,6 +158,20 @@ class PostgresEngine(Engine):
             yield conn
         finally:
             conn.close()
+
+    @contextlib.contextmanager
+    def session(self):
+        """Open one connection and reuse it for every default-database query in
+        the block — the workspace overview fires ~10 read-only probes and would
+        otherwise connect ~10 times. Each probe runs on its own autocommit
+        statement, so one failing probe doesn't poison the rest. Do not call
+        methods that flip autocommit (run_query / explain) inside a session."""
+        with self._connect() as conn:
+            self._held = conn
+            try:
+                yield self
+            finally:
+                self._held = None
 
     def test(self) -> None:
         with self._connect() as conn:
