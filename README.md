@@ -4,6 +4,10 @@
 keep half-remembering. No AI, no magic — just `psql`/`mysql` operations turned
 into clicks, running fully on your machine.
 
+> ⚠️ **Local-only by design.** cli2ui has no authentication and binds to your
+> machine. Run it on localhost or inside a trusted network — never expose it to
+> the public internet. See [SECURITY.md](SECURITY.md).
+
 ```
 psql -c "SELECT * FROM pg_stat_activity"   →  one "running queries" button
 pg_dump -t users mydb                       →  one "back up this table" button
