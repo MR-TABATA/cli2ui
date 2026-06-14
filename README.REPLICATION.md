@@ -1,5 +1,7 @@
 # Trying replication locally
 
+> 日本語: **[README.REPLICATION.ja.md](README.REPLICATION.ja.md)**
+
 The **Replication** panel in cli2ui reads `pg_stat_replication` /
 `pg_replication_slots`, so its **Standbys** table stays empty until a replica is
 actually attached. The panel still works against a single database (it shows the
