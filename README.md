@@ -1,7 +1,7 @@
 # cli2ui
 
 **CLI database ops, as buttons.** A web UI over the database CLI commands you
-keep half-remembering. No AI, no magic — just `psql`/`mysql` operations turned
+keep half-remembering. No AI, no magic — just `psql` operations turned
 into clicks, running fully on your machine.
 
 > ⚠️ **Local-only by design.** cli2ui has no authentication and binds to your
