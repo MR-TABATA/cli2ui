@@ -41,12 +41,25 @@ a bundled sample database — just hit **Connect** and you'll see its tables.
 To point at your own PostgreSQL, change the form fields (host, port, db, user,
 password) and connect.
 
+> **Port 8000 already taken?** It's a common default, so a clash is likely. Just
+> remap the *host* side in `docker-compose.yml` — `"8000:8000"` → `"8001:8000"`
+> (any free port works) — and open that port instead. Only the number on the
+> left changes; the app keeps listening on 8000 *inside* the container.
+
 ## Connecting to a database in another container
 
 cli2ui runs in its own container, so "localhost" in the connection form means
 *the cli2ui container*, not your machine. Your database almost always lives
 somewhere else — another container, another compose project, or a native
-install. Three ways to reach it (no code changes, just how you fill the form):
+install.
+
+> **New to Docker networking?** Don't guess — **[README.NETWORKING.md](README.NETWORKING.md)**
+> walks through *why* `localhost` fails and gives a copy-paste fix for every
+> setup (native DB, another compose project, a published port), with diagrams
+> and a full worked example.
+
+The short version — three ways to reach it (no code changes, just how you fill
+the form):
 
 1. **Via the host (simplest).** If the database publishes a port on your machine
    (e.g. `-p 5432:5432`), set the connection **host** to `host.docker.internal`
