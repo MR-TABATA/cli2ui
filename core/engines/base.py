@@ -254,6 +254,30 @@ class ReplicationSlot:
 
 
 @dataclass
+class ReplicationRecipe:
+    """A copy-paste walkthrough for attaching a physical standby to this server,
+    with the current connection + server values already filled in. Pure string
+    assembly — no commands are run; the user copies and runs them themselves."""
+
+    primary_host: str
+    primary_port: int
+    primary_user: str
+    slot_name: str                 # an existing physical slot, or a suggested name
+    slot_exists: bool              # True if slot_name already exists on the server
+    # (param, recommended value) the primary still needs to accept a standby;
+    # empty when it's already ready. Each needs a restart (postmaster context).
+    conf_changes: list[tuple[str, str]]
+    create_slot_sql: str           # SELECT pg_create_physical_replication_slot('…');
+    basebackup_cmd: str            # pg_basebackup … -R -X stream --slot=…
+    primary_conninfo: str          # what `pg_basebackup -R` writes into the standby
+    standby_datadir: str           # placeholder path for the new standby's data dir
+
+    @property
+    def ready(self) -> bool:
+        return not self.conf_changes
+
+
+@dataclass
 class Setting:
     """One server configuration parameter (a row of pg_settings)."""
 
@@ -478,6 +502,11 @@ class Engine:
 
     def drop_replication_slot(self, name: str) -> None:
         """Drop a slot, freeing the WAL it pinned. `pg_drop_replication_slot`."""
+        raise NotImplementedError
+
+    def replication_recipe(self, status, slots) -> ReplicationRecipe:
+        """Build the copy-paste standby-setup walkthrough from the already-fetched
+        status + slots (no extra round trip), with current values filled in."""
         raise NotImplementedError
 
     # --- catalog browsing (psql backslash commands) ------------------------

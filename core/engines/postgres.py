@@ -27,6 +27,7 @@ from .base import (
     PlanNode,
     Preview,
     QueryResult,
+    ReplicationRecipe,
     ReplicationSlot,
     ReplicationStatus,
     Role,
@@ -432,6 +433,45 @@ class PostgresEngine(Engine):
 
     def drop_replication_slot(self, name: str) -> None:
         self._call("pg_drop_replication_slot", name)
+
+    def replication_recipe(self, status, slots) -> ReplicationRecipe:
+        c = self.connection
+        # What the primary still needs to accept a physical standby. Order
+        # matters for readability; each is a postmaster (restart) setting.
+        conf = []
+        if status.wal_level == "minimal":
+            conf.append(("wal_level", "replica"))
+        if status.max_wal_senders == 0:
+            conf.append(("max_wal_senders", "10"))
+        if status.max_replication_slots == 0:
+            conf.append(("max_replication_slots", "10"))
+        if status.hot_standby == "off":
+            conf.append(("hot_standby", "on"))
+
+        # Reuse an existing physical slot if there's one; otherwise suggest a name.
+        physical = [s for s in slots if s.slot_type == "physical"]
+        if physical:
+            slot_name, slot_exists = physical[0].name, True
+        else:
+            slot_name, slot_exists = "standby_1", False
+
+        datadir = "/path/to/standby/datadir"
+        # primary_conninfo carries no password — the standby should use .pgpass or
+        # PGPASSWORD so the secret never lands in a config file.
+        conninfo = f"host={c.host} port={c.port} user={c.user}"
+        basebackup = (
+            f"pg_basebackup -h {c.host} -p {c.port} -U {c.user} "
+            f"-D {datadir} -R -X stream --slot={slot_name}"
+        )
+        create_slot_sql = (
+            f"SELECT pg_create_physical_replication_slot('{slot_name}');"
+        )
+        return ReplicationRecipe(
+            primary_host=c.host, primary_port=c.port, primary_user=c.user,
+            slot_name=slot_name, slot_exists=slot_exists, conf_changes=conf,
+            create_slot_sql=create_slot_sql, basebackup_cmd=basebackup,
+            primary_conninfo=conninfo, standby_datadir=datadir,
+        )
 
     def _call(self, fn: str, *args) -> None:
         """Run SELECT fn(%s, …) for a side-effecting function, mapping driver

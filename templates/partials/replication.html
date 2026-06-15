@@ -43,6 +43,75 @@
     </div>
   </section>
 
+  <!-- Setup recipe: copy-paste steps to attach a standby, current values filled in. -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden" x-data="{ open: false }">
+    <button @click="open = !open"
+            class="w-full px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3 text-left hover:bg-zinc-900/40 transition">
+      <span class="text-xs uppercase tracking-wide text-zinc-400">{% trans "Set up a standby" %}
+        <span class="mono lowercase text-zinc-500">{% trans "recipe with your values filled in" %}</span></span>
+      <span class="text-zinc-500 text-xs" x-text="open ? '▾' : '▸'">▸</span>
+    </button>
+    <div x-show="open" x-cloak class="px-5 py-4 space-y-5 text-sm">
+
+      <!-- Step 1: make the primary ready -->
+      <div>
+        <div class="text-zinc-300 font-medium mb-1.5">{% trans "1 · Make the primary ready" %}</div>
+        {% if recipe.ready %}
+          <p class="text-emerald-400 text-xs">{% trans "✓ Already configured to accept a standby." %}</p>
+        {% else %}
+          <p class="text-zinc-400 text-xs mb-2">{% trans "Set these on the primary, then restart it (each needs a full restart):" %}</p>
+          <div class="rounded-lg border border-zinc-800 bg-zinc-950/60 divide-y divide-zinc-800/60">
+            {% for param, val in recipe.conf_changes %}
+              <div class="px-3 py-1.5 flex items-center justify-between gap-3 mono text-xs">
+                <span class="text-zinc-300">{{ param }}</span>
+                <span class="text-emerald-300">{{ val }}</span>
+              </div>
+            {% endfor %}
+          </div>
+          <button hx-get="{% url 'settings' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+                  class="mt-2 text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1 hover:border-zinc-600 transition">{% trans "edit in settings →" %}</button>
+        {% endif %}
+      </div>
+
+      <!-- Step 2: a replication slot -->
+      <div>
+        <div class="text-zinc-300 font-medium mb-1.5">{% trans "2 · Create a replication slot" %}</div>
+        {% if recipe.slot_exists %}
+          <p class="text-xs text-zinc-400">{% blocktrans with name=recipe.slot_name %}Reusing the existing physical slot <span class="mono text-zinc-300">{{ name }}</span>.{% endblocktrans %}</p>
+        {% else %}
+          <p class="text-xs text-zinc-400 mb-2">{% blocktrans with name=recipe.slot_name %}No physical slot yet — create <span class="mono text-zinc-300">{{ name }}</span> (so the primary keeps WAL for the standby):{% endblocktrans %}</p>
+          <div x-data="{ copied: false }" class="relative">
+            <pre x-ref="s2" class="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 pr-16 mono text-xs text-zinc-200 overflow-x-auto">{{ recipe.create_slot_sql }}</pre>
+            <button @click="navigator.clipboard.writeText($refs.s2.textContent.trim()); copied=true; setTimeout(()=>copied=false,1500)"
+                    class="absolute top-1.5 right-1.5 text-[11px] text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 bg-zinc-900 hover:border-zinc-600 transition"
+                    x-text="copied ? '{% trans "copied" %}' : '{% trans "copy" %}'">{% trans "copy" %}</button>
+          </div>
+          <button hx-post="{% url 'slot_create' connection.pk %}" hx-vals='{"name": "{{ recipe.slot_name }}"}'
+                  hx-target="#detail" hx-swap="innerHTML"
+                  class="mt-2 text-xs text-emerald-400 border border-emerald-900/60 bg-emerald-950/40 rounded-lg px-3 py-1 hover:border-emerald-700 transition">{% blocktrans with name=recipe.slot_name %}+ Create {{ name }} now{% endblocktrans %}</button>
+        {% endif %}
+      </div>
+
+      <!-- Step 3: pg_basebackup on the standby host -->
+      <div>
+        <div class="text-zinc-300 font-medium mb-1.5">{% trans "3 · Clone to the standby host" %}</div>
+        <p class="text-xs text-zinc-400 mb-2">{% trans "Run this on the new standby (an empty data dir). -R writes its standby config for you:" %}</p>
+        <div x-data="{ copied: false }" class="relative">
+          <pre x-ref="s3" class="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 pr-16 mono text-xs text-zinc-200 overflow-x-auto whitespace-pre-wrap break-all">{{ recipe.basebackup_cmd }}</pre>
+          <button @click="navigator.clipboard.writeText($refs.s3.textContent.trim()); copied=true; setTimeout(()=>copied=false,1500)"
+                  class="absolute top-1.5 right-1.5 text-[11px] text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 bg-zinc-900 hover:border-zinc-600 transition"
+                  x-text="copied ? '{% trans "copied" %}' : '{% trans "copy" %}'">{% trans "copy" %}</button>
+        </div>
+        <p class="mt-2 text-xs text-zinc-500">{% trans "primary_conninfo it will write:" %}
+          <span class="mono text-zinc-400">{{ recipe.primary_conninfo }}</span></p>
+      </div>
+
+      <p class="text-[11px] text-amber-400/80 border-t border-zinc-800 pt-3">
+        {% blocktrans with host=recipe.primary_host port=recipe.primary_port %}⚠ The standby must be able to reach <span class="mono">{{ host }}:{{ port }}</span> over the network, and authenticate — set the password via <span class="mono">PGPASSWORD</span> or <span class="mono">~/.pgpass</span> (never in the config). This is a starting point; see your platform's docs for production (TLS, auth).{% endblocktrans %}
+      </p>
+    </div>
+  </section>
+
   <!-- Connected standbys: pg_stat_replication. Empty unless a replica is attached. -->
   <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
     <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
