@@ -173,13 +173,14 @@ def _render_replication(request, connection, error=None):
         status = engine.replication_status()
         standbys = engine.list_standbys()
         slots = engine.list_replication_slots()
+        recipe = engine.replication_recipe(status, slots)
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
     return render(
         request,
         "partials/replication.html",
         {"connection": connection, "status": status, "standbys": standbys,
-         "slots": slots, "standbys_sql": STANDBYS_SHOW_SQL,
+         "slots": slots, "recipe": recipe, "standbys_sql": STANDBYS_SHOW_SQL,
          "slots_sql": SLOTS_SHOW_SQL, "error": error},
     )
 

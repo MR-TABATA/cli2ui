@@ -370,6 +370,68 @@ class BackupRetentionTests(TestCase):
         self.assertTrue(Backup.objects.filter(pk=b_backup.pk).exists())
 
 
+class ReplicationRecipeTests(SimpleTestCase):
+    """The standby-setup recipe builder: pure string assembly from the live
+    status + slots + the saved connection. No DB."""
+
+    def _engine(self, host="db.example", port=5432, user="repl"):
+        conn = Connection(kind="postgres", host=host, port=port, dbname="d", user=user)
+        return PostgresEngine(conn)
+
+    def _status(self, **kw):
+        base = dict(wal_level="replica", max_wal_senders=10, max_replication_slots=10,
+                    hot_standby="on", archive_mode="off", current_lsn="0/0",
+                    is_standby=False)
+        base.update(kw)
+        return SimpleNamespace(**base)
+
+    def test_unready_primary_lists_each_conf_change(self):
+        r = self._engine().replication_recipe(
+            self._status(wal_level="minimal", max_wal_senders=0,
+                         max_replication_slots=0, hot_standby="off"), [])
+        self.assertFalse(r.ready)
+        self.assertEqual(r.conf_changes, [
+            ("wal_level", "replica"), ("max_wal_senders", "10"),
+            ("max_replication_slots", "10"), ("hot_standby", "on")])
+
+    def test_ready_primary_has_no_conf_changes(self):
+        r = self._engine().replication_recipe(self._status(), [])
+        self.assertTrue(r.ready)
+        self.assertEqual(r.conf_changes, [])
+
+    def test_fills_connection_values_into_commands(self):
+        r = self._engine(host="pg.internal", port=5544, user="replica_user")\
+            .replication_recipe(self._status(), [])
+        self.assertIn("-h pg.internal", r.basebackup_cmd)
+        self.assertIn("-p 5544", r.basebackup_cmd)
+        self.assertIn("-U replica_user", r.basebackup_cmd)
+        self.assertIn("--slot=standby_1", r.basebackup_cmd)
+        self.assertEqual(r.primary_conninfo,
+                         "host=pg.internal port=5544 user=replica_user")
+
+    def test_reuses_an_existing_physical_slot(self):
+        slots = [SimpleNamespace(slot_type="logical", name="log1"),
+                 SimpleNamespace(slot_type="physical", name="my_slot")]
+        r = self._engine().replication_recipe(self._status(), slots)
+        self.assertTrue(r.slot_exists)
+        self.assertEqual(r.slot_name, "my_slot")
+        self.assertIn("--slot=my_slot", r.basebackup_cmd)
+
+    def test_suggests_a_slot_when_none_exists(self):
+        r = self._engine().replication_recipe(self._status(), [])
+        self.assertFalse(r.slot_exists)
+        self.assertEqual(r.slot_name, "standby_1")
+        self.assertIn("standby_1", r.create_slot_sql)
+
+    def test_never_embeds_the_password(self):
+        eng = self._engine()
+        eng.connection.password = "s3cret"
+        r = eng.replication_recipe(self._status(), [])
+        self.assertNotIn("s3cret", r.basebackup_cmd)
+        self.assertNotIn("s3cret", r.primary_conninfo)
+        self.assertNotIn("password", r.primary_conninfo.lower())
+
+
 class IndexColumnsTextTests(SimpleTestCase):
     def _ix(self, definition):
         return Index(name="i", method="btree", unique=False, primary=False,

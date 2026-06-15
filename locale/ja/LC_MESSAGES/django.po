@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-13 07:41-0500\n"
+"POT-Creation-Date: 2026-06-15 06:12-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,39 +22,39 @@ msgstr ""
 msgid "Unsupported database kind: %(kind)s"
 msgstr "未対応のデータベース種別: %(kind)s"
 
-#: core/engines/postgres.py:110
+#: core/engines/postgres.py:111
 #, python-format
 msgid "Unsupported index method: %(method)s"
 msgstr "未対応のインデックス方式: %(method)s"
 
-#: core/engines/postgres.py:112 core/views/tables.py:87
+#: core/engines/postgres.py:113 core/views/tables.py:87
 msgid "Select at least one column to index."
 msgstr "インデックス対象の列を1つ以上選んでください。"
 
-#: core/engines/postgres.py:599 core/engines/postgres.py:821
+#: core/engines/postgres.py:664 core/engines/postgres.py:886
 #, python-format
 msgid "No such column(s): %(cols)s"
 msgstr "存在しない列: %(cols)s"
 
-#: core/engines/postgres.py:698
+#: core/engines/postgres.py:763
 #, python-format
 msgid "No such column: %(name)s"
 msgstr "存在しない列: %(name)s"
 
-#: core/engines/postgres.py:722
+#: core/engines/postgres.py:787
 #, python-format
 msgid "Unknown dump format: %(fmt)s"
 msgstr "不明なダンプ形式: %(fmt)s"
 
-#: core/engines/postgres.py:740
+#: core/engines/postgres.py:805
 msgid "pg_dump timed out."
 msgstr "pg_dump がタイムアウトしました。"
 
-#: core/engines/postgres.py:804
+#: core/engines/postgres.py:869
 msgid "restore timed out."
 msgstr "リストアがタイムアウトしました。"
 
-#: core/engines/postgres.py:965
+#: core/engines/postgres.py:1030
 #, python-format
 msgid "Unknown setting: %(name)s"
 msgstr "不明な設定: %(name)s"
@@ -69,7 +69,7 @@ msgstr "⚠ バックアップは取得されませんでした — スナップ
 msgid "⚠ No backup taken — %(target)s is %(size)s, over the %(limit)s limit."
 msgstr "⚠ バックアップは取得されませんでした — %(target)s は %(size)s で、上限 %(limit)s を超えています。"
 
-#: core/views/_shared.py:35
+#: core/views/_shared.py:39
 #, python-format
 msgid "Backup saved before %(op)s — recover it from Backups."
 msgstr "%(op)s の前にバックアップを保存しました — Backups から復元できます。"
@@ -168,7 +168,7 @@ msgstr "初期値は同梱のサンプルDBを指しています。"
 
 #: templates/index.html:16 templates/partials/detail.html:58
 #: templates/partials/detail.html:238 templates/partials/detail.html:271
-#: templates/partials/replication.html:101
+#: templates/partials/replication.html:170
 msgid "Type"
 msgstr "種別"
 
@@ -178,7 +178,8 @@ msgstr "種別"
 #: templates/partials/objects.html:91 templates/partials/objects.html:180
 #: templates/partials/objects.html:248 templates/partials/objects.html:259
 #: templates/partials/objects.html:275 templates/partials/objects.html:296
-#: templates/partials/replication.html:100 templates/partials/snapshots.html:33
+#: templates/partials/replication.html:169
+#: templates/partials/snapshots.html:33
 msgid "Name"
 msgstr "名前"
 
@@ -335,7 +336,7 @@ msgstr "— 実行中クエリと接続"
 msgid "↻ Refresh"
 msgstr "↻ 更新"
 
-#: templates/partials/activity.html:24 templates/partials/replication.html:63
+#: templates/partials/activity.html:24 templates/partials/replication.html:132
 msgid "State"
 msgstr "状態"
 
@@ -347,11 +348,11 @@ msgstr "実行時間"
 msgid "Query"
 msgstr "クエリ"
 
-#: templates/partials/activity.html:27 templates/partials/replication.html:104
+#: templates/partials/activity.html:27 templates/partials/replication.html:173
 msgid "Actions"
 msgstr "操作"
 
-#: templates/partials/activity.html:37 templates/partials/replication.html:114
+#: templates/partials/activity.html:37 templates/partials/replication.html:183
 msgid "active"
 msgstr "実行中"
 
@@ -393,10 +394,19 @@ msgstr "強制終了"
 
 #: templates/partials/activity.html:72
 #, python-format
-msgid "%(n)s client session · <span class=\"text-amber-400/80\">cancel</span> stops the query, <span class=\"text-red-400/80\">kill</span> drops the connection"
-msgid_plural "%(n)s client sessions · <span class=\"text-amber-400/80\">cancel</span> stops the query, <span class=\"text-red-400/80\">kill</span> drops the connection"
-msgstr[0] "%(n)s 件のクライアントセッション · <span class=\"text-amber-400/80\">cancel</span> はクエリを停止、<span class=\"text-red-400/80\">kill</span> は接続を切断します"
-msgstr[1] "%(n)s 件のクライアントセッション · <span class=\"text-amber-400/80\">cancel</span> はクエリを停止、<span class=\"text-red-400/80\">kill</span> は接続を切断します"
+msgid ""
+"%(n)s client session · <span class=\"text-amber-400/80\">cancel</span> stops"
+" the query, <span class=\"text-red-400/80\">kill</span> drops the connection"
+msgid_plural ""
+"%(n)s client sessions · <span class=\"text-amber-400/80\">cancel</span> "
+"stops the query, <span class=\"text-red-400/80\">kill</span> drops the "
+"connection"
+msgstr[0] ""
+"%(n)s 件のクライアントセッション · <span class=\"text-amber-400/80\">cancel</span> "
+"はクエリを停止、<span class=\"text-red-400/80\">kill</span> は接続を切断します"
+msgstr[1] ""
+"%(n)s 件のクライアントセッション · <span class=\"text-amber-400/80\">cancel</span> "
+"はクエリを停止、<span class=\"text-red-400/80\">kill</span> は接続を切断します"
 
 #: templates/partials/activity.html:77
 msgid "No client sessions"
@@ -413,14 +423,19 @@ msgstr "このビューの元クエリ"
 #: templates/partials/activity.html:88 templates/partials/health.html:16
 #: templates/partials/health.html:58 templates/partials/health.html:101
 #: templates/partials/health.html:147 templates/partials/locks.html:81
-#: templates/partials/replication.html:55
-#: templates/partials/replication.html:94
+#: templates/partials/replication.html:124
+#: templates/partials/replication.html:163
 msgid "open in SQL →"
 msgstr "SQL で開く →"
 
 #: templates/partials/backups.html:4
-msgid "Automatic safety snapshots taken just before a destructive operation. Restore one into a <span class=\"text-zinc-300\">new</span> database — an existing one is never overwritten."
-msgstr "破壊的な操作の直前に自動取得される安全スナップショット。<span class=\"text-zinc-300\">新規</span>データベースへ復元できます — 既存のものが上書きされることはありません。"
+msgid ""
+"Automatic safety snapshots taken just before a destructive operation. "
+"Restore one into a <span class=\"text-zinc-300\">new</span> database — an "
+"existing one is never overwritten."
+msgstr ""
+"破壊的な操作の直前に自動取得される安全スナップショット。<span class=\"text-"
+"zinc-300\">新規</span>データベースへ復元できます — 既存のものが上書きされることはありません。"
 
 #: templates/partials/backups.html:14
 msgid "Before"
@@ -471,7 +486,9 @@ msgid "→ new db"
 msgstr "→ 新規DB"
 
 #: templates/partials/backups.html:60
-msgid "No snapshots yet. One is taken automatically before you drop or truncate something."
+msgid ""
+"No snapshots yet. One is taken automatically before you drop or truncate "
+"something."
 msgstr "スナップショットはまだありません。drop や truncate の直前に自動で取得されます。"
 
 #: templates/partials/detail.html:12
@@ -552,12 +569,14 @@ msgstr "編集"
 
 #: templates/partials/detail.html:76
 #, python-format
-msgid "Drop column &quot;%(col)s&quot; from %(schema)s.%(table)s? This permanently deletes its data."
+msgid ""
+"Drop column &quot;%(col)s&quot; from %(schema)s.%(table)s? This permanently "
+"deletes its data."
 msgstr "%(schema)s.%(table)s から列 &quot;%(col)s&quot; を削除しますか？データは完全に削除されます。"
 
 #: templates/partials/detail.html:80 templates/partials/detail.html:133
 #: templates/partials/objects.html:69 templates/partials/objects.html:108
-#: templates/partials/objects.html:152 templates/partials/replication.html:127
+#: templates/partials/objects.html:152 templates/partials/replication.html:196
 msgid "drop"
 msgstr "削除"
 
@@ -621,7 +640,9 @@ msgstr "全行を削除します。先に安全スナップショットを取得
 
 #: templates/partials/detail.html:184
 #, python-format
-msgid "Truncate &quot;%(schema)s.%(table)s&quot;? This permanently deletes every row."
+msgid ""
+"Truncate &quot;%(schema)s.%(table)s&quot;? This permanently deletes every "
+"row."
 msgstr "&quot;%(schema)s.%(table)s&quot; を truncate しますか？全行が完全に削除されます。"
 
 #: templates/partials/detail.html:187
@@ -727,7 +748,8 @@ msgid "Query plan"
 msgstr "実行計画"
 
 #: templates/partials/explain_result.html:5
-#: templates/partials/snapshot_plan.html:5 templates/partials/snapshots.html:44
+#: templates/partials/snapshot_plan.html:5
+#: templates/partials/snapshots.html:44
 msgid "analyze"
 msgstr "analyze"
 
@@ -843,7 +865,10 @@ msgstr "Bloat ×"
 msgid ""
 "An estimate from planner statistics — run <span class=\"mono\">VACUUM FULL</span> or\n"
 "        <span class=\"mono\">pg_repack</span> to reclaim. Needs a recent <span class=\"mono\">ANALYZE</span> to be accurate."
-msgstr "プランナー統計からの推定です — 回収するには <span class=\"mono\">VACUUM FULL</span> または <span class=\"mono\">pg_repack</span> を実行。正確さには最近の <span class=\"mono\">ANALYZE</span> が必要です。"
+msgstr ""
+"プランナー統計からの推定です — 回収するには <span class=\"mono\">VACUUM FULL</span> または <span "
+"class=\"mono\">pg_repack</span> を実行。正確さには最近の <span "
+"class=\"mono\">ANALYZE</span> が必要です。"
 
 #: templates/partials/health.html:182
 msgid "No bloat to estimate (or stats not collected yet)."
@@ -910,7 +935,9 @@ msgid "Run something in the SQL panel and it'll show up here."
 msgstr "SQL パネルで何か実行すると、ここに表示されます。"
 
 #: templates/partials/index_lab.html:6
-msgid "what-if · the index is built then rolled back — real EXPLAIN ANALYZE timing, nothing persisted"
+msgid ""
+"what-if · the index is built then rolled back — real EXPLAIN ANALYZE timing,"
+" nothing persisted"
 msgstr "what-if · インデックスを作成してロールバック — 実際の EXPLAIN ANALYZE 計測、何も残しません"
 
 #: templates/partials/index_lab.html:10
@@ -985,7 +1012,8 @@ msgid "Create for real ▸"
 msgstr "実際に作成 ▸"
 
 #: templates/partials/index_lab_result.html:56
-msgid "the preview above was a hypothetical index — nothing has been created yet"
+msgid ""
+"the preview above was a hypothetical index — nothing has been created yet"
 msgstr "上のプレビューは仮想インデックスです — まだ何も作成されていません"
 
 #: templates/partials/locks.html:6
@@ -1011,10 +1039,22 @@ msgstr "ブロック元"
 
 #: templates/partials/locks.html:66
 #, python-format
-msgid "%(n)s blocked session · <span class=\"text-amber-400/80\">cancel</span> stops the blocker's query, <span class=\"text-red-400/80\">kill</span> drops its connection — either frees the wait"
-msgid_plural "%(n)s blocked sessions · <span class=\"text-amber-400/80\">cancel</span> stops the blocker's query, <span class=\"text-red-400/80\">kill</span> drops its connection — either frees the wait"
-msgstr[0] "%(n)s 件のブロックされたセッション · <span class=\"text-amber-400/80\">cancel</span> はブロッカーのクエリを停止、<span class=\"text-red-400/80\">kill</span> は接続を切断 — どちらも待機を解放します"
-msgstr[1] "%(n)s 件のブロックされたセッション · <span class=\"text-amber-400/80\">cancel</span> はブロッカーのクエリを停止、<span class=\"text-red-400/80\">kill</span> は接続を切断 — どちらも待機を解放します"
+msgid ""
+"%(n)s blocked session · <span class=\"text-amber-400/80\">cancel</span> "
+"stops the blocker's query, <span class=\"text-red-400/80\">kill</span> drops"
+" its connection — either frees the wait"
+msgid_plural ""
+"%(n)s blocked sessions · <span class=\"text-amber-400/80\">cancel</span> "
+"stops the blocker's query, <span class=\"text-red-400/80\">kill</span> drops"
+" its connection — either frees the wait"
+msgstr[0] ""
+"%(n)s 件のブロックされたセッション · <span class=\"text-amber-400/80\">cancel</span> "
+"はブロッカーのクエリを停止、<span class=\"text-red-400/80\">kill</span> は接続を切断 — "
+"どちらも待機を解放します"
+msgstr[1] ""
+"%(n)s 件のブロックされたセッション · <span class=\"text-amber-400/80\">cancel</span> "
+"はブロッカーのクエリを停止、<span class=\"text-red-400/80\">kill</span> は接続を切断 — "
+"どちらも待機を解放します"
 
 #: templates/partials/locks.html:70
 msgid "No lock waits"
@@ -1067,7 +1107,8 @@ msgstr "現在"
 
 #: templates/partials/objects.html:67
 #, python-format
-msgid "Drop database &quot;%(name)s&quot;? This permanently deletes all its data."
+msgid ""
+"Drop database &quot;%(name)s&quot;? This permanently deletes all its data."
 msgstr "データベース &quot;%(name)s&quot; を削除しますか？全データが完全に削除されます。"
 
 #: templates/partials/objects.html:84
@@ -1101,7 +1142,9 @@ msgstr "（グループ）"
 
 #: templates/partials/objects.html:150
 #, python-format
-msgid "Drop role &quot;%(name)s&quot;? This fails if it owns objects or is connected."
+msgid ""
+"Drop role &quot;%(name)s&quot;? This fails if it owns objects or is "
+"connected."
 msgstr "ロール &quot;%(name)s&quot; を削除しますか？オブジェクトを所有または接続中の場合は失敗します。"
 
 #: templates/partials/objects.html:168
@@ -1178,7 +1221,8 @@ msgid "Type the name to confirm"
 msgstr "確認のため名前を入力"
 
 #: templates/partials/objects.html:233
-msgid "This runs your dump against a live database and is not auto-snapshotted."
+msgid ""
+"This runs your dump against a live database and is not auto-snapshotted."
 msgstr "ダンプを稼働中のデータベースに適用します。自動スナップショットは取得されません。"
 
 #: templates/partials/objects.html:238
@@ -1230,7 +1274,9 @@ msgid "cost ×%(factor)s"
 msgstr "コスト ×%(factor)s"
 
 #: templates/partials/query.html:6
-msgid "read-only · SET TRANSACTION READ ONLY · statement_timeout 15s · capped at 1000 rows"
+msgid ""
+"read-only · SET TRANSACTION READ ONLY · statement_timeout 15s · capped at "
+"1000 rows"
 msgstr "リードオンリー · SET TRANSACTION READ ONLY · statement_timeout 15s · 最大1000行"
 
 #: templates/partials/query.html:9
@@ -1238,7 +1284,9 @@ msgid "write mode · changes are committed · a safety snapshot is taken first"
 msgstr "書き込みモード · 変更はコミットされます · 先に安全スナップショットを取得"
 
 #: templates/partials/query.html:13
-msgid "Allow writes (INSERT / UPDATE / DELETE / DDL). A whole-database snapshot is taken before each write."
+msgid ""
+"Allow writes (INSERT / UPDATE / DELETE / DDL). A whole-database snapshot is "
+"taken before each write."
 msgstr "書き込みを許可（INSERT / UPDATE / DELETE / DDL）。各書き込み前にDB全体のスナップショットを取得します。"
 
 #: templates/partials/query.html:18
@@ -1254,7 +1302,9 @@ msgid "SELECT * FROM …   —   ⌘/Ctrl + Enter to run"
 msgstr "SELECT * FROM …   —   ⌘/Ctrl + Enter で実行"
 
 #: templates/partials/query.html:33
-msgid "Run this in WRITE mode? It will be committed. A whole-database safety snapshot is taken first (recover it from Backups)."
+msgid ""
+"Run this in WRITE mode? It will be committed. A whole-database safety "
+"snapshot is taken first (recover it from Backups)."
 msgstr "書き込みモードで実行しますか？コミットされます。先にDB全体の安全スナップショットを取得します（Backups から復元可能）。"
 
 #: templates/partials/query.html:37
@@ -1278,7 +1328,9 @@ msgid "Explain analyze"
 msgstr "Explain analyze"
 
 #: templates/partials/query.html:55
-msgid "EXPLAIN at 1× / 100× / 10000× row counts — see where the plan breaks as data grows"
+msgid ""
+"EXPLAIN at 1× / 100× / 10000× row counts — see where the plan breaks as data"
+" grows"
 msgstr "1× / 100× / 10000× の行数で EXPLAIN — データ増加で計画が崩れる箇所を確認"
 
 #: templates/partials/query.html:57
@@ -1370,67 +1422,162 @@ msgid "current LSN"
 msgstr "現在のLSN"
 
 #: templates/partials/replication.html:39
-msgid "A standby needs <span class=\"mono\">wal_level</span> ≥ replica and <span class=\"mono\">max_wal_senders</span> &gt; 0."
-msgstr "スタンバイには <span class=\"mono\">wal_level</span> ≥ replica と <span class=\"mono\">max_wal_senders</span> &gt; 0 が必要です。"
+msgid ""
+"A standby needs <span class=\"mono\">wal_level</span> ≥ replica and <span "
+"class=\"mono\">max_wal_senders</span> &gt; 0."
+msgstr ""
+"スタンバイには <span class=\"mono\">wal_level</span> ≥ replica と <span "
+"class=\"mono\">max_wal_senders</span> &gt; 0 が必要です。"
 
 #: templates/partials/replication.html:42
+#: templates/partials/replication.html:72
 msgid "edit in settings →"
 msgstr "設定で編集 →"
 
 #: templates/partials/replication.html:50
+#, fuzzy
+#| msgid "ready for a standby"
+msgid "Set up a standby"
+msgstr "スタンバイをセットアップ"
+
+#: templates/partials/replication.html:51
+msgid "recipe with your values filled in"
+msgstr "現在値を埋め込んだ手順"
+
+#: templates/partials/replication.html:58
+msgid "1 · Make the primary ready"
+msgstr "1 · プライマリを準備する"
+
+#: templates/partials/replication.html:60
+msgid "✓ Already configured to accept a standby."
+msgstr "✓ すでにスタンバイを受け入れる設定です。"
+
+#: templates/partials/replication.html:62
+msgid "Set these on the primary, then restart it (each needs a full restart):"
+msgstr "プライマリで以下を設定し、再起動してください（いずれも再起動が必要）:"
+
+#: templates/partials/replication.html:78
+#, fuzzy
+#| msgid "No replication slots."
+msgid "2 · Create a replication slot"
+msgstr "2 · レプリケーションスロットを作成"
+
+#: templates/partials/replication.html:80
+#, python-format
+msgid ""
+"Reusing the existing physical slot <span class=\"mono text-"
+"zinc-300\">%(name)s</span>."
+msgstr "既存の物理スロット <span class=\"mono text-zinc-300\">%(name)s</span> を再利用します。"
+
+#: templates/partials/replication.html:82
+#, python-format
+msgid ""
+"No physical slot yet — create <span class=\"mono text-"
+"zinc-300\">%(name)s</span> (so the primary keeps WAL for the standby):"
+msgstr ""
+"物理スロットが未作成です —— <span class=\"mono text-zinc-300\">%(name)s</span> "
+"を作成します（プライマリがスタンバイ用に WAL を保持するため）:"
+
+#: templates/partials/replication.html:87
+#: templates/partials/replication.html:103
+msgid "copied"
+msgstr "コピー済み"
+
+#: templates/partials/replication.html:87
+#: templates/partials/replication.html:103
+msgid "copy"
+msgstr "コピー"
+
+#: templates/partials/replication.html:91
+#, fuzzy, python-format
+#| msgid "+ Create index"
+msgid "+ Create %(name)s now"
+msgstr "+ %(name)s を今すぐ作成"
+
+#: templates/partials/replication.html:97
+msgid "3 · Clone to the standby host"
+msgstr "3 · スタンバイホストへクローン"
+
+#: templates/partials/replication.html:98
+msgid ""
+"Run this on the new standby (an empty data dir). -R writes its standby "
+"config for you:"
+msgstr "新しいスタンバイ（空のデータディレクトリ）で実行します。-R がスタンバイ設定を自動で書き込みます:"
+
+#: templates/partials/replication.html:105
+msgid "primary_conninfo it will write:"
+msgstr "書き込まれる primary_conninfo:"
+
+#: templates/partials/replication.html:110
+#, python-format
+msgid ""
+"⚠ The standby must be able to reach <span "
+"class=\"mono\">%(host)s:%(port)s</span> over the network, and authenticate —"
+" set the password via <span class=\"mono\">PGPASSWORD</span> or <span "
+"class=\"mono\">~/.pgpass</span> (never in the config). This is a starting "
+"point; see your platform's docs for production (TLS, auth)."
+msgstr ""
+"⚠ スタンバイは <span class=\"mono\">%(host)s:%(port)s</span> "
+"へネットワーク到達でき、認証できる必要があります —— パスワードは <span class=\"mono\">PGPASSWORD</span> か "
+"<span class=\"mono\">~/.pgpass</span> "
+"で渡してください（設定ファイルに書かない）。これは出発点です。本番は各プラットフォームのドキュメント（TLS・認証）を参照。"
+
+#: templates/partials/replication.html:119
 msgid "Standbys"
 msgstr "スタンバイ"
 
-#: templates/partials/replication.html:62
+#: templates/partials/replication.html:131
 msgid "Client"
 msgstr "クライアント"
 
-#: templates/partials/replication.html:64
+#: templates/partials/replication.html:133
 msgid "Sync"
 msgstr "同期"
 
-#: templates/partials/replication.html:65
+#: templates/partials/replication.html:134
 msgid "Lag"
 msgstr "遅延"
 
-#: templates/partials/replication.html:81
+#: templates/partials/replication.html:150
 msgid "No standby connected."
 msgstr "接続中のスタンバイはありません。"
 
-#: templates/partials/replication.html:89
+#: templates/partials/replication.html:158
 msgid "Slots"
 msgstr "スロット"
 
-#: templates/partials/replication.html:102
+#: templates/partials/replication.html:171
 msgid "Active"
 msgstr "アクティブ"
 
-#: templates/partials/replication.html:103
+#: templates/partials/replication.html:172
 msgid "Restart LSN"
 msgstr "Restart LSN"
 
-#: templates/partials/replication.html:116
+#: templates/partials/replication.html:185
 msgid "An inactive slot keeps WAL from being recycled"
 msgstr "非アクティブなスロットは WAL の再利用を妨げます"
 
-#: templates/partials/replication.html:116
+#: templates/partials/replication.html:185
 msgid "inactive · pins WAL"
 msgstr "非アクティブ · WAL を固定"
 
-#: templates/partials/replication.html:126
+#: templates/partials/replication.html:195
 #, python-format
-msgid "Drop replication slot &quot;%(name)s&quot;? Any standby relying on it will break."
+msgid ""
+"Drop replication slot &quot;%(name)s&quot;? Any standby relying on it will "
+"break."
 msgstr "レプリケーションスロット &quot;%(name)s&quot; を削除しますか？依存するスタンバイは壊れます。"
 
-#: templates/partials/replication.html:134
+#: templates/partials/replication.html:203
 msgid "No replication slots."
 msgstr "レプリケーションスロットはありません。"
 
-#: templates/partials/replication.html:144
+#: templates/partials/replication.html:213
 msgid "+ Create physical slot"
 msgstr "+ 物理スロットを作成"
 
-#: templates/partials/replication.html:145
+#: templates/partials/replication.html:214
 msgid "⚠ An unused slot keeps WAL forever — drop it when done."
 msgstr "⚠ 未使用スロットは WAL を永遠に保持します — 使い終わったら削除してください。"
 
@@ -1439,11 +1586,17 @@ msgid "Restart required."
 msgstr "再起動が必要です。"
 
 #: templates/partials/restart_banner.html:7
-msgid "Staged in <span class=\"mono\">postgresql.auto.conf</span>, but these need a server restart to take effect:"
-msgstr "<span class=\"mono\">postgresql.auto.conf</span> に反映済みですが、これらは有効化にサーバー再起動が必要です:"
+msgid ""
+"Staged in <span class=\"mono\">postgresql.auto.conf</span>, but these need a"
+" server restart to take effect:"
+msgstr ""
+"<span class=\"mono\">postgresql.auto.conf</span> "
+"に反映済みですが、これらは有効化にサーバー再起動が必要です:"
 
 #: templates/partials/restart_banner.html:18
-msgid "cli2ui can't restart the server over a SQL connection — restart it however it's run:"
+msgid ""
+"cli2ui can't restart the server over a SQL connection — restart it however "
+"it's run:"
 msgstr "cli2ui は SQL 接続経由でサーバーを再起動できません — 稼働方法に応じて再起動してください:"
 
 #: templates/partials/restart_banner.html:24
@@ -1459,7 +1612,9 @@ msgid "what-if · plan shape"
 msgstr "what-if · 計画の形"
 
 #: templates/partials/scale_result.html:6
-msgid "planner stats scaled in a rolled-back transaction — no data written, invisible to other sessions"
+msgid ""
+"planner stats scaled in a rolled-back transaction — no data written, "
+"invisible to other sessions"
 msgstr "ロールバックされるトランザクション内でプランナー統計をスケール — データは書き込まれず、他セッションからは見えません"
 
 #: templates/partials/scale_result.html:15
@@ -1508,7 +1663,10 @@ msgid ""
 "Changes use <span class=\"mono\">ALTER SYSTEM</span> (writes postgresql.auto.conf) and reload\n"
 "    automatically. <span class=\"text-amber-400/80\">restart</span>-tagged settings only take effect\n"
 "    after a server restart. Requires a superuser connection."
-msgstr "変更は <span class=\"mono\">ALTER SYSTEM</span>（postgresql.auto.conf に書き込み）を使い、自動でリロードされます。<span class=\"text-amber-400/80\">restart</span> 表示の設定はサーバー再起動後にのみ有効になります。スーパーユーザー接続が必要です。"
+msgstr ""
+"変更は <span class=\"mono\">ALTER SYSTEM</span>（postgresql.auto.conf "
+"に書き込み）を使い、自動でリロードされます。<span class=\"text-amber-400/80\">restart</span> "
+"表示の設定はサーバー再起動後にのみ有効になります。スーパーユーザー接続が必要です。"
 
 #: templates/partials/settings_row.html:9
 msgid "restart"
@@ -1566,7 +1724,8 @@ msgid "Plan snapshots"
 msgstr "計画スナップショット"
 
 #: templates/partials/snapshots.html:4
-msgid "Saved EXPLAIN plans — pick two to diff (e.g. before vs after an index)."
+msgid ""
+"Saved EXPLAIN plans — pick two to diff (e.g. before vs after an index)."
 msgstr "保存した EXPLAIN 計画 — 2つ選んで差分（例: インデックス前後）。"
 
 #: templates/partials/snapshots.html:10
@@ -1606,7 +1765,9 @@ msgstr "スナップショットはまだありません"
 msgid ""
 "Open <span class=\"mono\">▷ SQL</span>, run <span class=\"text-zinc-300\">Explain</span> on a query,\n"
 "        and save the plan. Save another after a change to diff them."
-msgstr "<span class=\"mono\">▷ SQL</span> を開き、クエリで <span class=\"text-zinc-300\">Explain</span> を実行して計画を保存。変更後にもう1つ保存して差分を取ります。"
+msgstr ""
+"<span class=\"mono\">▷ SQL</span> を開き、クエリで <span class=\"text-"
+"zinc-300\">Explain</span> を実行して計画を保存。変更後にもう1つ保存して差分を取ります。"
 
 #: templates/partials/table_list.html:4
 msgid "Filter tables…"
