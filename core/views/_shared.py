@@ -32,4 +32,25 @@ def _auto_backup(connection, *, operation, kind, dbname, schema=None, table=None
     Backup.objects.create(
         connection=connection, operation=operation, kind=kind, target=target,
         dbname=dbname, data=dump.data, byte_size=len(dump.data))
+    try:
+        _prune_old_backups(connection)
+    except Exception:  # noqa: BLE001  # nosec B110 — housekeeping; must never block the op
+        pass
     return _("Backup saved before %(op)s — recover it from Backups.") % {"op": operation}
+
+
+def _prune_old_backups(connection):
+    """Keep this connection's auto-backups under the total-size budget by
+    deleting the oldest first. The most recent snapshot is always kept (even if
+    it alone exceeds the budget — the per-snapshot cap already bounds one), so
+    a write always leaves at least its own undo point behind. Reads byte_size
+    only, never the blobs."""
+    limit = django_settings.CLI2UI_MAX_AUTO_BACKUP_TOTAL_BYTES
+    rows = connection.backups.order_by("-created_at", "-pk").values_list("pk", "byte_size")
+    running, stale = 0, []
+    for i, (pk, size) in enumerate(rows):
+        running += size or 0
+        if running > limit and i > 0:  # i == 0 is the newest — always keep it
+            stale.append(pk)
+    if stale:
+        connection.backups.filter(pk__in=stale).delete()

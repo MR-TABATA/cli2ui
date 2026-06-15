@@ -33,6 +33,7 @@ from core.engines.postgres import (
 from core.forms import ConnectionForm
 from core.models import Backup, Connection, PlanSnapshot
 from core.plan_diff import diff_plans, node_from_dict, node_to_dict, to_text
+from core.views._shared import _prune_old_backups
 
 
 def node(node_type, *, relation=None, index=None, rows=0.0, cost=0.0,
@@ -320,6 +321,53 @@ class SessionConnectionReuseTests(SimpleTestCase):
                 pass
         self.assertIs(c, other)
         self.assertEqual(connect.call_count, 2)
+
+
+class BackupRetentionTests(TestCase):
+    """The per-connection total-size cap on auto-backups: oldest deleted first,
+    newest always kept. Management-DB only (SQLite) — no PostgreSQL needed."""
+
+    def _conn(self):
+        return Connection.objects.create(kind="postgres", dbname="d", user="u")
+
+    def _backup(self, conn, size):
+        return Backup.objects.create(
+            connection=conn, operation="write query", kind=Backup.KIND_DATABASE,
+            target="d", dbname="d", data=b"x" * size, byte_size=size)
+
+    @override_settings(CLI2UI_MAX_AUTO_BACKUP_TOTAL_BYTES=100)
+    def test_prunes_oldest_until_under_budget(self):
+        conn = self._conn()
+        kept = [self._backup(conn, 40) for _ in range(4)]  # created oldest→newest
+        _prune_old_backups(conn)
+        # newest-first running total: 40, 80, 120(over), 160(over) → drop 2 oldest
+        survivors = set(conn.backups.values_list("pk", flat=True))
+        self.assertEqual(survivors, {kept[2].pk, kept[3].pk})
+
+    @override_settings(CLI2UI_MAX_AUTO_BACKUP_TOTAL_BYTES=10)
+    def test_always_keeps_the_newest_even_if_it_alone_exceeds_budget(self):
+        conn = self._conn()
+        newest = self._backup(conn, 40)  # 40 > 10, but it's the only/newest one
+        _prune_old_backups(conn)
+        self.assertEqual(set(conn.backups.values_list("pk", flat=True)), {newest.pk})
+
+    @override_settings(CLI2UI_MAX_AUTO_BACKUP_TOTAL_BYTES=500 * 1024 * 1024)
+    def test_under_budget_keeps_everything(self):
+        conn = self._conn()
+        for _ in range(3):
+            self._backup(conn, 1024)
+        _prune_old_backups(conn)
+        self.assertEqual(conn.backups.count(), 3)
+
+    @override_settings(CLI2UI_MAX_AUTO_BACKUP_TOTAL_BYTES=50)
+    def test_other_connections_are_not_touched(self):
+        a, b = self._conn(), self._conn()
+        for _ in range(3):
+            self._backup(a, 40)
+        b_backup = self._backup(b, 40)
+        _prune_old_backups(a)
+        # b's backup survives regardless of a's pruning
+        self.assertTrue(Backup.objects.filter(pk=b_backup.pk).exists())
 
 
 class IndexColumnsTextTests(SimpleTestCase):

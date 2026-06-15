@@ -90,3 +90,11 @@ USE_I18N = True
 CLI2UI_MAX_AUTO_BACKUP_BYTES = int(
     os.environ.get("CLI2UI_MAX_AUTO_BACKUP_BYTES", str(50 * 1024 * 1024))
 )
+
+# Total size of automatic safety snapshots kept *per connection*. When a new
+# snapshot pushes the running total past this, the oldest are deleted (the most
+# recent is always kept) — so db.sqlite3 can't grow without bound as you make
+# repeated writes/drops. Raise it to keep deeper undo history.
+CLI2UI_MAX_AUTO_BACKUP_TOTAL_BYTES = int(
+    os.environ.get("CLI2UI_MAX_AUTO_BACKUP_TOTAL_BYTES", str(500 * 1024 * 1024))
+)
