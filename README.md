@@ -120,9 +120,11 @@ MVP. `docker compose up` → connect → browse your tables in a DB-client layou
 - ✅ Command history: SQL run through the runner, logged to the management DB —
   status, row count, timing, and one-click re-open
 - ✅ Backup / restore: automatic table snapshots (`pg_dump` custom format) before
-  every destructive or structural change (drop / truncate / rename / alter), plus
-  restore of an uploaded dump — streamed to the client tool (not buffered in
-  memory) — into a new database or, with a type-gate, an existing one
+  every destructive or structural change (drop / truncate / rename / alter), kept
+  under a per-connection size budget (oldest pruned automatically — tune with
+  `CLI2UI_MAX_AUTO_BACKUP_BYTES` per snapshot and `CLI2UI_MAX_AUTO_BACKUP_TOTAL_BYTES`
+  in total), plus restore of an uploaded dump — streamed to the client tool (not
+  buffered in memory) — into a new database or, with a type-gate, an existing one
 - ✅ Workspace overview: a bento dashboard summarizing every panel (live counts
   for activity, snapshots, backups, replication readiness…), one click away
 - ✅ Internationalization: full English / Japanese UI with a header toggle
