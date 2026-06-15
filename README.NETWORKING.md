@@ -146,6 +146,56 @@ machine, Case B is more reliable.
 
 ---
 
+## Tidiest of all: run cli2ui inside your project's compose
+
+If the database already lives in a `docker compose` project you control, the
+cleanest setup is to **add cli2ui as a service to that same compose** instead of
+running it as a separate stack. They share the project's network automatically,
+so cli2ui reaches the database by its **container name** with zero network
+wiring — and you don't have a second set of containers to start.
+
+Add this to your project's `docker-compose.yml`:
+
+```yaml
+services:
+  # ... your app, your db (e.g. a service named `db`) ...
+
+  cli2ui:
+    image: cli2ui-app            # build once: docker build -t cli2ui-app /path/to/cli2ui
+    profiles: ["tools"]          # only starts when you ask for it (see below)
+    ports:
+      - "8001:8000"              # 8000 is usually taken by your app — pick a free host port
+    restart: unless-stopped
+```
+
+Then bring it up **on demand**:
+
+```bash
+docker compose --profile tools up    # starts your stack + cli2ui
+```
+
+Open `http://localhost:8001` and connect with **host = your db's service name**
+(e.g. `db`), port `5432`, and your credentials.
+
+Three things to get right:
+
+1. **Keep it dev-only with `profiles`.** cli2ui has no authentication. The
+   `profiles: ["tools"]` key means a plain `docker compose up` *won't* start it —
+   it only comes up with `--profile tools`. That's your guard against it ever
+   riding along into a shared or production stack.
+2. **Don't copy cli2ui's bundled `sampledb`.** You want it pointing at *your*
+   database (by service name), not the demo one. Just the one `cli2ui` service
+   above is enough — referencing the prebuilt `cli2ui-app` image keeps it
+   decoupled from cli2ui's own compose file and build context.
+3. **Use a free host port** (`8001:8000` here) so it doesn't clash with your app.
+
+> **Saved connections / history** live in `db.sqlite3` *inside* the container, so
+> they reset when it's recreated — fine for a dev tool (re-entering a connection
+> takes seconds). To persist them, bind-mount the file
+> (`./.cli2ui-db.sqlite3:/app/db.sqlite3`, created beforehand).
+
+---
+
 ## A complete worked example
 
 Say you have a separate app called **SyncVey** running in Docker, and its
