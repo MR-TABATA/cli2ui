@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-16 20:24+0900\n"
+"POT-Creation-Date: 2026-06-17 08:16+0900\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,39 +22,39 @@ msgstr ""
 msgid "Unsupported database kind: %(kind)s"
 msgstr "未対応のデータベース種別: %(kind)s"
 
-#: core/engines/postgres.py:111
+#: core/engines/postgres.py:104
 #, python-format
 msgid "Unsupported index method: %(method)s"
 msgstr "未対応のインデックス方式: %(method)s"
 
-#: core/engines/postgres.py:113 core/views/tables.py:87
+#: core/engines/postgres.py:106 core/views/tables.py:87
 msgid "Select at least one column to index."
 msgstr "インデックス対象の列を1つ以上選んでください。"
 
-#: core/engines/postgres.py:712 core/engines/postgres.py:934
+#: core/engines/postgres.py:694 planner_lab/whatif.py:115
 #, python-format
 msgid "No such column(s): %(cols)s"
 msgstr "存在しない列: %(cols)s"
 
-#: core/engines/postgres.py:811
+#: core/engines/postgres.py:793
 #, python-format
 msgid "No such column: %(name)s"
 msgstr "存在しない列: %(name)s"
 
-#: core/engines/postgres.py:835
+#: core/engines/postgres.py:817
 #, python-format
 msgid "Unknown dump format: %(fmt)s"
 msgstr "不明なダンプ形式: %(fmt)s"
 
-#: core/engines/postgres.py:853
+#: core/engines/postgres.py:835
 msgid "pg_dump timed out."
 msgstr "pg_dump がタイムアウトしました。"
 
-#: core/engines/postgres.py:917
+#: core/engines/postgres.py:899
 msgid "restore timed out."
 msgstr "リストアがタイムアウトしました。"
 
-#: core/engines/postgres.py:1078
+#: core/engines/postgres.py:1021
 #, python-format
 msgid "Unknown setting: %(name)s"
 msgstr "不明な設定: %(name)s"
@@ -141,13 +141,9 @@ msgstr "ロール名は必須です。"
 msgid "Slot name is required."
 msgstr "スロット名は必須です。"
 
-#: core/views/runner.py:105
+#: core/views/runner.py:100
 msgid "Nothing to export — run a query first."
 msgstr "エクスポートする結果がありません — 先にクエリを実行してください。"
-
-#: core/views/runner.py:260
-msgid "Pick a target query and at least one column."
-msgstr "対象クエリと列を1つ以上選んでください。"
 
 #: core/views/tables.py:121
 msgid "Enter a new table name."
@@ -160,6 +156,159 @@ msgstr "列名を入力してください。"
 #: core/views/tables.py:192
 msgid "Enter a new column name."
 msgstr "新しい列名を入力してください。"
+
+#: planner_lab/templates/partials/index_lab.html:4
+#: templates/partials/_bento.html:23 templates/workspace.html:37
+msgid "Index lab"
+msgstr "インデックス ラボ"
+
+#: planner_lab/templates/partials/index_lab.html:6
+msgid ""
+"what-if · the index is built then rolled back — real EXPLAIN ANALYZE timing, "
+"nothing persisted"
+msgstr ""
+"what-if · インデックスを作成してロールバック — 実際の EXPLAIN ANALYZE 計測、"
+"何も残しません"
+
+#: planner_lab/templates/partials/index_lab.html:10
+msgid "preview · reversible"
+msgstr "プレビュー · 取り消し可能"
+
+#: planner_lab/templates/partials/index_lab.html:16
+#: templates/partials/health.html:22 templates/partials/health.html:24
+#: templates/partials/health.html:107 templates/partials/health.html:153
+msgid "Table"
+msgstr "テーブル"
+
+#: planner_lab/templates/partials/index_lab.html:21
+msgid "— pick a table —"
+msgstr "— テーブルを選択 —"
+
+#: planner_lab/templates/partials/index_lab.html:46
+msgid "Index to try"
+msgstr "試すインデックス"
+
+#: planner_lab/templates/partials/index_lab.html:46
+msgid "— click columns in order"
+msgstr "— 列を順にクリック"
+
+#: planner_lab/templates/partials/index_lab.html:64
+#: templates/partials/detail.html:120 templates/partials/detail.html:338
+msgid "unique"
+msgstr "ユニーク"
+
+#: planner_lab/templates/partials/index_lab.html:70
+msgid "Target query"
+msgstr "対象クエリ"
+
+#: planner_lab/templates/partials/index_lab.html:70
+msgid "— measured with EXPLAIN ANALYZE (read query)"
+msgstr "— EXPLAIN ANALYZE で計測（読み取りクエリ）"
+
+#: planner_lab/templates/partials/index_lab.html:73
+msgid "SELECT … the query you want this index to speed up"
+msgstr "SELECT … このインデックスで高速化したいクエリ"
+
+#: planner_lab/templates/partials/index_lab.html:82
+msgid "Preview index ▸"
+msgstr "インデックスをプレビュー ▸"
+
+#: planner_lab/templates/partials/index_lab.html:84
+msgid "⌘/Ctrl + Enter"
+msgstr "⌘/Ctrl + Enter"
+
+#: planner_lab/templates/partials/index_lab.html:88
+msgid "Pick a table to choose which columns to index."
+msgstr "テーブルを選ぶと、インデックスする列を選べます。"
+
+#: planner_lab/templates/partials/index_lab_result.html:9
+msgid "without"
+msgstr "なし"
+
+#: planner_lab/templates/partials/index_lab_result.html:14
+msgid "with index"
+msgstr "インデックスあり"
+
+#: planner_lab/templates/partials/index_lab_result.html:27
+msgid "without → with index"
+msgstr "なし → インデックスあり"
+
+#: planner_lab/templates/partials/index_lab_result.html:29
+#: planner_lab/templates/partials/scale_result.html:36
+#: templates/partials/snapshot_diff.html:14
+msgid "plan changed"
+msgstr "計画が変化"
+
+#: planner_lab/templates/partials/index_lab_result.html:31
+#: planner_lab/templates/partials/scale_result.html:38
+msgid "same shape"
+msgstr "同じ形"
+
+#: planner_lab/templates/partials/index_lab_result.html:40
+#: templates/partials/history.html:27
+msgid "Statement"
+msgstr "ステートメント"
+
+#: planner_lab/templates/partials/index_lab_result.html:45
+msgid "Create this index for real (CONCURRENTLY)? This one persists."
+msgstr "このインデックスを実際に作成しますか（CONCURRENTLY）？これは残ります。"
+
+#: planner_lab/templates/partials/index_lab_result.html:53
+msgid "Create for real ▸"
+msgstr "実際に作成 ▸"
+
+#: planner_lab/templates/partials/index_lab_result.html:56
+msgid ""
+"the preview above was a hypothetical index — nothing has been created yet"
+msgstr "上のプレビューは仮想インデックスです — まだ何も作成されていません"
+
+#: planner_lab/templates/partials/scale_result.html:3
+msgid "Scale simulation"
+msgstr "スケールシミュレーション"
+
+#: planner_lab/templates/partials/scale_result.html:4
+msgid "what-if · plan shape"
+msgstr "what-if · 計画の形"
+
+#: planner_lab/templates/partials/scale_result.html:6
+msgid ""
+"planner stats scaled in a rolled-back transaction — no data written, "
+"invisible to other sessions"
+msgstr ""
+"ロールバックされるトランザクション内でプランナー統計をスケール — データは書き"
+"込まれず、他セッションからは見えません"
+
+#: planner_lab/templates/partials/scale_result.html:15
+#: planner_lab/templates/partials/scale_result.html:32
+msgid "now"
+msgstr "現在"
+
+#: planner_lab/templates/partials/scale_result.html:18
+#, python-format
+msgid "rows %(n)s"
+msgstr "行 %(n)s"
+
+#: planner_lab/templates/partials/scale_result.html:21
+#, python-format
+msgid "cost %(n)s"
+msgstr "コスト %(n)s"
+
+#: planner_lab/templates/partials/scale_result.html:46
+msgid ""
+"Shows the plan's <em>shape</em>, not real runtime. Selectivity is held "
+"constant\n"
+"    (uniform growth). Requires a superuser connection."
+msgstr ""
+"実際の実行時間ではなく計画の<em>形</em>を示します。選択性は一定（均一な増"
+"加）。スーパーユーザー接続が必要です。"
+
+#: planner_lab/views.py:90
+msgid "Pick a target query and at least one column."
+msgstr "対象クエリと列を1つ以上選んでください。"
+
+#: planner_lab/whatif.py:159
+msgid "Scale simulation needs a superuser connection (it edits pg_class)."
+msgstr "スケールシミュレーションには superuser 接続が必要です（pg_class を編集するため）。"
 
 #: templates/base.html:144
 msgid "CLI database ops, as buttons."
@@ -174,14 +323,14 @@ msgid "Defaults point at the bundled sample DB."
 msgstr "初期値は同梱のサンプルDBを指しています。"
 
 #: templates/index.html:16 templates/partials/detail.html:58
-#: templates/partials/detail.html:238 templates/partials/detail.html:271
+#: templates/partials/detail.html:240 templates/partials/detail.html:273
 #: templates/partials/replication.html:170
 msgid "Type"
 msgstr "種別"
 
 #: templates/index.html:17 templates/partials/detail.html:57
-#: templates/partials/detail.html:105 templates/partials/detail.html:234
-#: templates/partials/detail.html:327 templates/partials/objects.html:34
+#: templates/partials/detail.html:107 templates/partials/detail.html:236
+#: templates/partials/detail.html:329 templates/partials/objects.html:34
 #: templates/partials/objects.html:91 templates/partials/objects.html:180
 #: templates/partials/objects.html:248 templates/partials/objects.html:259
 #: templates/partials/objects.html:275 templates/partials/objects.html:296
@@ -189,8 +338,8 @@ msgstr "種別"
 msgid "Name"
 msgstr "名前"
 
-#: templates/index.html:17 templates/partials/detail.html:244
-#: templates/partials/detail.html:327 templates/partials/objects.html:184
+#: templates/index.html:17 templates/partials/detail.html:246
+#: templates/partials/detail.html:329 templates/partials/objects.html:184
 #: templates/partials/objects.html:279 templates/partials/objects.html:306
 msgid "(optional)"
 msgstr "（任意）"
@@ -239,97 +388,92 @@ msgstr "クエリ & プランナー"
 msgid "SQL runner"
 msgstr "SQL ランナー"
 
-#: templates/partials/_bento.html:22 templates/partials/index_lab.html:4
-#: templates/workspace.html:36
-msgid "Index lab"
-msgstr "インデックス ラボ"
-
-#: templates/partials/_bento.html:23
+#: templates/partials/_bento.html:24
 msgid "what-if"
 msgstr "what-if"
 
-#: templates/partials/_bento.html:28 templates/workspace.html:38
+#: templates/partials/_bento.html:30 templates/workspace.html:40
 msgid "Snapshots"
 msgstr "スナップショット"
 
-#: templates/partials/_bento.html:34 templates/partials/history.html:4
-#: templates/workspace.html:40
+#: templates/partials/_bento.html:36 templates/partials/history.html:4
+#: templates/workspace.html:42
 msgid "History"
 msgstr "履歴"
 
-#: templates/partials/_bento.html:35
+#: templates/partials/_bento.html:37
 msgid "log"
 msgstr "ログ"
 
-#: templates/partials/_bento.html:41 templates/workspace.html:44
+#: templates/partials/_bento.html:43 templates/workspace.html:46
 msgid "Live ops"
 msgstr "ライブ運用"
 
-#: templates/partials/_bento.html:45 templates/partials/activity.html:4
-#: templates/workspace.html:46
+#: templates/partials/_bento.html:47 templates/partials/activity.html:4
+#: templates/workspace.html:48
 msgid "Activity"
 msgstr "アクティビティ"
 
-#: templates/partials/_bento.html:46
+#: templates/partials/_bento.html:48
 #, python-format
 msgid "%(blocked)s blk"
 msgid_plural "%(blocked)s blk"
 msgstr[0] "%(blocked)s 件ブロック"
 msgstr[1] "%(blocked)s 件ブロック"
 
-#: templates/partials/_bento.html:51 templates/partials/locks.html:4
-#: templates/workspace.html:48
+#: templates/partials/_bento.html:53 templates/partials/locks.html:4
+#: templates/workspace.html:50
 msgid "Locks"
 msgstr "ロック"
 
-#: templates/partials/_bento.html:57 templates/partials/health.html:3
-#: templates/workspace.html:50
+#: templates/partials/_bento.html:59 templates/partials/health.html:3
+#: templates/workspace.html:52
 msgid "Health"
 msgstr "ヘルス"
 
-#: templates/partials/_bento.html:63 templates/partials/replication.html:4
-#: templates/workspace.html:52
+#: templates/partials/_bento.html:65 templates/partials/replication.html:4
+#: templates/workspace.html:54
 msgid "Replication"
 msgstr "レプリケーション"
 
-#: templates/partials/_bento.html:64
+#: templates/partials/_bento.html:66
 msgid "ready"
 msgstr "準備OK"
 
-#: templates/partials/_bento.html:70 templates/workspace.html:56
+#: templates/partials/_bento.html:72 templates/workspace.html:58
 msgid "Catalog & data"
 msgstr "カタログ & データ"
 
-#: templates/partials/_bento.html:73 templates/workspace.html:58
+#: templates/partials/_bento.html:75 templates/workspace.html:60
 msgid "Tables"
 msgstr "テーブル"
 
-#: templates/partials/_bento.html:74 templates/workspace.html:58
+#: templates/partials/_bento.html:76 templates/workspace.html:60
 msgid "sidebar"
 msgstr "サイドバー"
 
-#: templates/partials/_bento.html:79 templates/partials/objects.html:10
-#: templates/workspace.html:60
+#: templates/partials/_bento.html:81 templates/partials/objects.html:10
+#: templates/workspace.html:62
 msgid "Objects"
 msgstr "オブジェクト"
 
-#: templates/partials/_bento.html:80
+#: templates/partials/_bento.html:82
 #, python-format
 msgid "%(n)s db"
 msgid_plural "%(n)s db"
 msgstr[0] "%(n)s DB"
 msgstr[1] "%(n)s DB"
 
-#: templates/partials/_bento.html:85 templates/partials/backups.html:3
-#: templates/workspace.html:62
+#: templates/partials/_bento.html:87 templates/partials/backups.html:3
+#: templates/workspace.html:64
 msgid "Backups"
 msgstr "バックアップ"
 
-#: templates/partials/_bento.html:91 templates/workspace.html:64
+#: templates/partials/_bento.html:93 templates/workspace.html:66
 msgid "Config"
 msgstr "設定"
 
-#: templates/partials/_bento.html:92
+#: templates/partials/_bento.html:94
 msgid "conf"
 msgstr "conf"
 
@@ -460,7 +604,7 @@ msgstr "対象"
 msgid "Source DB"
 msgstr "元DB"
 
-#: templates/partials/backups.html:17 templates/partials/detail.html:108
+#: templates/partials/backups.html:17 templates/partials/detail.html:110
 #: templates/partials/health.html:67 templates/partials/health.html:154
 #: templates/partials/objects.html:37
 msgid "Size"
@@ -538,7 +682,7 @@ msgstr "このテーブルをカスタム形式で pg_dump"
 msgid "rename"
 msgstr "リネーム"
 
-#: templates/partials/detail.html:41 templates/partials/detail.html:106
+#: templates/partials/detail.html:41 templates/partials/detail.html:108
 msgid "Columns"
 msgstr "列"
 
@@ -554,7 +698,7 @@ msgstr "データ"
 msgid "Danger"
 msgstr "危険"
 
-#: templates/partials/detail.html:51 templates/partials/detail.html:248
+#: templates/partials/detail.html:51 templates/partials/detail.html:250
 msgid "+ Add column"
 msgstr "+ 列を追加"
 
@@ -562,8 +706,8 @@ msgstr "+ 列を追加"
 msgid "Nullable"
 msgstr "NULL許可"
 
-#: templates/partials/detail.html:60 templates/partials/detail.html:244
-#: templates/partials/detail.html:295
+#: templates/partials/detail.html:60 templates/partials/detail.html:246
+#: templates/partials/detail.html:297
 msgid "Default"
 msgstr "デフォルト"
 
@@ -589,71 +733,66 @@ msgstr ""
 "%(schema)s.%(table)s から列 &quot;%(col)s&quot; を削除しますか？データは完全"
 "に削除されます。"
 
-#: templates/partials/detail.html:80 templates/partials/detail.html:133
+#: templates/partials/detail.html:80 templates/partials/detail.html:135
 #: templates/partials/objects.html:69 templates/partials/objects.html:108
 #: templates/partials/objects.html:152 templates/partials/replication.html:196
 msgid "drop"
 msgstr "削除"
 
-#: templates/partials/detail.html:96
+#: templates/partials/detail.html:97
 msgid "Try an index and measure it before creating it for real"
 msgstr "本番作成の前にインデックスを試して計測します"
 
-#: templates/partials/detail.html:97
+#: templates/partials/detail.html:98
 msgid "Try an index"
 msgstr "インデックスを試す"
 
-#: templates/partials/detail.html:98 templates/partials/detail.html:337
+#: templates/partials/detail.html:100 templates/partials/detail.html:339
 msgid "+ Create index"
 msgstr "+ インデックスを作成"
 
-#: templates/partials/detail.html:107 templates/partials/detail.html:331
+#: templates/partials/detail.html:109 templates/partials/detail.html:333
 msgid "Method"
 msgstr "方式"
 
-#: templates/partials/detail.html:117 templates/partials/replication.html:26
+#: templates/partials/detail.html:119 templates/partials/replication.html:26
 msgid "primary"
 msgstr "主キー"
 
-#: templates/partials/detail.html:118 templates/partials/detail.html:336
-#: templates/partials/index_lab.html:64
-msgid "unique"
-msgstr "ユニーク"
-
-#: templates/partials/detail.html:119
+#: templates/partials/detail.html:121
 msgid "A concurrent build failed — this index is unusable; drop it."
 msgstr "並行ビルドに失敗 — このインデックスは使用不可です。削除してください。"
 
-#: templates/partials/detail.html:119
+#: templates/partials/detail.html:121
 msgid "invalid"
 msgstr "無効"
 
-#: templates/partials/detail.html:126
+#: templates/partials/detail.html:128
 msgid "pk"
 msgstr "pk"
 
-#: templates/partials/detail.html:129
+#: templates/partials/detail.html:131
 #, python-format
 msgid "Drop index &quot;%(name)s&quot;?"
 msgstr "インデックス &quot;%(name)s&quot; を削除しますか？"
 
-#: templates/partials/detail.html:142
+#: templates/partials/detail.html:144
 msgid "No indexes on this table yet."
 msgstr "このテーブルにはまだインデックスがありません。"
 
-#: templates/partials/detail.html:170
+#: templates/partials/detail.html:172
 msgid "This table is empty."
 msgstr "このテーブルは空です。"
 
-#: templates/partials/detail.html:180
+#: templates/partials/detail.html:182
 msgid "Truncate table"
 msgstr "テーブルを truncate"
 
-#: templates/partials/detail.html:181
+#: templates/partials/detail.html:183
 msgid "Delete every row. A safety snapshot is taken first."
 msgstr "全行を削除します。先に安全スナップショットを取得します。"
 
-#: templates/partials/detail.html:184
+#: templates/partials/detail.html:186
 #, python-format
 msgid ""
 "Truncate &quot;%(schema)s.%(table)s&quot;? This permanently deletes every "
@@ -662,102 +801,102 @@ msgstr ""
 "&quot;%(schema)s.%(table)s&quot; を truncate しますか？全行が完全に削除されま"
 "す。"
 
-#: templates/partials/detail.html:187
+#: templates/partials/detail.html:189
 msgid "Truncate"
 msgstr "Truncate"
 
-#: templates/partials/detail.html:192 templates/partials/detail.html:199
+#: templates/partials/detail.html:194 templates/partials/detail.html:201
 msgid "Drop table"
 msgstr "テーブルを削除"
 
-#: templates/partials/detail.html:193
+#: templates/partials/detail.html:195
 msgid "Remove the table and all its data. A safety snapshot is taken first."
 msgstr "テーブルと全データを削除します。先に安全スナップショットを取得します。"
 
-#: templates/partials/detail.html:196
+#: templates/partials/detail.html:198
 #, python-format
 msgid "Drop table &quot;%(schema)s.%(table)s&quot;? This cannot be undone."
 msgstr ""
 "テーブル &quot;%(schema)s.%(table)s&quot; を削除しますか？元に戻せません。"
 
-#: templates/partials/detail.html:210
+#: templates/partials/detail.html:212
 msgid "Rename table"
 msgstr "テーブルをリネーム"
 
-#: templates/partials/detail.html:210
+#: templates/partials/detail.html:212
 msgid "Add column"
 msgstr "列を追加"
 
-#: templates/partials/detail.html:211
+#: templates/partials/detail.html:213
 msgid "Edit column"
 msgstr "列を編集"
 
-#: templates/partials/detail.html:211
+#: templates/partials/detail.html:213
 msgid "Create index"
 msgstr "インデックスを作成"
 
-#: templates/partials/detail.html:222 templates/partials/objects.html:197
+#: templates/partials/detail.html:224 templates/partials/objects.html:197
 msgid "New name"
 msgstr "新しい名前"
 
-#: templates/partials/detail.html:224 templates/partials/detail.html:262
+#: templates/partials/detail.html:226 templates/partials/detail.html:264
 #: templates/partials/objects.html:199
 msgid "Rename"
 msgstr "リネーム"
 
-#: templates/partials/detail.html:235
+#: templates/partials/detail.html:237
 msgid "column name"
 msgstr "列名"
 
-#: templates/partials/detail.html:247
+#: templates/partials/detail.html:249
 msgid "not null"
 msgstr "not null"
 
-#: templates/partials/detail.html:259
+#: templates/partials/detail.html:261
 msgid "Rename to"
 msgstr "リネーム先"
 
-#: templates/partials/detail.html:274
+#: templates/partials/detail.html:276
 msgid "(current)"
 msgstr "（現在）"
 
-#: templates/partials/detail.html:277
+#: templates/partials/detail.html:279
 msgid "Change"
 msgstr "変更"
 
-#: templates/partials/detail.html:286
+#: templates/partials/detail.html:288
 msgid "Nullability"
 msgstr "NULL許可"
 
-#: templates/partials/detail.html:288
+#: templates/partials/detail.html:290
 msgid "set NOT NULL"
 msgstr "NOT NULL を設定"
 
-#: templates/partials/detail.html:288
+#: templates/partials/detail.html:290
 msgid "drop NOT NULL"
 msgstr "NOT NULL を解除"
 
-#: templates/partials/detail.html:295
+#: templates/partials/detail.html:297
 msgid "(empty drops it)"
 msgstr "（空で解除）"
 
-#: templates/partials/detail.html:298 templates/partials/settings_row.html:42
+#: templates/partials/detail.html:300 templates/partials/settings_row.html:42
 msgid "Set"
 msgstr "設定"
 
-#: templates/partials/detail.html:314
+#: templates/partials/detail.html:316
 msgid "Click columns in the order you want them indexed."
 msgstr "インデックスしたい順に列をクリックしてください。"
 
-#: templates/partials/detail.html:328
+#: templates/partials/detail.html:330
 msgid "index name"
 msgstr "インデックス名"
 
-#: templates/partials/detail.html:338
+#: templates/partials/detail.html:340
 msgid "built CONCURRENTLY"
 msgstr "CONCURRENTLY で作成"
 
-#: templates/partials/error.html:2 templates/workspace.html:100
+#: templates/partials/error.html:2 templates/workspace.html:102
 msgid "Could not connect"
 msgstr "接続できませんでした"
 
@@ -789,12 +928,6 @@ msgstr "ディスク使用量 · 未使用インデックス · 不要行"
 #: templates/partials/health.html:11
 msgid "Table sizes"
 msgstr "テーブルサイズ"
-
-#: templates/partials/health.html:22 templates/partials/health.html:24
-#: templates/partials/health.html:107 templates/partials/health.html:153
-#: templates/partials/index_lab.html:16
-msgid "Table"
-msgstr "テーブル"
 
 #: templates/partials/health.html:23
 msgid "Total"
@@ -909,11 +1042,6 @@ msgstr "クリア"
 msgid "Mode"
 msgstr "モード"
 
-#: templates/partials/history.html:27
-#: templates/partials/index_lab_result.html:40
-msgid "Statement"
-msgstr "ステートメント"
-
 #: templates/partials/history.html:28
 msgid "Result"
 msgstr "結果"
@@ -952,90 +1080,6 @@ msgstr "コマンドはまだありません"
 #: templates/partials/history.html:67
 msgid "Run something in the SQL panel and it'll show up here."
 msgstr "SQL パネルで何か実行すると、ここに表示されます。"
-
-#: templates/partials/index_lab.html:6
-msgid ""
-"what-if · the index is built then rolled back — real EXPLAIN ANALYZE timing, "
-"nothing persisted"
-msgstr ""
-"what-if · インデックスを作成してロールバック — 実際の EXPLAIN ANALYZE 計測、"
-"何も残しません"
-
-#: templates/partials/index_lab.html:10
-msgid "preview · reversible"
-msgstr "プレビュー · 取り消し可能"
-
-#: templates/partials/index_lab.html:21
-msgid "— pick a table —"
-msgstr "— テーブルを選択 —"
-
-#: templates/partials/index_lab.html:46
-msgid "Index to try"
-msgstr "試すインデックス"
-
-#: templates/partials/index_lab.html:46
-msgid "— click columns in order"
-msgstr "— 列を順にクリック"
-
-#: templates/partials/index_lab.html:70
-msgid "Target query"
-msgstr "対象クエリ"
-
-#: templates/partials/index_lab.html:70
-msgid "— measured with EXPLAIN ANALYZE (read query)"
-msgstr "— EXPLAIN ANALYZE で計測（読み取りクエリ）"
-
-#: templates/partials/index_lab.html:73
-msgid "SELECT … the query you want this index to speed up"
-msgstr "SELECT … このインデックスで高速化したいクエリ"
-
-#: templates/partials/index_lab.html:82
-msgid "Preview index ▸"
-msgstr "インデックスをプレビュー ▸"
-
-#: templates/partials/index_lab.html:84
-msgid "⌘/Ctrl + Enter"
-msgstr "⌘/Ctrl + Enter"
-
-#: templates/partials/index_lab.html:88
-msgid "Pick a table to choose which columns to index."
-msgstr "テーブルを選ぶと、インデックスする列を選べます。"
-
-#: templates/partials/index_lab_result.html:9
-msgid "without"
-msgstr "なし"
-
-#: templates/partials/index_lab_result.html:14
-msgid "with index"
-msgstr "インデックスあり"
-
-#: templates/partials/index_lab_result.html:27
-msgid "without → with index"
-msgstr "なし → インデックスあり"
-
-#: templates/partials/index_lab_result.html:29
-#: templates/partials/scale_result.html:36
-#: templates/partials/snapshot_diff.html:14
-msgid "plan changed"
-msgstr "計画が変化"
-
-#: templates/partials/index_lab_result.html:31
-#: templates/partials/scale_result.html:38
-msgid "same shape"
-msgstr "同じ形"
-
-#: templates/partials/index_lab_result.html:45
-msgid "Create this index for real (CONCURRENTLY)? This one persists."
-msgstr "このインデックスを実際に作成しますか（CONCURRENTLY）？これは残ります。"
-
-#: templates/partials/index_lab_result.html:53
-msgid "Create for real ▸"
-msgstr "実際に作成 ▸"
-
-#: templates/partials/index_lab_result.html:56
-msgid ""
-"the preview above was a hypothetical index — nothing has been created yet"
-msgstr "上のプレビューは仮想インデックスです — まだ何も作成されていません"
 
 #: templates/partials/locks.html:6
 msgid "— sessions waiting on a lock and who holds it"
@@ -1362,30 +1406,30 @@ msgstr "Explain"
 msgid "Explain analyze"
 msgstr "Explain analyze"
 
-#: templates/partials/query.html:55
+#: templates/partials/query.html:56
 msgid ""
 "EXPLAIN at 1× / 100× / 10000× row counts — see where the plan breaks as data "
 "grows"
 msgstr ""
 "1× / 100× / 10000× の行数で EXPLAIN — データ増加で計画が崩れる箇所を確認"
 
-#: templates/partials/query.html:57
+#: templates/partials/query.html:58
 msgid "Scale ▸"
 msgstr "スケール ▸"
 
-#: templates/partials/query.html:60
+#: templates/partials/query.html:61
 msgid "Try an index against this query and measure it before creating it"
 msgstr "このクエリにインデックスを試し、作成前に計測"
 
-#: templates/partials/query.html:62
+#: templates/partials/query.html:63
 msgid "Try an index ▸"
 msgstr "インデックスを試す ▸"
 
-#: templates/partials/query.html:63
+#: templates/partials/query.html:65
 msgid "⌘/Ctrl + Enter to run"
 msgstr "⌘/Ctrl + Enter で実行"
 
-#: templates/partials/query.html:68
+#: templates/partials/query.html:70
 msgid "Run a query to see results here."
 msgstr "クエリを実行すると、ここに結果が表示されます。"
 
@@ -1423,7 +1467,9 @@ msgstr "%(ms)s ms で実行"
 #: templates/partials/query_result.html:23
 #, python-format
 msgid "capped at %(n)s — add a LIMIT to see more, or export below for all rows"
-msgstr "%(n)s 件で上限 — もっと見るには LIMIT を追加するか、下のエクスポートで全行取得"
+msgstr ""
+"%(n)s 件で上限 — もっと見るには LIMIT を追加するか、下のエクスポートで全行取"
+"得"
 
 #: templates/partials/query_result.html:28
 msgid "Download the full result set (not just the displayed rows)"
@@ -1657,46 +1703,6 @@ msgstr ""
 msgid "restart via your provider's console / API (e.g. RDS)"
 msgstr "プロバイダのコンソール / API で再起動（例: RDS）"
 
-#: templates/partials/scale_result.html:3
-msgid "Scale simulation"
-msgstr "スケールシミュレーション"
-
-#: templates/partials/scale_result.html:4
-msgid "what-if · plan shape"
-msgstr "what-if · 計画の形"
-
-#: templates/partials/scale_result.html:6
-msgid ""
-"planner stats scaled in a rolled-back transaction — no data written, "
-"invisible to other sessions"
-msgstr ""
-"ロールバックされるトランザクション内でプランナー統計をスケール — データは書き"
-"込まれず、他セッションからは見えません"
-
-#: templates/partials/scale_result.html:15
-#: templates/partials/scale_result.html:32
-msgid "now"
-msgstr "現在"
-
-#: templates/partials/scale_result.html:18
-#, python-format
-msgid "rows %(n)s"
-msgstr "行 %(n)s"
-
-#: templates/partials/scale_result.html:21
-#, python-format
-msgid "cost %(n)s"
-msgstr "コスト %(n)s"
-
-#: templates/partials/scale_result.html:46
-msgid ""
-"Shows the plan's <em>shape</em>, not real runtime. Selectivity is held "
-"constant\n"
-"    (uniform growth). Requires a superuser connection."
-msgstr ""
-"実際の実行時間ではなく計画の<em>形</em>を示します。選択性は一定（均一な増"
-"加）。スーパーユーザー接続が必要です。"
-
 #: templates/partials/settings.html:8
 msgid "Filter settings…"
 msgstr "設定を絞り込み…"
@@ -1861,14 +1867,14 @@ msgstr ""
 msgid "overview"
 msgstr "概要"
 
-#: templates/workspace.html:69
+#: templates/workspace.html:71
 msgid "— hover for the section menu"
 msgstr "— ホバーでセクションメニュー"
 
-#: templates/workspace.html:94
+#: templates/workspace.html:96
 msgid "+ New connection"
 msgstr "+ 新しい接続"
 
-#: templates/workspace.html:102
+#: templates/workspace.html:104
 msgid "back to connections"
 msgstr "接続一覧に戻る"

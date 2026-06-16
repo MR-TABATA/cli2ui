@@ -256,23 +256,3 @@ FROM (
 ORDER BY wasted_bytes DESC
 LIMIT {limit};
 """
-
-# Scale-simulation what-if: multiply the planner's row-count estimate for the
-# named tables (and their indexes) by a factor. We scale ONLY reltuples, not
-# relpages: the planner derives a tuple *density* (reltuples/relpages) and
-# multiplies it by the table's *actual* page count, so scaling both by N cancels
-# out and changes nothing — scaling reltuples alone is what makes it believe the
-# table grew. (Page-based I/O cost can't be inflated via the catalog this way;
-# this models row-count growth, which is what drives plan *shape*.) Run only
-# inside a transaction that is always rolled back.
-SCALE_PGCLASS_SQL = """
-UPDATE pg_class
-   SET reltuples = reltuples * %s
- WHERE oid IN (
-   SELECT oid FROM pg_class WHERE relname = ANY(%s) AND relkind IN ('r', 'p')
-   UNION
-   SELECT indexrelid FROM pg_index
-    WHERE indrelid IN (SELECT oid FROM pg_class
-                        WHERE relname = ANY(%s) AND relkind IN ('r', 'p'))
- )
-"""
