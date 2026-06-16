@@ -54,6 +54,16 @@ Each panel is self-contained and follows the same pattern:
 - `templates/partials/` — one HTML partial per panel.
 - `cli2ui/urls.py` — wire the new view in.
 
+**Optional / advanced features** can live in their own Django app instead of
+`core`, so they can be toggled or split off cleanly. The planner what-if tools
+(scale simulation + index lab) are the reference — see `planner_lab/`. The app
+registers a feature key in its `AppConfig.ready()`; the core nav shows its
+buttons only when the key is in `enabled_features` (a context processor over
+`core/features.py`), and `cli2ui/urls.py` includes its routes only when the app
+is installed. Such apps reach the database through engine primitives like
+`PostgresEngine.whatif_cursor()` and depend on `core` one-way. Removing the app
+from `INSTALLED_APPS` removes the feature entirely — nav and routes alike.
+
 The frontend is **htmx + Alpine.js** (CDN, no build step): a click does an
 `hx-get`/`hx-post` that swaps in server-rendered HTML.
 
