@@ -205,11 +205,19 @@
     <div class="mt-10 grid gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 lg:grid-cols-3">
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">SQL ランナー</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">既定はリードオンリーのアドホッククエリ（<span class="mono">READ ONLY</span> + 文タイムアウト + 1000行上限）。明示オプトインの書込みモードはコミットしますが、毎回 DB 全体の安全スナップショットで保護されます。</p>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">既定はリードオンリーのアドホッククエリ（<span class="mono">READ ONLY</span> + 文タイムアウト + 1000行上限）。明示オプトインの書込みモードはコミットしますが、毎回 DB 全体の安全スナップショットで保護されます。結果は CSV / JSON でエクスポート可能。</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">EXPLAIN スナップショット + 差分</h3>
         <p class="mt-2 text-sm text-zinc-400 leading-relaxed">実行計画を保存し、インデックス追加の前後など2つを差分表示。計画をメモ帳にコピペして見比べる作業から解放されます。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">スケールシミュレーション</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">同じクエリを実際の行数の 1× / 100× / 10000× で EXPLAIN（<span class="mono">pg_class</span> を一時改変し必ず ROLLBACK）。データ増加で実行計画の形が崩れる地点が見えます。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">インデックス ラボ</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">仮想インデックスの効果を作成前に計測（<span class="mono">EXPLAIN ANALYZE</span> で前後比較、インデックスは1トランザクション内で作成し ROLLBACK）。本当に効くか確かめてから作れます。</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">アクティビティ</h3>
@@ -233,7 +241,7 @@
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">オブジェクトブラウザ</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">データベース・スキーマ・ロール（<span class="mono">\l \dn \du</span>）をリードオンリーで一覧。reload / restart バッジ付きの <span class="mono">postgresql.conf</span> エディタも。</p>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">データベース・スキーマ・ロール（<span class="mono">\l \dn \du</span>）の一覧に加え、作成 / リネーム / 変更 / 削除（DB の <span class="mono">TEMPLATE</span> クローンも）を確認ゲート付きで。reload / restart バッジ付きの <span class="mono">postgresql.conf</span> エディタも。</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">コマンド履歴</h3>
