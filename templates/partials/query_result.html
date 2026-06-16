@@ -20,7 +20,20 @@
     {% endif %}
     <span class="text-zinc-500">·</span><span class="text-zinc-400">{% blocktrans with ms=result.duration_ms %}ran in {{ ms }} ms{% endblocktrans %}</span>
     {% if result.truncated %}
-      <span class="text-zinc-500">·</span><span class="text-amber-400">{% blocktrans with n=result.rowcount %}capped at {{ n }} — add a LIMIT to see more{% endblocktrans %}</span>
+      <span class="text-zinc-500">·</span><span class="text-amber-400">{% blocktrans with n=result.rowcount %}capped at {{ n }} — add a LIMIT to see more, or export below for all rows{% endblocktrans %}</span>
+    {% endif %}
+    {% if result.columns and sql %}
+      <span class="text-zinc-500">·</span>
+      <form method="post" action="{% url 'query_export' connection.pk %}" class="inline-flex items-center gap-1.5"
+            title="{% trans 'Download the full result set (not just the displayed rows)' %}">
+        {% csrf_token %}
+        <input type="hidden" name="sql" value="{{ sql }}">
+        <span class="text-zinc-500 text-xs uppercase tracking-wide">{% trans "Export" %}</span>
+        <button name="format" value="csv"
+                class="text-xs px-2 py-0.5 rounded border border-zinc-700 hover:border-zinc-500 text-zinc-300 transition">CSV</button>
+        <button name="format" value="json"
+                class="text-xs px-2 py-0.5 rounded border border-zinc-700 hover:border-zinc-500 text-zinc-300 transition">JSON</button>
+      </form>
     {% endif %}
   </div>
 

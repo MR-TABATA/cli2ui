@@ -440,6 +440,13 @@ class Engine:
         result is capped + time-limited so a stray query can't take anything down."""
         raise NotImplementedError
 
+    def stream_query(self, sql: str, *, timeout_ms: int = 60000,
+                     max_rows: int = 1_000_000):
+        """Run read-only SQL and stream the full result for a file export: yield
+        the column-name list, then one row tuple at a time, without buffering the
+        whole result in memory. Read-only and time-limited like run_query."""
+        raise NotImplementedError
+
     def explain(self, sql: str, *, analyze: bool = False,
                 timeout_ms: int = 15000) -> str:
         """Return the query plan as text. ANALYZE runs the query for real

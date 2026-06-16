@@ -27,6 +27,7 @@ urlpatterns = [
     path("c/<int:pk>/lab/preview", views.index_lab_preview, name="index_lab_preview"),
     path("c/<int:pk>/query", views.query, name="query"),
     path("c/<int:pk>/query/run", views.query_run, name="query_run"),
+    path("c/<int:pk>/query/export", views.query_export, name="query_export"),
     path("c/<int:pk>/history", views.history, name="history"),
     path("c/<int:pk>/history/clear", views.history_clear, name="history_clear"),
     path("c/<int:pk>/explain", views.explain_run, name="explain_run"),
