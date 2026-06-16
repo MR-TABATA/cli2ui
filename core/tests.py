@@ -7,6 +7,7 @@ no DB. The catalog-touching simulate_scale() itself is verified by hand against
 the sample DB (see project notes); here we test the machinery it feeds.
 """
 import contextlib
+import json
 import os
 import unittest
 import unittest.mock
@@ -659,6 +660,21 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
         with self.assertRaises(EngineError):
             self.engine.run_query("CREATE TEMP TABLE _cli2ui_probe (x int)")
 
+    def test_stream_query_yields_header_then_all_rows(self):
+        # The export path streams the FULL result, past run_query's display cap.
+        gen = self.engine.stream_query("SELECT generate_series(1, 5000) AS n")
+        columns = next(gen)
+        self.assertEqual(columns, ["n"])
+        rows = list(gen)
+        self.assertEqual(len(rows), 5000)
+        self.assertEqual(rows[0][0], 1)
+
+    def test_stream_query_read_only_rejects_writes(self):
+        # Read-only is enforced the same way as run_query; the error surfaces on
+        # the first next() (which runs the query), before any rows stream.
+        with self.assertRaises(EngineError):
+            next(self.engine.stream_query("CREATE TEMP TABLE _cli2ui_probe (x int)"))
+
     def test_explain_json_returns_a_tree(self):
         node = self.engine.explain_json("SELECT * FROM orders")
         self.assertTrue(node.node_type)
@@ -1167,6 +1183,53 @@ class DumpViewTests(TestCase):
         url = self.reverse("database_dump", args=[self.conn.pk])
         resp = self.client.get(url, {"name": "cli2ui_no_such_db", "format": "plain"})
         self.assertEqual(resp.status_code, 502)
+
+
+@unittest.skipUnless(_sampledb_reachable(), "needs the sample DB")
+class QueryExportViewTests(TestCase):
+    """The query-result export endpoint: POST SQL → streamed CSV/JSON attachment,
+    full result set, with a plain-text error when the query is bad."""
+
+    def setUp(self):
+        from django.urls import reverse
+        self.reverse = reverse
+        self.conn = Connection.objects.create(
+            name="export", kind="postgres", host="localhost", port=5433,
+            dbname="shop", user="demo", password="demo")
+
+    def _get(self, fmt):
+        url = self.reverse("query_export", args=[self.conn.pk])
+        resp = self.client.post(
+            url, {"sql": "SELECT generate_series(1, 3) AS n", "format": fmt})
+        # StreamingHttpResponse: join the streamed chunks to inspect the body.
+        body = b"".join(resp.streaming_content)
+        return resp, body
+
+    def test_csv_export_streams_full_result_as_attachment(self):
+        resp, body = self._get("csv")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("attachment", resp["Content-Disposition"])
+        self.assertIn(".csv", resp["Content-Disposition"])
+        text = body.decode("utf-8-sig")  # tolerate the leading BOM
+        self.assertIn("n", text.splitlines()[0])
+        self.assertEqual(text.strip().splitlines()[-1], "3")
+
+    def test_json_export_streams_array_of_objects(self):
+        resp, body = self._get("json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(".json", resp["Content-Disposition"])
+        data = json.loads(body)
+        self.assertEqual([r["n"] for r in data], [1, 2, 3])
+
+    def test_bad_query_returns_error_not_a_download(self):
+        url = self.reverse("query_export", args=[self.conn.pk])
+        resp = self.client.post(url, {"sql": "SELECT * FROM no_such_table", "format": "csv"})
+        self.assertEqual(resp.status_code, 502)
+
+    def test_empty_sql_is_rejected(self):
+        url = self.reverse("query_export", args=[self.conn.pk])
+        resp = self.client.post(url, {"sql": "  ", "format": "csv"})
+        self.assertEqual(resp.status_code, 400)
 
 
 @unittest.skipUnless(_sampledb_reachable() and _has_restore_tools(),

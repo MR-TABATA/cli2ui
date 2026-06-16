@@ -1,8 +1,11 @@
 """The SQL runner and planner workbench: ad-hoc queries, command history,
 EXPLAIN, the scale simulation and the what-if index lab."""
+import csv
 import json
 
+from django.http import HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from ..engines import EngineError, get_engine
@@ -55,8 +58,69 @@ def query_run(request, pk):
     return render(
         request,
         "partials/query_result.html",
-        {"result": result, "rows": rows, "notice": notice, "wrote": write},
+        {"connection": connection, "sql": sql_text, "result": result,
+         "rows": rows, "notice": notice, "wrote": write},
     )
+
+
+class _Echo:
+    """A write-only file that just returns what it's given, so csv.writer can
+    hand each formatted row straight to the streaming response."""
+
+    def write(self, value):
+        return value
+
+
+def _csv_stream(columns, rows):
+    """Yield a CSV file row by row. The leading BOM makes Excel open it as UTF-8
+    (the common 'CSV → Excel' handoff) without mangling non-ASCII."""
+    writer = csv.writer(_Echo())
+    yield "﻿"  # UTF-8 BOM, so Excel detects the encoding
+    if columns:
+        yield writer.writerow(columns)
+    for row in rows:
+        yield writer.writerow(["" if v is None else v for v in row])
+
+
+def _json_stream(columns, rows):
+    """Yield a JSON array of {column: value} objects, one row at a time. default=str
+    serialises dates/Decimals/etc.; ensure_ascii=False keeps text human-readable."""
+    yield "["
+    first = True
+    for row in rows:
+        obj = dict(zip(columns, row))
+        yield ("" if first else ",") + json.dumps(obj, default=str, ensure_ascii=False)
+        first = False
+    yield "]"
+
+
+def query_export(request, pk):
+    """Stream the read-only query's *full* result (not the 1000-row display cap)
+    as a CSV or JSON download. A POST so the arbitrary, possibly long SQL rides
+    in the body; the browser saves the streamed response as a file."""
+    connection = get_object_or_404(Connection, pk=pk)
+    sql_text = (request.POST.get("sql") or "").strip()
+    fmt = request.POST.get("format", "csv")
+    if not sql_text:
+        return HttpResponse(_("Nothing to export — run a query first."),
+                            content_type="text/plain", status=400)
+
+    source = get_engine(connection).stream_query(sql_text)
+    # Pull the header first: this runs the query, so a bad query surfaces here as
+    # a clean error response. Once streaming starts we're committed to a 200.
+    try:
+        columns = next(source)
+    except EngineError as exc:
+        return HttpResponse(str(exc), content_type="text/plain", status=502)
+
+    stamp = timezone.now().strftime("%Y%m%d-%H%M%S")
+    if fmt == "json":
+        body, ctype, ext = _json_stream(columns, source), "application/json", "json"
+    else:
+        body, ctype, ext = _csv_stream(columns, source), "text/csv; charset=utf-8", "csv"
+    response = StreamingHttpResponse(body, content_type=ctype)
+    response["Content-Disposition"] = f'attachment; filename="query-{stamp}.{ext}"'
+    return response
 
 
 def _log_command(connection, sql_text, *, read_only, result=None, error=None):
