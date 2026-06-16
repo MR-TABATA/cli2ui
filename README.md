@@ -104,11 +104,20 @@ MVP. `docker compose up` → connect → browse your tables in a DB-client layou
 - ✅ SQL runner: read-only ad-hoc queries by default (`SET TRANSACTION READ ONLY`
   + `statement_timeout` + 1000-row cap), with an opt-in **write mode** that
   commits — guarded by a whole-database safety snapshot taken before each write
+- ✅ Export query results: download the full result set (past the display cap) as
+  CSV (UTF-8 BOM for Excel) or JSON, streamed through a server-side cursor
 - ✅ EXPLAIN snapshots + diff: save query plans and diff two (before/after an
   index) instead of copy-pasting plans into a scratch file
+- ✅ Scale simulation: EXPLAIN the same query at 1× / 100× / 10000× the real row
+  counts (a what-if `pg_class` edit, always rolled back) to see where the plan
+  shape breaks as data grows
+- ✅ Index lab: measure a hypothetical index (`EXPLAIN ANALYZE` before/after, the
+  index created and rolled back in one transaction) before you commit to creating it
 - ✅ Activity: running queries + connections from `pg_stat_activity`, with
   one-click cancel (`pg_cancel_backend`) / kill (`pg_terminate_backend`)
-- ✅ Objects browser: databases (`\l`), schemas (`\dn`), roles (`\du`) — read-only
+- ✅ Objects browser: databases (`\l`), schemas (`\dn`), roles (`\du`) — a read-only
+  listing, with create / rename / alter / drop (and DB clone via `TEMPLATE`) behind
+  confirm gates in a side drawer
 - ✅ `postgresql.conf` editor: read/edit parameters via `pg_settings` +
   `ALTER SYSTEM SET` + `pg_reload_conf()`, with reload-vs-restart badges
 - ✅ Locks: sessions blocked on a lock (`pg_locks` + `pg_blocking_pids`) paired
