@@ -15,12 +15,14 @@ only — tables open from the sidebar.{% endcomment %}
       <span class="text-sm font-medium">{% trans "SQL runner" %}</span>
       <span class="ml-auto text-sm text-zinc-400">{{ commands }}</span>
     </button>
+    {% if 'planner_lab' in enabled_features %}
     <button hx-get="{% url 'index_lab' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
             class="flex items-center gap-2.5 w-full px-2 py-3 rounded-md text-left text-zinc-200 hover:bg-emerald-950/40 transition">
       <svg class="w-4 h-4 text-emerald-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.31"/><path d="M14 9.3V1.99"/><path d="M8.5 2h7"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/><path d="M5.52 16h12.96"/></svg>
       <span class="text-sm font-medium">{% trans "Index lab" %}</span>
       <span class="ml-auto text-xs text-zinc-500">{% trans "what-if" %}</span>
     </button>
+    {% endif %}
     <button hx-get="{% url 'snapshots' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
             class="flex items-center gap-2.5 w-full px-2 py-3 rounded-md text-left text-zinc-200 hover:bg-emerald-950/40 transition">
       <svg class="w-4 h-4 text-emerald-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/></svg>

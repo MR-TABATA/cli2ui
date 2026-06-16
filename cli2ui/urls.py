@@ -1,3 +1,4 @@
+from django.apps import apps as django_apps
 from django.urls import include, path
 
 from core import views
@@ -23,15 +24,12 @@ urlpatterns = [
     path("c/<int:pk>/columns/default", views.column_set_default, name="column_set_default"),
     path("c/<int:pk>/indexes/create", views.index_create, name="index_create"),
     path("c/<int:pk>/indexes/drop", views.index_drop, name="index_drop"),
-    path("c/<int:pk>/lab", views.index_lab, name="index_lab"),
-    path("c/<int:pk>/lab/preview", views.index_lab_preview, name="index_lab_preview"),
     path("c/<int:pk>/query", views.query, name="query"),
     path("c/<int:pk>/query/run", views.query_run, name="query_run"),
     path("c/<int:pk>/query/export", views.query_export, name="query_export"),
     path("c/<int:pk>/history", views.history, name="history"),
     path("c/<int:pk>/history/clear", views.history_clear, name="history_clear"),
     path("c/<int:pk>/explain", views.explain_run, name="explain_run"),
-    path("c/<int:pk>/scale", views.scale_run, name="scale_run"),
     path("c/<int:pk>/snapshots", views.snapshots, name="snapshots"),
     path("c/<int:pk>/snapshots/save", views.snapshot_save, name="snapshot_save"),
     path("c/<int:pk>/snapshots/plan", views.snapshot_plan, name="snapshot_plan"),
@@ -67,3 +65,8 @@ urlpatterns = [
     path("c/<int:pk>/settings/update", views.settings_update, name="settings_update"),
     path("c/<int:pk>/settings/reset", views.settings_reset, name="settings_reset"),
 ]
+
+# Optional feature apps contribute their own routes only when installed, so the
+# feature (and its URLs) disappears cleanly when the app is dropped.
+if django_apps.is_installed("planner_lab"):
+    urlpatterns += [path("", include("planner_lab.urls"))]

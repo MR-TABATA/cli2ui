@@ -19,14 +19,11 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from core.engines import EngineError, get_engine
 from core.engines.base import Activity, Index, PlanNode, Setting, Table
 from core.engines.postgres import (
-    HYPO_INDEX_NAME,
     INDEX_METHODS,
     PostgresEngine,
     _clean,
     _parse_plan,
-    _relation_names,
     _role,
-    _scale_error,
     _setting,
     _tool_error,
     build_create_index_sql,
@@ -101,17 +98,6 @@ class ParsePlanTests(SimpleTestCase):
     def test_summary_formats_index_scan(self):
         n = node("Index Scan", relation="orders", index="ix_orders_cust")
         self.assertEqual(n.summary, "Index Scan using ix_orders_cust on orders")
-
-
-class RelationNamesTests(SimpleTestCase):
-    def test_collects_every_scanned_table(self):
-        self.assertEqual(
-            _relation_names(_parse_plan(SAMPLE_PAYLOAD)),
-            {"orders", "customers"},
-        )
-
-    def test_empty_when_no_relations(self):
-        self.assertEqual(_relation_names(node("Result")), set())
 
 
 class SerializationTests(SimpleTestCase):
@@ -249,21 +235,11 @@ class ToolErrorTests(SimpleTestCase):
         self.assertEqual(_tool_error(b"   \n", "pg_dump failed."), "pg_dump failed.")
 
 
-class ScaleErrorTests(SimpleTestCase):
-    def test_pg_class_permission_gets_friendly_hint(self):
-        exc = psycopg2.Error("permission denied for table pg_class")
-        self.assertIn("superuser", _scale_error(exc))
-
-    def test_other_errors_pass_through(self):
-        exc = psycopg2.Error("syntax error at or near \"SELCT\"")
-        self.assertEqual(_scale_error(exc), 'syntax error at or near "SELCT"')
-
-
 class BuildCreateIndexSqlValidationTests(SimpleTestCase):
     """The shared spec→SQL core's validation — pure, no DB. (Rendering the
     composed statement needs a connection for identifier quoting, so the
-    string-output checks live in the integration tests.) The future index lab
-    will reuse this builder with concurrently=False."""
+    string-output checks live in the integration tests.) The index lab
+    (planner_lab) reuses this builder with concurrently=False."""
 
     def test_unknown_method_rejected(self):
         # The method is the one piece spliced as raw SQL — must be allow-listed.
@@ -678,19 +654,7 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
     def test_explain_json_returns_a_tree(self):
         node = self.engine.explain_json("SELECT * FROM orders")
         self.assertTrue(node.node_type)
-        self.assertIn("orders", _relation_names(node))
-
-    def test_simulate_scale_scales_and_leaves_no_trace(self):
-        before = self._reltuples("orders")
-        plans = self.engine.simulate_scale(
-            "SELECT customer_id, count(*) FROM orders GROUP BY customer_id",
-            factors=(1, 100))
-        scaled = next(p for p in plans if p.factor == 100)
-        base = next(p for p in plans if p.factor == 1)
-        # The 100× plan estimates more rows out of the scan than the 1× plan...
-        self.assertGreater(_max_rows(scaled.plan), _max_rows(base.plan))
-        # ...but the catalog is untouched afterwards (the what-if was rolled back).
-        self.assertEqual(self._reltuples("orders"), before)
+        self.assertIn("orders", node.summary)
 
     def test_create_and_drop_schema_roundtrip(self):
         name = "cli2ui_test_schema"
@@ -724,26 +688,6 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
         idx = self.engine.list_indexes("public", "orders")
         self.assertTrue(any(i.primary for i in idx))
         self.assertTrue(all(i.valid for i in idx))
-
-    def test_preview_index_measures_and_leaves_no_trace(self):
-        # The what-if trial returns real before/after timing and the real DDL,
-        # and — the safety core — leaves nothing behind (the hypothetical index
-        # was rolled back, exactly like the scale simulation's catalog edit).
-        before_idx = {i.name for i in self.engine.list_indexes("public", "orders")}
-        preview = self.engine.preview_index(
-            "SELECT * FROM orders WHERE customer_id = 1",
-            "public", "orders", ["customer_id"])
-        self.assertIsNotNone(preview.before.actual_ms)
-        self.assertIsNotNone(preview.after.actual_ms)
-        self.assertIn("CONCURRENTLY", preview.ddl)
-        after_idx = {i.name for i in self.engine.list_indexes("public", "orders")}
-        self.assertEqual(before_idx, after_idx)
-        self.assertNotIn(HYPO_INDEX_NAME, after_idx)
-
-    def test_preview_index_rejects_unknown_column(self):
-        with self.assertRaises(EngineError):
-            self.engine.preview_index("SELECT * FROM orders", "public",
-                                      "orders", ["no_such_col"])
 
     def test_table_sizes_lists_sample_tables_with_pretty_sizes(self):
         sizes = self.engine.table_sizes()
@@ -1139,15 +1083,6 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
 
     def _has_schema(self, name):
         return any(s.name == name for s in self.engine.list_schemas())
-
-    def _reltuples(self, relname):
-        with self.engine._connect() as conn, conn.cursor() as cur:
-            cur.execute("SELECT reltuples FROM pg_class WHERE relname = %s", [relname])
-            return cur.fetchone()[0]
-
-
-def _max_rows(node: PlanNode) -> float:
-    return max([node.plan_rows] + [_max_rows(c) for c in node.children])
 
 
 @unittest.skipUnless(_sampledb_reachable() and _has_pg_dump(),

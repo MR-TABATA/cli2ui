@@ -22,7 +22,6 @@ from .base import (
     Engine,
     EngineError,
     Index,
-    IndexPreview,
     LockWait,
     PlanNode,
     Preview,
@@ -31,7 +30,6 @@ from .base import (
     ReplicationSlot,
     ReplicationStatus,
     Role,
-    ScalePlan,
     Schema,
     Setting,
     Standby,
@@ -55,7 +53,6 @@ from .pg_sql import (
     LIST_SCHEMAS_SQL,
     LIST_TABLES_SQL,
     REPLICATION_STATUS_SQL,
-    SCALE_PGCLASS_SQL,
     SETTINGS_SELECT,
     SLOTS_SQL,
     STANDBYS_SQL,
@@ -91,10 +88,6 @@ DUMP_FORMATS = {
 # How long a single pg_dump / restore may run before we give up (seconds).
 DUMP_TIMEOUT = 120
 RESTORE_TIMEOUT = 300
-
-# Name given to the throwaway index created during a what-if trial, so we can
-# tell whether the planner actually chose it (it's rolled back regardless).
-HYPO_INDEX_NAME = "_cli2ui_hypothetical_idx"
 
 
 def build_create_index_sql(schema, table, columns, *, method="btree",
@@ -173,6 +166,31 @@ class PostgresEngine(Engine):
                 yield self
             finally:
                 self._held = None
+
+    @contextlib.contextmanager
+    def whatif_cursor(self, *, timeout_ms: int = 15000, lock_timeout: str = "2s"):
+        """A cursor inside a transaction that is ALWAYS rolled back — the engine
+        primitive behind the planner what-if tools (scale simulation, index lab),
+        which live in their own app. Whatever the caller runs through it (a
+        pg_class stats edit, a hypothetical CREATE INDEX, EXPLAIN) is never
+        committed and is invisible to other sessions.
+
+        NOT read-only: the caller deliberately edits the catalog / builds an
+        index — safety is the unconditional rollback, not the transaction mode.
+        statement_timeout + lock_timeout are pre-set so a what-if can't hang or
+        pin catalog locks. Driver errors surface as EngineError (cleaned to one
+        line); the caller never touches psycopg2."""
+        with self._connect() as conn:
+            conn.autocommit = False
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
+                    cur.execute("SET LOCAL lock_timeout = %s", [lock_timeout])
+                    yield cur
+            except psycopg2.Error as exc:
+                raise EngineError(_clean(exc)) from exc
+            finally:
+                conn.rollback()  # the what-if is never persisted
 
     def test(self) -> None:
         with self._connect() as conn:
@@ -339,42 +357,6 @@ class PostgresEngine(Engine):
                 conn.rollback()
                 raise EngineError(_clean(exc)) from exc
             conn.rollback()
-        return _parse_plan(payload)
-
-    def simulate_scale(self, sql_text: str, *, factors=(1, 100, 10000),
-                       timeout_ms: int = 15000) -> list[ScalePlan]:
-        # The factor-1 plan is the real one; it also tells us which tables the
-        # query touches, so we scale exactly those (not the whole database).
-        base = self.explain_json(sql_text, timeout_ms=timeout_ms)
-        relnames = sorted(_relation_names(base))
-        plans = [ScalePlan(factor=1, plan=base)]
-        for n in factors:
-            if n == 1:
-                continue
-            plans.append(ScalePlan(
-                factor=n,
-                plan=self._explain_scaled(sql_text, n, relnames, timeout_ms),
-            ))
-        return plans
-
-    def _explain_scaled(self, sql_text: str, factor: int,
-                        relnames: list[str], timeout_ms: int) -> PlanNode:
-        with self._connect() as conn:
-            # NOT read-only: we UPDATE pg_class. But plain EXPLAIN (no ANALYZE)
-            # never runs the user's query, and we ROLLBACK unconditionally — the
-            # catalog edit is never committed and is invisible to other sessions.
-            conn.autocommit = False
-            try:
-                with conn.cursor() as cur:
-                    cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
-                    cur.execute("SET LOCAL lock_timeout = '2s'")  # don't hang on catalog locks
-                    cur.execute(SCALE_PGCLASS_SQL, [factor, relnames, relnames])
-                    cur.execute("EXPLAIN (FORMAT JSON) " + sql_text)
-                    payload = cur.fetchone()[0]
-            except psycopg2.Error as exc:
-                conn.rollback()
-                raise EngineError(_scale_error(exc)) from exc
-            conn.rollback()  # never persist the what-if catalog edit
         return _parse_plan(payload)
 
     # --- activity / sessions ---------------------------------------------
@@ -924,45 +906,6 @@ class PostgresEngine(Engine):
         if proc.returncode != 0:
             raise EngineError(_tool_error(b"".join(err_chunks), "restore failed."))
 
-    def preview_index(self, sql_text: str, schema: str, table: str,
-                      columns: list[str], *, method: str = "btree",
-                      unique: bool = False,
-                      timeout_ms: int = 15000) -> IndexPreview:
-        valid = {c.name for c in self.list_columns(schema, table)}
-        unknown = [c for c in columns if c not in valid]
-        if unknown:
-            raise EngineError(_("No such column(s): %(cols)s") % {"cols": ', '.join(unknown)})
-        # The throwaway index we actually build (named so we can detect use);
-        # plain (not CONCURRENTLY) so it can live inside the transaction.
-        hypo = build_create_index_sql(schema, table, columns, method=method,
-                                      unique=unique, name=HYPO_INDEX_NAME,
-                                      concurrently=False)
-        # The statement the user would run for real (what we display).
-        real = build_create_index_sql(schema, table, columns, method=method,
-                                      unique=unique, concurrently=True)
-        explain = "EXPLAIN (ANALYZE, FORMAT JSON) " + sql_text
-        with self._connect() as conn:
-            # NOT read-only: we CREATE INDEX. Safety is the unconditional
-            # ROLLBACK — the index, and any side effects of running the query
-            # under ANALYZE, are never committed and are invisible to others.
-            conn.autocommit = False
-            try:
-                with conn.cursor() as cur:
-                    cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
-                    cur.execute("SET LOCAL lock_timeout = '2s'")
-                    cur.execute(explain)
-                    before = _parse_plan(cur.fetchone()[0])
-                    cur.execute(hypo)  # visible to the next EXPLAIN in this tx
-                    cur.execute(explain)
-                    after = _parse_plan(cur.fetchone()[0])
-                    ddl = real.as_string(cur)
-            except psycopg2.Error as exc:
-                conn.rollback()
-                raise EngineError(_clean(exc)) from exc
-            conn.rollback()  # never persist the hypothetical index
-        return IndexPreview(ddl=ddl, before=before, after=after,
-                            used=_uses_index(after, HYPO_INDEX_NAME))
-
     def _execute(self, statement) -> None:
         """Run a composed DDL statement, mapping driver errors to EngineError."""
         with self._connect() as conn:
@@ -1155,31 +1098,6 @@ def _plan_detail(d: dict) -> str | None:
         if d.get(key):
             bits.append(f"{key}: {d[key]}")
     return ", ".join(bits) or None
-
-
-def _relation_names(node: PlanNode, acc: set[str] | None = None) -> set[str]:
-    """Every table the plan reads — what the scale simulation grows."""
-    acc = set() if acc is None else acc
-    if node.relation:
-        acc.add(node.relation)
-    for child in node.children:
-        _relation_names(child, acc)
-    return acc
-
-
-def _uses_index(node: PlanNode, name: str) -> bool:
-    """Whether any scan in the plan tree uses the named index — i.e. did the
-    planner actually pick the hypothetical index we offered it?"""
-    if node.index == name:
-        return True
-    return any(_uses_index(c, name) for c in node.children)
-
-
-def _scale_error(exc: psycopg2.Error) -> str:
-    msg = _clean(exc)
-    if "pg_class" in msg and "permission" in msg.lower():
-        return "Scale simulation needs a superuser connection (it edits pg_class)."
-    return msg
 
 
 def _clean(exc: psycopg2.Error) -> str:
