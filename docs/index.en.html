@@ -205,11 +205,19 @@
     <div class="mt-10 grid gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 lg:grid-cols-3">
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">SQL runner</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Read-only ad-hoc queries by default (<span class="mono">READ ONLY</span> + statement timeout + 1000-row cap), with an opt-in write mode that commits — guarded by a whole-database safety snapshot before each write.</p>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Read-only ad-hoc queries by default (<span class="mono">READ ONLY</span> + statement timeout + 1000-row cap), with an opt-in write mode that commits — guarded by a whole-database safety snapshot before each write. Export the full result set as CSV or JSON.</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">EXPLAIN snapshots + diff</h3>
         <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Save query plans and diff two of them — before/after an index — instead of copy-pasting plans into a scratch file.</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">Scale simulation</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">EXPLAIN the same query at 1× / 100× / 10000× the real row counts (a what-if <span class="mono">pg_class</span> edit, always rolled back) to see where the plan shape breaks as data grows.</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">Index lab</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Measure a hypothetical index before you create it — <span class="mono">EXPLAIN ANALYZE</span> before/after, the index built and rolled back in one transaction.</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">Activity</h3>
@@ -233,7 +241,7 @@
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">Objects browser</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Databases, schemas and roles (<span class="mono">\l \dn \du</span>) — read-only — plus a <span class="mono">postgresql.conf</span> editor with reload-vs-restart badges.</p>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">List databases, schemas and roles (<span class="mono">\l \dn \du</span>), plus create / rename / alter / drop (and DB clone via <span class="mono">TEMPLATE</span>) behind confirm gates — and a <span class="mono">postgresql.conf</span> editor with reload-vs-restart badges.</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">Command history</h3>
