@@ -253,6 +253,54 @@ class PostgresEngine(Engine):
             truncated=truncated, duration_ms=duration_ms,
         )
 
+    def stream_query(self, sql_text: str, *, timeout_ms: int = 60000,
+                     max_rows: int = 1_000_000):
+        """Run read-only SQL and stream the *full* result for a file export
+        (unlike run_query's 1000-row display cap). Yields the column-name list
+        first, then one row tuple at a time, pulled through a server-side named
+        cursor so a large result is fetched in batches — never buffered whole in
+        memory, the half of "ad-hoc SQL but safe" that matters for exports.
+
+        Read-only is enforced the same way as run_query (the DB rejects writes,
+        no SQL scanning) and statement_timeout still applies. The connection is
+        held open for the life of the generator — Django pulls rows as it writes
+        the response body — then rolled back and closed when iteration ends.
+        Because the caller may be partway through writing an HTTP response, an
+        error mid-stream can't become a clean error page; only the first
+        next() (which runs the query) raises EngineError for the view to catch.
+        """
+        with self._connect() as conn:
+            # A named (server-side) cursor needs a real transaction, which also
+            # scopes READ ONLY + statement_timeout.
+            conn.autocommit = False
+            try:
+                with conn.cursor() as setup:
+                    setup.execute("SET TRANSACTION READ ONLY")
+                    setup.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
+                # Named cursor: rows stream from the backend in itersize batches.
+                with conn.cursor(name="cli2ui_export") as cur:
+                    cur.itersize = 2000
+                    cur.execute(sql_text)
+                    # A server-side cursor only populates .description after the
+                    # first fetch, so pull a batch before emitting the header.
+                    batch = cur.fetchmany(cur.itersize)
+                    if cur.description is None:
+                        yield []          # not a row-returning statement
+                        return
+                    yield [d.name for d in cur.description]   # header first
+                    sent = 0
+                    while batch:
+                        for row in batch:
+                            yield row
+                            sent += 1
+                            if sent >= max_rows:
+                                return
+                        batch = cur.fetchmany(cur.itersize)
+            except psycopg2.Error as exc:
+                raise EngineError(_clean(exc)) from exc
+            finally:
+                conn.rollback()           # read-only: never persist anything
+
     def explain(self, sql_text: str, *, analyze: bool = False,
                 timeout_ms: int = 15000) -> str:
         opts = "ANALYZE, " if analyze else ""
