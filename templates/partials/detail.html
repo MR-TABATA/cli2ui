@@ -29,6 +29,17 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
         <span x-show="busy" class="spinner text-sky-300"></span>
         <span x-show="err" x-text="err" class="text-red-400/90 max-w-[160px] truncate"></span>
       </span>
+      <!-- Export every row (read-only SELECT *, streamed). Native download links
+           like the query exporter; full table, not the preview's row cap. -->
+      <span class="btn btn-sm btn-neutral gap-2 cursor-default">
+        {% trans "export" %}
+        <a href="{% url 'table_export' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=csv"
+           title="{% trans 'Download every row as CSV' %}" class="btn-link">CSV ↓</a>
+        <a href="{% url 'table_export' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=json"
+           title="{% trans 'Download every row as JSON' %}" class="btn-link">JSON ↓</a>
+      </span>
+      <button @click="drawer = 'import-csv'" class="btn btn-sm btn-neutral"
+              title="{% trans 'Append rows from a CSV file' %}">{% trans "import" %}</button>
       <button @click="drawer = 'rename'" class="btn btn-sm btn-neutral">{% trans "rename" %}</button>
     </div>
   </div>
@@ -145,31 +156,70 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
     </div>
   </section>
 
-  <!-- Data tab -->
-  <section x-show="tab === 'data'" x-cloak>
-    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-      {% if preview_rows %}
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-              <tr class="border-b border-zinc-800">
-                {% for c in preview_columns %}<th class="px-4 py-2 font-medium mono whitespace-nowrap">{{ c }}</th>{% endfor %}
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in preview_rows %}
-                <tr class="border-b border-zinc-800/60 hover:bg-zinc-800/40">
-                  {% for v in row %}
-                    <td class="px-4 py-2 mono text-zinc-300 max-w-[260px] truncate whitespace-nowrap">{{ v }}</td>
-                  {% endfor %}
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+  <!-- Data tab: filter builder + result grid -->
+  <section x-show="tab === 'data'" x-cloak class="space-y-3" x-data="filterBuilder()">
+    <!-- Filter builder: column ▾ + operator ▾ + value rows, ANDed, run read-only. -->
+    <form hx-post="{% url 'table_filter' connection.pk %}" hx-target="#filter-result" hx-swap="innerHTML"
+          class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 space-y-2">
+      <input type="hidden" name="schema" value="{{ schema }}">
+      <input type="hidden" name="table" value="{{ table }}">
+      <template x-for="(row, i) in rows" :key="row.id">
+        <div class="flex items-center gap-2">
+          <select name="col" x-model="row.col" class="field field-sm mono min-w-[140px]">
+            <option value="">{% trans "column…" %}</option>
+            {% for c in columns %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
+          </select>
+          <select name="op" x-model="row.op" class="field field-sm min-w-[120px]">
+            <option value="eq">=</option>
+            <option value="ne">&ne;</option>
+            <option value="lt">&lt;</option>
+            <option value="le">&le;</option>
+            <option value="gt">&gt;</option>
+            <option value="ge">&ge;</option>
+            <option value="contains">{% trans "contains" %}</option>
+            <option value="starts">{% trans "starts with" %}</option>
+            <option value="null">{% trans "is null" %}</option>
+            <option value="notnull">{% trans "is not null" %}</option>
+          </select>
+          <input name="val" x-model="row.val" x-show="needsValue(row.op)"
+                 class="field field-sm flex-1" placeholder="{% trans 'value' %}">
+          <button type="button" @click="remove(i)" class="text-zinc-500 hover:text-red-300 px-1"
+                  title="{% trans 'Remove condition' %}">&times;</button>
         </div>
-      {% else %}
-        <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "This table is empty." %}</p>
-      {% endif %}
+      </template>
+      <div class="flex items-center gap-2">
+        <button type="button" @click="add()" class="btn btn-sm btn-neutral">{% trans "+ Condition" %}</button>
+        <button type="submit" class="btn btn-sm btn-primary">{% trans "Apply filters" %}</button>
+        <span class="text-xs text-zinc-500">{% trans "All conditions are ANDed · read-only" %}</span>
+      </div>
+    </form>
+
+    <!-- Initial content = unfiltered preview; Apply swaps in the filtered grid. -->
+    <div id="filter-result">
+      <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+        {% if preview_rows %}
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+                <tr class="border-b border-zinc-800">
+                  {% for c in preview_columns %}<th class="px-4 py-2 font-medium mono whitespace-nowrap">{{ c }}</th>{% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in preview_rows %}
+                  <tr class="border-b border-zinc-800/60 hover:bg-zinc-800/40">
+                    {% for v in row %}
+                      <td class="px-4 py-2 mono text-zinc-300 max-w-[260px] truncate whitespace-nowrap">{{ v }}</td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "This table is empty." %}</p>
+        {% endif %}
+      </div>
     </div>
   </section>
 
@@ -209,7 +259,8 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
     <div class="drawer-head">
       <h3 class="font-medium text-sm" x-text="{
         'rename': '{% trans 'Rename table' %}', 'add-col': '{% trans 'Add column' %}',
-        'col-edit': '{% trans 'Edit column' %}', 'create-index': '{% trans 'Create index' %}'
+        'col-edit': '{% trans 'Edit column' %}', 'create-index': '{% trans 'Create index' %}',
+        'import-csv': '{% trans 'Import CSV' %}'
       }[drawer] || ''"></h3>
       <button @click="drawer = null" class="text-zinc-400 hover:text-zinc-100 text-lg leading-none">&times;</button>
     </div>
@@ -223,6 +274,21 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
         <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "New name" %}</label>
         <input name="new_name" value="{{ table }}" autocomplete="off" required class="field mono w-full">
         <button type="submit" class="btn btn-primary w-full justify-center">{% trans "Rename" %}</button>
+      </form>
+
+      <!-- Import CSV: COPY rows from an uploaded file, matched by header name. -->
+      <form x-show="drawer === 'import-csv'" hx-post="{% url 'table_import' connection.pk %}"
+            hx-target="#detail" hx-swap="innerHTML" hx-encoding="multipart/form-data"
+            hx-disabled-elt="find button[type=submit]" class="space-y-3">
+        <input type="hidden" name="schema" value="{{ schema }}">
+        <input type="hidden" name="table" value="{{ table }}">
+        <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "CSV file" %}</label>
+        <input type="file" name="file" accept=".csv,text/csv" required
+               class="field w-full text-sm file:mr-3 file:rounded file:border-0 file:bg-zinc-700 file:px-2 file:py-1 file:text-zinc-100">
+        <p class="text-xs text-zinc-400 leading-relaxed">
+          {% trans "The first row must be a header; columns are matched to the table by name. Rows are appended in one transaction — if any row's types don't fit, the whole import is rolled back. A safety snapshot is taken first." %}
+        </p>
+        <button type="submit" class="btn btn-primary w-full justify-center">{% trans "Import CSV" %}</button>
       </form>
 
       <!-- Add column -->

@@ -58,6 +58,55 @@ def _render_detail(request, connection, schema, table, error=None, notice=None):
     )
 
 
+def table_filter(request, pk):
+    """Run the filter builder (column/operator/value rows, ANDed) as a read-only
+    query and render just the result grid (htmx partial into the Data tab).
+    Parallel POST arrays col/op/val line up by index; blank-column rows are
+    dropped so an all-empty form acts as 'show everything'."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    cols = request.POST.getlist("col")
+    ops = request.POST.getlist("op")
+    vals = request.POST.getlist("val")
+    filters = [
+        {"column": c, "op": o, "value": v}
+        for c, o, v in zip(cols, ops, vals) if c
+    ]
+    try:
+        result = get_engine(connection).filter_rows(schema, table, filters)
+    except EngineError as exc:
+        return render(request, "partials/filter_result.html", {"error": str(exc)})
+    rows = [["" if v is None else v for v in row] for row in result.rows]
+    return render(request, "partials/filter_result.html",
+                  {"result": result, "rows": rows})
+
+
+def table_import(request, pk):
+    """Import a CSV into the table (COPY, matched by header name). A safety
+    snapshot is taken first — import only appends rows, but a snapshot lets you
+    restore the table if the new data is wrong. Re-renders the detail panel with
+    a row count, or an inline error if the file/types don't fit."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    upload = request.FILES.get("file")
+    if not upload:
+        return _render_detail(request, connection, schema, table,
+                              error=_("Choose a CSV file to import."))
+    notice = _auto_backup(connection, operation="CSV import", kind=Backup.KIND_TABLE,
+                          dbname=connection.dbname, schema=schema, table=table)
+    try:
+        count = get_engine(connection).import_csv(schema, table, upload)
+    except EngineError as exc:
+        return _render_detail(request, connection, schema, table,
+                              error=str(exc), notice=notice)
+    msg = _("Imported %(n)s row(s) from %(name)s.") % {"n": count, "name": upload.name}
+    full = f"{msg} {notice}" if notice else msg
+    response = _render_detail(request, connection, schema, table, notice=full)
+    return _refresh_table_tree(response, request, connection)
+
+
 def _refresh_table_tree(response, request, connection):
     """Out-of-band swap the sidebar table list into an existing response, so a
     rename/truncate/drop updates the tree in the same round trip as the main

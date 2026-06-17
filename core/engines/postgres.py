@@ -1,5 +1,6 @@
 """PostgreSQL engine — psycopg2 under the hood."""
 import contextlib
+import csv
 import io
 import json
 import os
@@ -88,6 +89,23 @@ DUMP_FORMATS = {
 # How long a single pg_dump / restore may run before we give up (seconds).
 DUMP_TIMEOUT = 120
 RESTORE_TIMEOUT = 300
+
+# Filter-builder operators. Maps a stable key (sent by the UI <select>) to the
+# SQL operator, whether it takes a value, and an optional pattern wrapper for
+# the value (LIKE patterns). The query is always composed with sql.Identifier /
+# sql.Placeholder, so neither column names nor values are ever interpolated.
+FILTER_OPS = {
+    "eq":       ("=",            True,  None),
+    "ne":       ("<>",           True,  None),
+    "lt":       ("<",            True,  None),
+    "le":       ("<=",           True,  None),
+    "gt":       (">",            True,  None),
+    "ge":       (">=",           True,  None),
+    "contains": ("ILIKE",        True,  "%{}%"),
+    "starts":   ("ILIKE",        True,  "{}%"),
+    "null":     ("IS NULL",      False, None),
+    "notnull":  ("IS NOT NULL",  False, None),
+}
 
 
 def build_create_index_sql(schema, table, columns, *, method="btree",
@@ -271,6 +289,98 @@ class PostgresEngine(Engine):
             truncated=truncated, duration_ms=duration_ms,
         )
 
+    def filter_rows(self, schema: str, table: str, filters: list[dict], *,
+                    limit: int = 1000, timeout_ms: int = 15000) -> QueryResult:
+        """Run a read-only `SELECT * ... WHERE <conds>` built from the filter
+        builder. Each filter is {column, op, value}; conditions are ANDed.
+        Columns are validated against the real table and composed with
+        sql.Identifier, values bound as placeholders — nothing is interpolated,
+        so this is just a guided, parameterised query."""
+        valid = {c.name for c in self.list_columns(schema, table)}
+        conds, params = [], []
+        for f in filters:
+            col = f.get("column")
+            op = f.get("op")
+            if col not in valid:
+                raise EngineError(_("No such column: %(name)s") % {"name": col})
+            if op not in FILTER_OPS:
+                raise EngineError(_("Unknown filter operator: %(op)s") % {"op": op})
+            sql_op, needs_value, wrap = FILTER_OPS[op]
+            if needs_value:
+                value = f.get("value", "")
+                params.append(wrap.format(value) if wrap else value)
+                conds.append(sql.SQL("{} {} {}").format(
+                    sql.Identifier(col), sql.SQL(sql_op), sql.Placeholder()))
+            else:
+                conds.append(sql.SQL("{} {}").format(
+                    sql.Identifier(col), sql.SQL(sql_op)))
+        where = sql.SQL("")
+        if conds:
+            where = sql.SQL(" WHERE ") + sql.SQL(" AND ").join(conds)
+        query = sql.SQL("SELECT * FROM {}.{}{} LIMIT %s").format(
+            sql.Identifier(schema), sql.Identifier(table), where)
+        params.append(limit + 1)  # one extra row tells us the result was capped
+
+        with self._connect() as conn:
+            conn.autocommit = False
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SET TRANSACTION READ ONLY")
+                    cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
+                    t0 = time.perf_counter()
+                    cur.execute(query, params)
+                    duration_ms = int((time.perf_counter() - t0) * 1000)
+                    fetched = cur.fetchmany(limit + 1)
+                    truncated = len(fetched) > limit
+                    rows = fetched[:limit]
+                    columns = [d.name for d in cur.description]
+            except psycopg2.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+            conn.rollback()  # read-only: never persist
+        return QueryResult(columns=columns, rows=rows, rowcount=len(rows),
+                           truncated=truncated, duration_ms=duration_ms)
+
+    def import_csv(self, schema: str, table: str, fileobj, *,
+                   encoding: str = "utf-8-sig") -> int:
+        """Append rows from a CSV (with a header row) into an existing table via
+        COPY. Columns are matched by *header name* — validated against the table,
+        so the file's column order or a subset is fine. The whole import runs in
+        one transaction: a bad row (type/constraint) rolls all of it back, so the
+        table is never left half-loaded. Returns the number of rows imported.
+
+        COPY's CSV defaults apply: an unquoted empty field is NULL, a quoted ""
+        is an empty string. The header line is skipped by COPY itself."""
+        head = fileobj.readline()
+        fileobj.seek(0)
+        if not head:
+            raise EngineError(_("The CSV file is empty."))
+        if isinstance(head, bytes):
+            head = head.decode(encoding, errors="replace")
+        csv_cols = [c.strip() for c in next(csv.reader([head]))]
+        valid = {c.name for c in self.list_columns(schema, table)}
+        unknown = [c for c in csv_cols if c not in valid]
+        if unknown:
+            raise EngineError(_("CSV header has columns not in %(table)s: %(cols)s") % {
+                "table": table, "cols": ", ".join(unknown)})
+
+        copy_sql = sql.SQL(
+            "COPY {}.{} ({}) FROM STDIN WITH (FORMAT csv, HEADER true)").format(
+            sql.Identifier(schema), sql.Identifier(table),
+            sql.SQL(", ").join(sql.Identifier(c) for c in csv_cols))
+        with self._connect() as conn:
+            conn.autocommit = False
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SET client_encoding TO 'UTF8'")
+                    cur.copy_expert(copy_sql, fileobj)
+                    count = cur.rowcount
+                conn.commit()
+            except psycopg2.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+        return count
+
     def stream_query(self, sql_text: str, *, timeout_ms: int = 60000,
                      max_rows: int = 1_000_000):
         """Run read-only SQL and stream the *full* result for a file export
@@ -287,6 +397,21 @@ class PostgresEngine(Engine):
         error mid-stream can't become a clean error page; only the first
         next() (which runs the query) raises EngineError for the view to catch.
         """
+        return self._stream(sql_text, timeout_ms=timeout_ms, max_rows=max_rows)
+
+    def stream_table(self, schema: str, table: str, *, timeout_ms: int = 60000,
+                     max_rows: int = 1_000_000):
+        """Stream a whole table for a CSV/JSON export. Identifiers are composed
+        with sql.Identifier (safe quoting), then streamed through the same
+        read-only server-side cursor path as stream_query."""
+        query = sql.SQL("SELECT * FROM {}.{}").format(
+            sql.Identifier(schema), sql.Identifier(table))
+        return self._stream(query, timeout_ms=timeout_ms, max_rows=max_rows)
+
+    def _stream(self, query, *, timeout_ms: int, max_rows: int):
+        """Shared generator behind stream_query / stream_table: yield the header
+        column list, then row tuples, from a read-only server-side cursor.
+        `query` is a str or a psycopg2 Composed."""
         with self._connect() as conn:
             # A named (server-side) cursor needs a real transaction, which also
             # scopes READ ONLY + statement_timeout.
@@ -298,7 +423,7 @@ class PostgresEngine(Engine):
                 # Named cursor: rows stream from the backend in itersize batches.
                 with conn.cursor(name="cli2ui_export") as cur:
                     cur.itersize = 2000
-                    cur.execute(sql_text)
+                    cur.execute(query)
                     # A server-side cursor only populates .description after the
                     # first fetch, so pull a batch before emitting the header.
                     batch = cur.fetchmany(cur.itersize)

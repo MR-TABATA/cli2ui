@@ -7,6 +7,7 @@ no DB. The catalog-touching simulate_scale() itself is verified by hand against
 the sample DB (see project notes); here we test the machinery it feeds.
 """
 import contextlib
+import io
 import json
 import os
 import unittest
@@ -651,6 +652,85 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
         with self.assertRaises(EngineError):
             next(self.engine.stream_query("CREATE TEMP TABLE _cli2ui_probe (x int)"))
 
+    def test_stream_table_yields_header_then_rows(self):
+        # stream_table is SELECT * over a quoted identifier, same streaming path.
+        gen = self.engine.stream_table("public", "orders")
+        columns = next(gen)
+        self.assertIn("customer_id", columns)
+        self.assertGreater(len(list(gen)), 0)
+
+    def test_stream_table_bad_table_raises_on_first_next(self):
+        with self.assertRaises(EngineError):
+            next(self.engine.stream_table("public", "no_such_table"))
+
+    def test_filter_rows_applies_conditions(self):
+        # total >= 0 matches every seeded order; an impossible id matches none.
+        hit = self.engine.filter_rows(
+            "public", "orders", [{"column": "total", "op": "ge", "value": "0"}])
+        self.assertIn("customer_id", hit.columns)
+        self.assertGreater(hit.rowcount, 0)
+        miss = self.engine.filter_rows(
+            "public", "orders", [{"column": "id", "op": "eq", "value": "-1"}])
+        self.assertEqual(miss.rowcount, 0)
+
+    def test_filter_rows_no_filters_returns_all_capped(self):
+        res = self.engine.filter_rows("public", "orders", [])
+        self.assertGreater(res.rowcount, 0)
+
+    def test_filter_rows_bad_column_raises(self):
+        with self.assertRaises(EngineError):
+            self.engine.filter_rows(
+                "public", "orders", [{"column": "nope", "op": "eq", "value": "1"}])
+
+    def test_filter_rows_bad_operator_raises(self):
+        with self.assertRaises(EngineError):
+            self.engine.filter_rows(
+                "public", "orders", [{"column": "id", "op": "drop", "value": "1"}])
+
+    def test_filter_rows_is_null_needs_no_value(self):
+        # A valueless operator must compose without binding a placeholder.
+        res = self.engine.filter_rows(
+            "public", "orders", [{"column": "total", "op": "notnull", "value": ""}])
+        self.assertGreater(res.rowcount, 0)
+
+    def _scratch_table(self, ddl):
+        """Create a throwaway table for write tests; caller drops it in finally."""
+        self.engine.run_query(ddl, read_only=False)
+
+    def test_import_csv_appends_rows_matched_by_header(self):
+        self._scratch_table("CREATE TABLE _cli2ui_imp (id int, label text)")
+        try:
+            # Header order reversed from table order — matched by name, not position.
+            buf = io.BytesIO(b"label,id\nalice,1\nbob,2\n")
+            count = self.engine.import_csv("public", "_cli2ui_imp", buf)
+            self.assertEqual(count, 2)
+            res = self.engine.filter_rows(
+                "public", "_cli2ui_imp", [{"column": "id", "op": "eq", "value": "1"}])
+            self.assertEqual(res.rows[0][res.columns.index("label")], "alice")
+        finally:
+            self.engine.run_query("DROP TABLE _cli2ui_imp", read_only=False)
+
+    def test_import_csv_rolls_back_on_bad_data(self):
+        self._scratch_table("CREATE TABLE _cli2ui_imp (id int, label text)")
+        try:
+            buf = io.BytesIO(b"id,label\n1,ok\nnotanint,bad\n")
+            with self.assertRaises(EngineError):
+                self.engine.import_csv("public", "_cli2ui_imp", buf)
+            # The good row must not survive — the whole import is one transaction.
+            res = self.engine.filter_rows("public", "_cli2ui_imp", [])
+            self.assertEqual(res.rowcount, 0)
+        finally:
+            self.engine.run_query("DROP TABLE _cli2ui_imp", read_only=False)
+
+    def test_import_csv_unknown_column_raises(self):
+        self._scratch_table("CREATE TABLE _cli2ui_imp (id int)")
+        try:
+            buf = io.BytesIO(b"id,ghost\n1,x\n")
+            with self.assertRaises(EngineError):
+                self.engine.import_csv("public", "_cli2ui_imp", buf)
+        finally:
+            self.engine.run_query("DROP TABLE _cli2ui_imp", read_only=False)
+
     def test_explain_json_returns_a_tree(self):
         node = self.engine.explain_json("SELECT * FROM orders")
         self.assertTrue(node.node_type)
@@ -1165,6 +1245,119 @@ class QueryExportViewTests(TestCase):
         url = self.reverse("query_export", args=[self.conn.pk])
         resp = self.client.post(url, {"sql": "  ", "format": "csv"})
         self.assertEqual(resp.status_code, 400)
+
+
+@unittest.skipUnless(_sampledb_reachable(), "needs the sample DB")
+class TableExportViewTests(TestCase):
+    """The table export endpoint: GET schema/table → streamed CSV/JSON of every
+    row, with a plain-text error for a missing/bad table."""
+
+    def setUp(self):
+        from django.urls import reverse
+        self.reverse = reverse
+        self.conn = Connection.objects.create(
+            name="texport", kind="postgres", host="localhost", port=5433,
+            dbname="shop", user="demo", password="demo")
+
+    def test_csv_export_streams_every_row_as_attachment(self):
+        url = self.reverse("table_export", args=[self.conn.pk])
+        resp = self.client.get(url, {"schema": "public", "table": "orders", "format": "csv"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("attachment", resp["Content-Disposition"])
+        self.assertIn("orders", resp["Content-Disposition"])
+        text = b"".join(resp.streaming_content).decode("utf-8-sig")
+        self.assertIn("customer_id", text.splitlines()[0])
+
+    def test_json_export_streams_array_of_objects(self):
+        url = self.reverse("table_export", args=[self.conn.pk])
+        resp = self.client.get(url, {"schema": "public", "table": "orders", "format": "json"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(".json", resp["Content-Disposition"])
+        data = json.loads(b"".join(resp.streaming_content))
+        self.assertIn("customer_id", data[0])
+
+    def test_missing_table_param_is_rejected(self):
+        url = self.reverse("table_export", args=[self.conn.pk])
+        resp = self.client.get(url, {"schema": "public", "format": "csv"})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_bad_table_returns_error_not_a_download(self):
+        url = self.reverse("table_export", args=[self.conn.pk])
+        resp = self.client.get(url, {"schema": "public", "table": "no_such_table", "format": "csv"})
+        self.assertEqual(resp.status_code, 502)
+
+
+@unittest.skipUnless(_sampledb_reachable(), "needs the sample DB")
+class TableFilterViewTests(TestCase):
+    """The filter builder endpoint: parallel col/op/val arrays → read-only
+    SELECT, rendered as the result grid partial."""
+
+    def setUp(self):
+        from django.urls import reverse
+        self.reverse = reverse
+        self.conn = Connection.objects.create(
+            name="tfilter", kind="postgres", host="localhost", port=5433,
+            dbname="shop", user="demo", password="demo")
+
+    def test_filter_renders_matching_rows(self):
+        url = self.reverse("table_filter", args=[self.conn.pk])
+        resp = self.client.post(url, {
+            "schema": "public", "table": "orders",
+            "col": "total", "op": "ge", "val": "0"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "customer_id")
+
+    def test_blank_column_rows_are_dropped(self):
+        # An all-blank form is "show everything" — not an error.
+        url = self.reverse("table_filter", args=[self.conn.pk])
+        resp = self.client.post(url, {
+            "schema": "public", "table": "orders", "col": "", "op": "eq", "val": ""})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "customer_id")
+
+    def test_bad_column_renders_error_partial(self):
+        url = self.reverse("table_filter", args=[self.conn.pk])
+        resp = self.client.post(url, {
+            "schema": "public", "table": "orders",
+            "col": "nope", "op": "eq", "val": "1"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Filter error")
+
+
+@unittest.skipUnless(_sampledb_reachable(), "needs the sample DB")
+class TableImportViewTests(TestCase):
+    """The CSV import endpoint: an uploaded CSV is COPYed into a scratch table
+    and the detail panel re-renders with a row count; a bad file errors inline."""
+
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.urls import reverse
+        self.reverse = reverse
+        self.upload = SimpleUploadedFile
+        self.conn = Connection.objects.create(
+            name="timport", kind="postgres", host="localhost", port=5433,
+            dbname="shop", user="demo", password="demo")
+        self.engine = get_engine(self.conn)
+        self.engine.run_query(
+            "CREATE TABLE _cli2ui_imp_v (id int, label text)", read_only=False)
+
+    def tearDown(self):
+        self.engine.run_query("DROP TABLE IF EXISTS _cli2ui_imp_v", read_only=False)
+
+    def test_import_loads_rows_and_reports_count(self):
+        csv = self.upload("data.csv", b"id,label\n1,a\n2,b\n3,c\n", content_type="text/csv")
+        resp = self.client.post(self.reverse("table_import", args=[self.conn.pk]), {
+            "schema": "public", "table": "_cli2ui_imp_v", "file": csv})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Imported 3")
+        res = self.engine.filter_rows("public", "_cli2ui_imp_v", [])
+        self.assertEqual(res.rowcount, 3)
+
+    def test_missing_file_is_rejected_inline(self):
+        resp = self.client.post(self.reverse("table_import", args=[self.conn.pk]), {
+            "schema": "public", "table": "_cli2ui_imp_v"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Choose a CSV file")
 
 
 @unittest.skipUnless(_sampledb_reachable() and _has_restore_tools(),

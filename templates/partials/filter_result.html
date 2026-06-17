@@ -1,0 +1,34 @@
+{% load i18n %}{% if error %}
+  <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-3">
+    <p class="text-sm font-medium text-red-300 mb-1">{% trans "Filter error" %}</p>
+    <p class="text-sm text-red-200/80 mono whitespace-pre-wrap">{{ error }}</p>
+  </div>
+{% else %}
+  <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm mb-3">
+    <span class="text-zinc-200 font-medium">{% blocktrans count n=result.rowcount %}{{ n }} row{% plural %}{{ n }} rows{% endblocktrans %}</span>
+    <span class="text-zinc-500">·</span><span class="text-zinc-400">{% blocktrans with ms=result.duration_ms %}ran in {{ ms }} ms{% endblocktrans %}</span>
+    {% if result.truncated %}
+      <span class="text-zinc-500">·</span><span class="text-amber-400">{% blocktrans with n=result.rowcount %}capped at {{ n }} — narrow the filter or export the table for all rows{% endblocktrans %}</span>
+    {% endif %}
+  </div>
+  <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="overflow-auto max-h-[60vh]">
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400 sticky top-0 bg-zinc-900">
+          <tr class="border-b border-zinc-800">
+            {% for c in result.columns %}<th class="px-4 py-2 font-medium mono whitespace-nowrap">{{ c }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr class="border-b border-zinc-800/60 hover:bg-zinc-800/40">
+              {% for v in row %}<td class="px-4 py-2 mono text-zinc-300 max-w-[320px] truncate whitespace-nowrap">{{ v }}</td>{% endfor %}
+            </tr>
+          {% empty %}
+            <tr><td colspan="{{ result.columns|length }}" class="px-4 py-6 text-center text-zinc-400">{% trans "No rows match these filters." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}

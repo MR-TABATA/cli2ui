@@ -109,13 +109,42 @@ def query_export(request, pk):
         return HttpResponse(str(exc), content_type="text/plain", status=502)
 
     stamp = timezone.now().strftime("%Y%m%d-%H%M%S")
+    return _export_response(columns, source, fmt, f"query-{stamp}")
+
+
+def _export_response(columns, source, fmt, filename):
+    """Wrap a column header + row generator in a streaming CSV/JSON download."""
     if fmt == "json":
         body, ctype, ext = _json_stream(columns, source), "application/json", "json"
     else:
         body, ctype, ext = _csv_stream(columns, source), "text/csv; charset=utf-8", "csv"
     response = StreamingHttpResponse(body, content_type=ctype)
-    response["Content-Disposition"] = f'attachment; filename="query-{stamp}.{ext}"'
+    response["Content-Disposition"] = f'attachment; filename="{filename}.{ext}"'
     return response
+
+
+def table_export(request, pk):
+    """Stream an entire table as a CSV or JSON download — the row-preview's full
+    counterpart. A GET (just identifiers, no SQL body) so it can be a plain
+    download link; the read-only full-table stream lives in the engine."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.GET.get("schema", "")
+    table = request.GET.get("table", "")
+    if not schema or not table:
+        return HttpResponse(_("No table specified."),
+                            content_type="text/plain", status=400)
+
+    source = get_engine(connection).stream_table(schema, table)
+    # Pull the header first so a bad table (missing/no access) surfaces as a
+    # clean error here, before we commit to a 200 streamed body.
+    try:
+        columns = next(source)
+    except EngineError as exc:
+        return HttpResponse(str(exc), content_type="text/plain", status=502)
+
+    stamp = timezone.now().strftime("%Y%m%d-%H%M%S")
+    fmt = request.GET.get("format", "csv")
+    return _export_response(columns, source, fmt, f"{schema}.{table}-{stamp}")
 
 
 def _log_command(connection, sql_text, *, read_only, result=None, error=None):

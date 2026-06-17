@@ -100,12 +100,17 @@ MVP. `docker compose up` → connect → browse your tables in a DB-client layou
 (table list in the sidebar, table detail in the main pane).
 
 - ✅ PostgreSQL: connect + list tables (estimated row counts)
-- ✅ Table detail: column definitions (`\d table`) + row preview (`SELECT * … LIMIT`)
+- ✅ Table detail: column definitions (`\d table`), a row preview, and a **filter
+  builder** — stack column / operator / value rows (ANDed) into a read-only
+  `SELECT … WHERE`, no SQL typing
 - ✅ SQL runner: read-only ad-hoc queries by default (`SET TRANSACTION READ ONLY`
   + `statement_timeout` + 1000-row cap), with an opt-in **write mode** that
   commits — guarded by a whole-database safety snapshot taken before each write
-- ✅ Export query results: download the full result set (past the display cap) as
-  CSV (UTF-8 BOM for Excel) or JSON, streamed through a server-side cursor
+- ✅ Export to CSV / JSON: download a full query result set (past the display cap)
+  or an entire table's rows, streamed through a server-side cursor (UTF-8 BOM on
+  CSV for Excel)
+- ✅ CSV import: append rows from a CSV into an existing table (`COPY`, matched by
+  header name) in one all-or-nothing transaction, with a safety snapshot first
 - ✅ EXPLAIN snapshots + diff: save query plans and diff two (before/after an
   index) instead of copy-pasting plans into a scratch file
 - ✅ Scale simulation: EXPLAIN the same query at 1× / 100× / 10000× the real row

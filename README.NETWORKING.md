@@ -191,8 +191,21 @@ Three things to get right:
 
 > **Saved connections / history** live in `db.sqlite3` *inside* the container, so
 > they reset when it's recreated — fine for a dev tool (re-entering a connection
-> takes seconds). To persist them, bind-mount the file
-> (`./.cli2ui-db.sqlite3:/app/db.sqlite3`, created beforehand).
+> takes seconds). To persist them, either bind-mount the file
+> (`./.cli2ui-db.sqlite3:/app/db.sqlite3`, created beforehand), or — tidiest —
+> point `CLI2UI_DB_PATH` at a directory you back with a **named volume**:
+>
+> ```yaml
+>     environment:
+>       - CLI2UI_DB_PATH=/data/db.sqlite3
+>     volumes:
+>       - cli2ui-data:/data
+> # …
+> volumes:
+>   cli2ui-data:
+> ```
+>
+> A named volume needs no pre-created file and survives `down`/`up` cleanly.
 
 ---
 

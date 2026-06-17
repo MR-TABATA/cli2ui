@@ -64,10 +64,15 @@ TEMPLATES = [
 WSGI_APPLICATION = "cli2ui.wsgi.application"
 
 # Management DB: SQLite. Stores saved connections and (later) command history.
+# The management DB (saved connections, command history, auto-backups) is a
+# single SQLite file. CLI2UI_DB_PATH lets you point it elsewhere — e.g. onto a
+# named Docker volume — so it persists cleanly when cli2ui rides along in an
+# existing compose project (see README.NETWORKING.md). Defaults to the file in
+# the project root.
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": os.environ.get("CLI2UI_DB_PATH", BASE_DIR / "db.sqlite3"),
     }
 }
 

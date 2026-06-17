@@ -183,7 +183,7 @@
           <div class="overflow-hidden rounded-xl border border-zinc-800 shadow-2xl shadow-black/40">
             <img src="screenshots/table-detail.png" alt="cli2ui テーブル詳細 — 列・型・デフォルト" loading="lazy" class="w-full block">
           </div>
-          <figcaption class="mt-3 text-sm text-zinc-400">テーブル詳細 —— 列・インデックス・行プレビュー、ワンクリックでバックアップやリネーム。</figcaption>
+          <figcaption class="mt-3 text-sm text-zinc-400">テーブル詳細 —— 列・インデックス・行プレビュー・フィルタビルダー・CSV インポート/エクスポート、ワンクリックでバックアップやリネーム。</figcaption>
         </figure>
         <figure>
           <div class="overflow-hidden rounded-xl border border-zinc-800 shadow-2xl shadow-black/40">
@@ -205,7 +205,7 @@
     <div class="mt-10 grid gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 lg:grid-cols-3">
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">SQL ランナー</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">既定はリードオンリーのアドホッククエリ（<span class="mono">READ ONLY</span> + 文タイムアウト + 1000行上限）。明示オプトインの書込みモードはコミットしますが、毎回 DB 全体の安全スナップショットで保護されます。結果は CSV / JSON でエクスポート可能。</p>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">既定はリードオンリーのアドホッククエリ（<span class="mono">READ ONLY</span> + 文タイムアウト + 1000行上限）。明示オプトインの書込みモードはコミットしますが、毎回 DB 全体の安全スナップショットで保護されます。クエリ結果やテーブル全体を CSV / JSON でエクスポート可能。</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">EXPLAIN スナップショット + 差分</h3>

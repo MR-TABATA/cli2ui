@@ -117,6 +117,17 @@
           finally { this.busy = false; }
         },
       }));
+
+      // Filter builder (table detail → Data tab): dynamic column/operator/value
+      // rows. A stable id keys the x-for so editing one row doesn't disturb the
+      // others; null / not-null operators hide the value input.
+      Alpine.data("filterBuilder", () => ({
+        rows: [{ id: 1, col: "", op: "eq", val: "" }],
+        nextId: 2,
+        add() { this.rows.push({ id: this.nextId++, col: "", op: "eq", val: "" }); },
+        remove(i) { this.rows.splice(i, 1); if (!this.rows.length) this.add(); },
+        needsValue(op) { return op !== "null" && op !== "notnull"; },
+      }));
     });
 
     // Global htmx activity bar (see #htmx-activity CSS). Only reveal it if a

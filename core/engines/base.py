@@ -405,11 +405,32 @@ class Engine:
         result is capped + time-limited so a stray query can't take anything down."""
         raise NotImplementedError
 
+    def filter_rows(self, schema: str, table: str, filters: list[dict], *,
+                    limit: int = 1000, timeout_ms: int = 15000) -> QueryResult:
+        """Run a read-only `SELECT * ... WHERE <conds>` built from the filter
+        builder (column/operator/value rows, ANDed). Columns are validated and
+        composed safely; values are bound, not interpolated."""
+        raise NotImplementedError
+
+    def import_csv(self, schema: str, table: str, fileobj, *,
+                   encoding: str = "utf-8-sig") -> int:
+        """Append rows from a CSV (with header) into an existing table, matching
+        columns by header name, in one all-or-nothing transaction. Returns the
+        number of rows imported."""
+        raise NotImplementedError
+
     def stream_query(self, sql: str, *, timeout_ms: int = 60000,
                      max_rows: int = 1_000_000):
         """Run read-only SQL and stream the full result for a file export: yield
         the column-name list, then one row tuple at a time, without buffering the
         whole result in memory. Read-only and time-limited like run_query."""
+        raise NotImplementedError
+
+    def stream_table(self, schema: str, table: str, *, timeout_ms: int = 60000,
+                     max_rows: int = 1_000_000):
+        """Stream a whole table's rows for a CSV/JSON export — the same as
+        stream_query over `SELECT * FROM <table>`, with the identifiers quoted
+        safely. Yields the column-name list, then one row tuple at a time."""
         raise NotImplementedError
 
     def whatif_cursor(self, *, timeout_ms: int = 15000, lock_timeout: str = "2s"):
