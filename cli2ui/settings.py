@@ -22,8 +22,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "core",
     # Optional feature app: the planner what-if tools (scale simulation + index
-    # lab). Remove this line to drop the feature entirely — its routes and nav
-    # buttons disappear with it. Candidate to split into a paid package later.
+    # lab), kept as a self-contained, removable unit. Remove this line to drop the
+    # feature entirely — its routes and nav buttons disappear with it.
     "planner_lab",
 ]
 
