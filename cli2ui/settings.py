@@ -21,6 +21,10 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.staticfiles",
     "core",
+    # Optional feature app: the planner what-if tools (scale simulation + index
+    # lab). Remove this line to drop the feature entirely — its routes and nav
+    # buttons disappear with it. Candidate to split into a paid package later.
+    "planner_lab",
 ]
 
 MIDDLEWARE = [
@@ -50,6 +54,7 @@ TEMPLATES = [
             "context_processors": [
                 "django.template.context_processors.request",
                 "django.template.context_processors.i18n",
+                "core.context_processors.features",
             ],
         },
     },

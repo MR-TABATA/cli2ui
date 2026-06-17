@@ -150,14 +150,6 @@ class PlanNode:
 
 
 @dataclass
-class ScalePlan:
-    """One EXPLAIN plan produced at a given row-count multiplier (what-if)."""
-
-    factor: int        # 1 = real stats, 100 = "what if every table were 100× bigger"
-    plan: PlanNode
-
-
-@dataclass
 class Activity:
     """One server session (a row of pg_stat_activity)."""
 
@@ -385,33 +377,6 @@ class BloatEstimate:
         return round(self.wasted_bytes / self.table_bytes * 100) if self.table_bytes else 0
 
 
-@dataclass
-class IndexPreview:
-    """The result of a 'what-if' index trial: the same query EXPLAIN ANALYZE'd
-    without and then with a hypothetical index, which is created and immediately
-    rolled back. Real measured timing, zero persistence."""
-
-    ddl: str             # the CREATE INDEX you'd run for real (display)
-    before: PlanNode     # plan + real timing without the index
-    after: PlanNode      # plan + real timing with the hypothetical index
-    used: bool           # did the planner actually choose the hypothetical index?
-
-    @property
-    def before_ms(self) -> float | None:
-        return self.before.actual_ms
-
-    @property
-    def after_ms(self) -> float | None:
-        return self.after.actual_ms
-
-    @property
-    def speedup(self) -> float | None:
-        """before / after — >1 means the index made the query faster."""
-        if self.before_ms and self.after_ms and self.after_ms > 0:
-            return self.before_ms / self.after_ms
-        return None
-
-
 class Engine:
     """Base class. One Engine wraps one saved Connection."""
 
@@ -447,6 +412,14 @@ class Engine:
         whole result in memory. Read-only and time-limited like run_query."""
         raise NotImplementedError
 
+    def whatif_cursor(self, *, timeout_ms: int = 15000, lock_timeout: str = "2s"):
+        """Context manager yielding a cursor in a transaction that is ALWAYS
+        rolled back — the primitive the planner what-if tools (scale simulation,
+        index lab, in their own app) run their catalog/DDL edits + EXPLAIN
+        through, so nothing is ever persisted. Driver errors surface as
+        EngineError."""
+        raise NotImplementedError
+
     def explain(self, sql: str, *, analyze: bool = False,
                 timeout_ms: int = 15000) -> str:
         """Return the query plan as text. ANALYZE runs the query for real
@@ -457,16 +430,6 @@ class Engine:
                      timeout_ms: int = 15000) -> "PlanNode":
         """Return the query plan as a parsed tree (EXPLAIN FORMAT JSON), so it
         can be diffed structurally instead of as text. Same read-only safety."""
-        raise NotImplementedError
-
-    def simulate_scale(self, sql: str, *, factors=(1, 100, 10000),
-                       timeout_ms: int = 15000) -> "list[ScalePlan]":
-        """What-if planning: temporarily scale the involved tables' row-count
-        stats by each factor and EXPLAIN, so you can see *where the plan shape
-        breaks* as data grows — without any real data. The catalog edit is made
-        inside a transaction that is always rolled back (never committed, and
-        invisible to other sessions via MVCC). Plan shape only, not real time;
-        requires a superuser connection."""
         raise NotImplementedError
 
     # --- activity / sessions (pg_stat_activity) ----------------------------
@@ -609,18 +572,6 @@ class Engine:
 
     def drop_index(self, schema: str, name: str) -> None:
         """Drop an index. The Web equivalent of `DROP INDEX name`."""
-        raise NotImplementedError
-
-    def preview_index(self, sql: str, schema: str, table: str,
-                      columns: list[str], *, method: str = "btree",
-                      unique: bool = False,
-                      timeout_ms: int = 15000) -> "IndexPreview":
-        """What-if index trial: EXPLAIN ANALYZE the query without, then with, a
-        hypothetical index built inside a transaction that is always rolled back.
-        Real timing, zero persistence — the index (and any side effects of
-        running the query under ANALYZE) are never committed and are invisible to
-        other sessions. Reuses the same CREATE INDEX builder as create_index, but
-        non-concurrent so it can live inside the transaction."""
         raise NotImplementedError
 
     # --- health (sizes, unused indexes) ------------------------------------

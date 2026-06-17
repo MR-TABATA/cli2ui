@@ -90,10 +90,12 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
   <!-- Indexes tab -->
   <section x-show="tab === 'indexes'" x-cloak class="space-y-3">
     <div class="flex justify-end gap-1.5">
+      {% if 'planner_lab' in enabled_features %}
       <button hx-get="{% url 'index_lab' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
               title="{% trans 'Try an index and measure it before creating it for real' %}"
               class="btn btn-sm btn-warn"><span>⚗</span> {% trans "Try an index" %}</button>
+      {% endif %}
       <button @click="drawer = 'create-index'" class="btn btn-sm btn-primary">{% trans "+ Create index" %}</button>
     </div>
     <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">

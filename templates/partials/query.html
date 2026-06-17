@@ -50,6 +50,7 @@
               hx-vals='{"analyze": "1"}' hx-target="#query-result" hx-swap="innerHTML"
               class="border border-zinc-700 hover:border-zinc-500 text-zinc-200 rounded-lg
                      px-4 py-2 text-sm transition">{% trans "Explain analyze" %}</button>
+      {% if 'planner_lab' in enabled_features %}
       <button type="button" hx-post="{% url 'scale_run' connection.pk %}"
               hx-target="#query-result" hx-swap="innerHTML"
               title="{% trans 'EXPLAIN at 1× / 100× / 10000× row counts — see where the plan breaks as data grows' %}"
@@ -60,6 +61,7 @@
               title="{% trans 'Try an index against this query and measure it before creating it' %}"
               class="border border-amber-700/60 hover:border-amber-500 text-amber-200 rounded-lg
                      px-4 py-2 text-sm transition">{% trans "Try an index ▸" %}</button>
+      {% endif %}
       <span class="text-xs text-zinc-500 ml-1">{% trans "⌘/Ctrl + Enter to run" %}</span>
     </div>
   </form>
