@@ -591,8 +591,10 @@ class Engine:
         Built CONCURRENTLY so it doesn't lock out writes on a live table."""
         raise NotImplementedError
 
-    def drop_index(self, schema: str, name: str) -> None:
-        """Drop an index. The Web equivalent of `DROP INDEX name`."""
+    def drop_index(self, schema: str, name: str, table: str | None = None) -> None:
+        """Drop an index. The Web equivalent of `DROP INDEX name`. `table` is
+        optional for engines that don't need it (PostgreSQL) but required by
+        those that do (MySQL's `DROP INDEX name ON table`)."""
         raise NotImplementedError
 
     # --- health (sizes, unused indexes) ------------------------------------

@@ -75,4 +75,21 @@
   form.htmx-request .spinner { display:inline-flex; }
   form.htmx-request .connect-btn { opacity:0.7; cursor:progress; }
 </style>
+<script>
+  // Swap the port default when the database type changes — but only if the
+  // field still holds the *other* engine's default, so a user-typed port is
+  // never clobbered.
+  (function () {
+    var kind = document.getElementById("id_kind");
+    var port = document.getElementById("id_port");
+    if (!kind || !port) return;
+    var defaults = { postgres: "5432", mysql: "3306" };
+    kind.addEventListener("change", function () {
+      var other = kind.value === "mysql" ? defaults.postgres : defaults.mysql;
+      if (port.value === "" || port.value === other) {
+        port.value = defaults[kind.value] || port.value;
+      }
+    });
+  })();
+</script>
 {% endblock %}

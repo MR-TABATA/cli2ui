@@ -35,6 +35,10 @@ def _render_detail(request, connection, schema, table, error=None, notice=None):
 
     # Blank out NULLs for a cleaner preview grid.
     rows = [["" if v is None else v for v in row] for row in preview.rows]
+    # Quote identifiers the way the target engine expects, so the prefilled
+    # starter query is runnable as-is (MySQL uses backticks; double quotes are
+    # string literals there unless ANSI_QUOTES is set).
+    q = "`" if connection.kind == Connection.KIND_MYSQL else '"'
     return render(
         request,
         "partials/detail.html",
@@ -51,7 +55,7 @@ def _render_detail(request, connection, schema, table, error=None, notice=None):
             # Display-only: prefilled into the SQL editor as a starting point,
             # never executed server-side. The run path (run_query) is read-only
             # enforced by the DB. nosec B608 — not a query we build and execute.
-            "query_sql": f'SELECT * FROM "{schema}"."{table}" LIMIT 100',  # nosec B608
+            "query_sql": f"SELECT * FROM {q}{schema}{q}.{q}{table}{q} LIMIT 100",  # nosec B608
             "error": error,
             "notice": notice,
         },
@@ -152,7 +156,7 @@ def index_drop(request, pk):
     schema = request.POST.get("schema", "")
     table = request.POST.get("table", "")
     try:
-        get_engine(connection).drop_index(schema, request.POST.get("name", ""))
+        get_engine(connection).drop_index(schema, request.POST.get("name", ""), table)
     except EngineError as exc:
         return _render_detail(request, connection, schema, table, error=str(exc))
     return _render_detail(request, connection, schema, table)

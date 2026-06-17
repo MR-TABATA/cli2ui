@@ -1,0 +1,814 @@
+"""MySQL engine — PyMySQL under the hood.
+
+Phase 1 scope: browsing, ad-hoc queries (read-only enforced), the filter builder,
+CSV import, streamed exports, EXPLAIN, the session/process list, table + column
+DDL, indexes, databases and table sizes. Capabilities with no MySQL equivalent
+or deferred to a later phase (replication, server-config editor, role mutations,
+schema objects, mysqldump backups, the planner what-if lab, bloat/vacuum/unused-
+index health) raise a clear EngineError or return empty, so the UI degrades to a
+message or an empty card instead of crashing.
+
+MySQL has no schema-vs-database split: a schema *is* a database. The rest of the
+app is written around (schema, table); the engine bridges that by reporting the
+connection's database name as each table's schema and scoping catalog queries to
+that one database. See mysql_sql.py.
+"""
+import contextlib
+import csv
+import json
+import time
+
+import pymysql
+from django.utils.translation import gettext as _
+
+from .base import (
+    Activity,
+    Column,
+    Database,
+    Engine,
+    EngineError,
+    Index,
+    Preview,
+    QueryResult,
+    PlanNode,
+    Role,
+    Table,
+    TableSize,
+)
+from .mysql_sql import (
+    ACTIVITY_SQL,
+    LIST_COLUMNS_SQL,
+    LIST_DATABASES_SQL,
+    LIST_INDEXES_SQL,
+    LIST_ROLES_SQL,
+    LIST_TABLES_SQL,
+    TABLE_SIZES_SQL,
+)
+
+# Index access methods MySQL accepts in CREATE INDEX … USING. A fixed allow-list
+# because the chosen method is spliced into the DDL as a bare keyword (it can't be
+# bound), so it must never come straight from user input. FULLTEXT/SPATIAL use a
+# different syntax (not USING), so they're left out of the plain-index path.
+INDEX_METHODS = ("btree", "hash")
+
+# Column types offered for ADD COLUMN / change type. Like INDEX_METHODS, the type
+# is spliced as a bare keyword, so it must match this allow-list exactly — never
+# raw user input. Parameterised types (varchar(n), decimal(p,s)) are left out to
+# keep the splice injection-proof; text/int/decimal cover those needs.
+COLUMN_TYPES = (
+    "text", "int", "bigint", "smallint", "tinyint", "decimal", "double",
+    "float", "date", "datetime", "timestamp", "time", "char", "varchar(255)",
+    "json", "blob", "boolean",
+)
+
+# Filter-builder operators: stable key (from the UI <select>) → (SQL operator,
+# takes a value?, optional LIKE wrapper). Column names go through _ident (backtick
+# quoting) and values are bound as %s placeholders — nothing is interpolated.
+# MySQL's default collations are case-insensitive, so plain LIKE matches ILIKE's
+# behaviour on Postgres.
+FILTER_OPS = {
+    "eq":       ("=",            True,  None),
+    "ne":       ("<>",           True,  None),
+    "lt":       ("<",            True,  None),
+    "le":       ("<=",           True,  None),
+    "gt":       (">",            True,  None),
+    "ge":       (">=",           True,  None),
+    "contains": ("LIKE",         True,  "%{}%"),
+    "starts":   ("LIKE",         True,  "{}%"),
+    "null":     ("IS NULL",      False, None),
+    "notnull":  ("IS NOT NULL",  False, None),
+}
+
+# Statements like CREATE/DROP/ALTER/TRUNCATE implicitly commit in MySQL and can't
+# run in a rolled-back transaction, so the what-if lab can't be supported here.
+_WHATIF_UNSUPPORTED = (
+    "The planner what-if lab isn't available for MySQL — it relies on rolling "
+    "back catalog edits, which MySQL DDL can't do (it commits implicitly).")
+
+
+def _ident(name: str) -> str:
+    """Backtick-quote an identifier, doubling any embedded backtick — MySQL's
+    rule for a quoted identifier. The one place identifiers reach SQL as text."""
+    return "`" + str(name).replace("`", "``") + "`"
+
+
+class MysqlEngine(Engine):
+    # When inside session(), the one open connection reused for every probe;
+    # otherwise None and each _connect() dials its own. Mirrors PostgresEngine.
+    _held = None
+
+    @contextlib.contextmanager
+    def _connect(self, dbname=None):
+        # Inside session() reuse the single held connection (the overview fires
+        # ~10 read-only probes and would otherwise connect ~10 times). A call to
+        # a *different* dbname always opens its own.
+        if dbname is None and self._held is not None:
+            yield self._held
+            return
+        c = self.connection
+        try:
+            conn = pymysql.connect(
+                host=c.host,
+                port=c.port,
+                user=c.user,
+                password=c.password,
+                database=dbname or c.dbname,
+                connect_timeout=5,
+                charset="utf8mb4",
+                autocommit=True,
+            )
+        except pymysql.Error as exc:
+            raise EngineError(_clean(exc)) from exc
+        try:
+            yield conn
+        finally:
+            conn.close()
+
+    @contextlib.contextmanager
+    def session(self):
+        """Open one connection and reuse it for every read-only probe in the
+        block (see PostgresEngine.session). Each probe runs on its own autocommit
+        statement. Do not call methods that open an explicit transaction
+        (run_query / explain / stream_*) inside a session."""
+        with self._connect() as conn:
+            self._held = conn
+            try:
+                yield self
+            finally:
+                self._held = None
+
+    def whatif_cursor(self, *, timeout_ms: int = 15000, lock_timeout: str = "2s"):
+        raise EngineError(_(_WHATIF_UNSUPPORTED))
+
+    def test(self) -> None:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+
+    # --- browsing --------------------------------------------------------
+
+    def list_tables(self) -> list[Table]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(LIST_TABLES_SQL, (self.connection.dbname,))
+                return [
+                    Table(schema=row[0], name=row[1], rows=int(row[2] or 0))
+                    for row in cur.fetchall()
+                ]
+
+    def list_columns(self, schema: str, table: str) -> list[Column]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(LIST_COLUMNS_SQL, (schema, table))
+                return [
+                    Column(
+                        name=row[0],
+                        type=row[1],
+                        nullable=(row[2] == "YES"),
+                        default=row[3],
+                    )
+                    for row in cur.fetchall()
+                ]
+
+    def preview_rows(self, schema: str, table: str, limit: int = 50) -> Preview:
+        query = f"SELECT * FROM {_ident(schema)}.{_ident(table)} LIMIT %s"
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, (limit,))
+                columns = [d[0] for d in cur.description]
+                rows = cur.fetchall()
+        return Preview(columns=columns, rows=list(rows))
+
+    # --- ad-hoc queries --------------------------------------------------
+
+    def run_query(self, sql_text: str, *, max_rows: int = 1000,
+                  timeout_ms: int = 15000, read_only: bool = True) -> QueryResult:
+        with self._connect() as conn:
+            try:
+                with conn.cursor() as cur:
+                    # max_execution_time bounds SELECTs (the only thing it limits
+                    # in MySQL); START TRANSACTION READ ONLY makes the server
+                    # itself reject any write — no fragile SQL scanning.
+                    cur.execute("SET SESSION max_execution_time = %s", [timeout_ms])
+                    cur.execute("START TRANSACTION READ ONLY" if read_only
+                                else "START TRANSACTION")
+                    t0 = time.perf_counter()
+                    cur.execute(sql_text)
+                    duration_ms = int((time.perf_counter() - t0) * 1000)
+                    if cur.description is not None:
+                        fetched = cur.fetchmany(max_rows + 1)
+                        truncated = len(fetched) > max_rows
+                        rows = [tuple(r) for r in fetched[:max_rows]]
+                        columns = [d[0] for d in cur.description]
+                        rowcount = len(rows)
+                    else:
+                        columns, rows, truncated, rowcount = [], [], False, cur.rowcount
+            except pymysql.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+            if read_only:
+                conn.rollback()   # never persist, even a write that slipped past
+            else:
+                conn.commit()
+        return QueryResult(
+            columns=columns, rows=rows, rowcount=rowcount,
+            truncated=truncated, duration_ms=duration_ms,
+        )
+
+    def filter_rows(self, schema: str, table: str, filters: list[dict], *,
+                    limit: int = 1000, timeout_ms: int = 15000) -> QueryResult:
+        """Read-only `SELECT * … WHERE <conds>` from the filter builder. Columns
+        are validated against the real table and backtick-quoted; values are bound
+        as placeholders — nothing is interpolated, so this is a guided query."""
+        valid = {c.name for c in self.list_columns(schema, table)}
+        conds, params = [], []
+        for f in filters:
+            col = f.get("column")
+            op = f.get("op")
+            if col not in valid:
+                raise EngineError(_("No such column: %(name)s") % {"name": col})
+            if op not in FILTER_OPS:
+                raise EngineError(_("Unknown filter operator: %(op)s") % {"op": op})
+            sql_op, needs_value, wrap = FILTER_OPS[op]
+            if needs_value:
+                value = f.get("value", "")
+                params.append(wrap.format(value) if wrap else value)
+                conds.append(f"{_ident(col)} {sql_op} %s")
+            else:
+                conds.append(f"{_ident(col)} {sql_op}")
+        where = (" WHERE " + " AND ".join(conds)) if conds else ""
+        query = f"SELECT * FROM {_ident(schema)}.{_ident(table)}{where} LIMIT %s"
+        params.append(limit + 1)  # one extra row tells us the result was capped
+
+        with self._connect() as conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SET SESSION max_execution_time = %s", [timeout_ms])
+                    cur.execute("START TRANSACTION READ ONLY")
+                    t0 = time.perf_counter()
+                    cur.execute(query, params)
+                    duration_ms = int((time.perf_counter() - t0) * 1000)
+                    fetched = cur.fetchmany(limit + 1)
+                    truncated = len(fetched) > limit
+                    rows = [tuple(r) for r in fetched[:limit]]
+                    columns = [d[0] for d in cur.description]
+            except pymysql.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+            conn.rollback()
+        return QueryResult(columns=columns, rows=rows, rowcount=len(rows),
+                           truncated=truncated, duration_ms=duration_ms)
+
+    def import_csv(self, schema: str, table: str, fileobj, *,
+                   encoding: str = "utf-8-sig") -> int:
+        """Append rows from a CSV (with a header row) into an existing table,
+        matched by header name and run as one all-or-nothing transaction (a bad
+        row rolls all of it back, so the table is never left half-loaded). Rows go
+        through a bound, batched INSERT — not LOAD DATA, which needs server-side
+        file access or local_infile. An empty field is treated as NULL, matching
+        Postgres' COPY default; quoting can't be recovered from csv, so a column
+        that should hold an empty string receives NULL instead. Returns the count.
+        """
+        data = fileobj.read()
+        if isinstance(data, bytes):
+            data = data.decode(encoding, errors="replace")
+        if not data.strip():
+            raise EngineError(_("The CSV file is empty."))
+        reader = csv.reader(data.splitlines())
+        try:
+            header = [c.strip() for c in next(reader)]
+        except StopIteration as exc:
+            raise EngineError(_("The CSV file is empty.")) from exc
+
+        valid = {c.name for c in self.list_columns(schema, table)}
+        unknown = [c for c in header if c not in valid]
+        if unknown:
+            raise EngineError(_("CSV header has columns not in %(table)s: %(cols)s") % {
+                "table": table, "cols": ", ".join(unknown)})
+
+        rows = [
+            [v if v != "" else None for v in row]
+            for row in reader if row  # skip blank trailing lines
+        ]
+        if not rows:
+            return 0
+        cols_sql = ", ".join(_ident(c) for c in header)
+        placeholders = ", ".join(["%s"] * len(header))
+        insert = (f"INSERT INTO {_ident(schema)}.{_ident(table)} "
+                  f"({cols_sql}) VALUES ({placeholders})")
+        with self._connect() as conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("START TRANSACTION")
+                    cur.executemany(insert, rows)
+                    count = cur.rowcount
+                conn.commit()
+            except pymysql.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+        return count
+
+    def stream_query(self, sql_text: str, *, timeout_ms: int = 60000,
+                     max_rows: int = 1_000_000):
+        """Run read-only SQL and stream the full result for a file export. Yields
+        the column-name list first, then one row tuple at a time, pulled through
+        an unbuffered server-side cursor (SSCursor) so a large result is never
+        buffered whole in memory. Read-only and time-limited like run_query; only
+        the first next() (which runs the query) raises EngineError."""
+        return self._stream(sql_text, timeout_ms=timeout_ms, max_rows=max_rows)
+
+    def stream_table(self, schema: str, table: str, *, timeout_ms: int = 60000,
+                     max_rows: int = 1_000_000):
+        """Stream a whole table for a CSV/JSON export — identifiers backtick-quoted,
+        then streamed through the same read-only server-side cursor path."""
+        query = f"SELECT * FROM {_ident(schema)}.{_ident(table)}"
+        return self._stream(query, timeout_ms=timeout_ms, max_rows=max_rows)
+
+    def _stream(self, query: str, *, timeout_ms: int, max_rows: int):
+        with self._connect() as conn:
+            try:
+                with conn.cursor() as setup:
+                    setup.execute("SET SESSION max_execution_time = %s", [timeout_ms])
+                    setup.execute("START TRANSACTION READ ONLY")
+                # SSCursor streams rows from the server instead of buffering them.
+                with conn.cursor(pymysql.cursors.SSCursor) as cur:
+                    cur.execute(query)
+                    if cur.description is None:
+                        yield []          # not a row-returning statement
+                        return
+                    yield [d[0] for d in cur.description]   # header first
+                    sent = 0
+                    for row in cur:
+                        yield tuple(row)
+                        sent += 1
+                        if sent >= max_rows:
+                            return
+            except pymysql.Error as exc:
+                raise EngineError(_clean(exc)) from exc
+            finally:
+                conn.rollback()           # read-only: never persist anything
+
+    # --- EXPLAIN ---------------------------------------------------------
+
+    def explain(self, sql_text: str, *, analyze: bool = False,
+                timeout_ms: int = 15000) -> str:
+        # FORMAT=TREE is MySQL's closest analogue to psql's text plan (8.0.16+);
+        # EXPLAIN ANALYZE runs the query for real timings (8.0.18+).
+        prefix = "EXPLAIN ANALYZE " if analyze else "EXPLAIN FORMAT=TREE "
+        with self._connect() as conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SET SESSION max_execution_time = %s", [timeout_ms])
+                    # Read-only even for ANALYZE: it executes the query, so the
+                    # read-only transaction is what keeps a write safe.
+                    cur.execute("START TRANSACTION READ ONLY")
+                    cur.execute(prefix + sql_text)
+                    lines = [str(row[0]) for row in cur.fetchall()]
+            except pymysql.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+            conn.rollback()
+        return "\n".join(lines)
+
+    def explain_json(self, sql_text: str, *, analyze: bool = False,
+                     timeout_ms: int = 15000) -> PlanNode:
+        # MySQL only emits the structured tree via FORMAT=JSON, which carries
+        # estimates only — EXPLAIN ANALYZE returns text (TREE), not JSON. So the
+        # structured plan (used for snapshots / diffs) is always estimate-based;
+        # `analyze` is accepted for interface parity but doesn't add real timings.
+        with self._connect() as conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SET SESSION max_execution_time = %s", [timeout_ms])
+                    cur.execute("START TRANSACTION READ ONLY")
+                    cur.execute("EXPLAIN FORMAT=JSON " + sql_text)
+                    payload = cur.fetchone()[0]
+            except pymysql.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+            conn.rollback()
+        return _parse_plan(payload)
+
+    # --- activity / sessions ---------------------------------------------
+
+    def list_activity(self) -> list[Activity]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(ACTIVITY_SQL)
+                return [_activity(row) for row in cur.fetchall()]
+
+    def cancel_backend(self, pid: int) -> bool:
+        return self._kill(pid, "QUERY")
+
+    def terminate_backend(self, pid: int) -> bool:
+        return self._kill(pid, "CONNECTION")
+
+    def _kill(self, pid: int, what: str) -> bool:
+        # pid is an int (the view casts it); KILL takes no placeholders, so the
+        # validated int is spliced. `what` is a fixed literal, never user input.
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                try:
+                    cur.execute(f"KILL {what} {int(pid)}")
+                    return True
+                except pymysql.Error as exc:
+                    raise EngineError(_clean(exc)) from exc
+
+    def list_blocking(self):
+        # Lock-wait introspection (performance_schema.data_lock_waits) is deferred
+        # to a later phase; the panel shows "nothing blocked" rather than erroring.
+        return []
+
+    # --- catalog browsing ------------------------------------------------
+
+    def list_databases(self) -> list[Database]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(LIST_DATABASES_SQL)
+                return [
+                    Database(name=row[0], owner="", encoding=row[1] or "",
+                             size=_pretty_size(row[2]))
+                    for row in cur.fetchall()
+                ]
+
+    def list_schemas(self):
+        # MySQL has no schemas distinct from databases — they're the same object.
+        # The objects panel lists databases instead; schemas stays empty.
+        return []
+
+    def list_roles(self) -> list[Role]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(LIST_ROLES_SQL)
+                return [_role(row) for row in cur.fetchall()]
+
+    # --- catalog mutations (databases) -----------------------------------
+
+    def create_database(self, name: str, *, template: str | None = None,
+                        owner: str | None = None,
+                        encoding: str | None = None) -> None:
+        if template:
+            raise EngineError(_(
+                "MySQL can't create a database from a template (no TEMPLATE/"
+                "CREATE DATABASE … LIKE). Create it empty, then load a dump."))
+        stmt = f"CREATE DATABASE {_ident(name)}"
+        if encoding:
+            # encoding is a charset name; bound as a literal so it can't inject.
+            stmt += " CHARACTER SET %s"
+            self._execute(stmt, (encoding,))
+        else:
+            self._execute(stmt)
+
+    def drop_database(self, name: str, *, force: bool = False) -> None:
+        if name == self.connection.dbname:
+            raise EngineError(_(
+                "Can't drop the database this connection is using — connect to "
+                "another database first."))
+        self._execute(f"DROP DATABASE {_ident(name)}")
+
+    def rename_database(self, old: str, new: str) -> None:
+        raise EngineError(_(
+            "MySQL doesn't support renaming a database. Create the new one and "
+            "move the tables (RENAME TABLE), or dump and reload."))
+
+    # --- indexes ---------------------------------------------------------
+
+    def list_indexes(self, schema: str, table: str) -> list[Index]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(LIST_INDEXES_SQL, (schema, table))
+                return [_index(row) for row in cur.fetchall()]
+
+    def create_index(self, schema: str, table: str, columns: list[str], *,
+                     method: str = "btree", unique: bool = False,
+                     name: str | None = None) -> None:
+        if method not in INDEX_METHODS:
+            raise EngineError(_("Unsupported index method: %(method)s") % {"method": method})
+        if not columns:
+            raise EngineError(_("Select at least one column to index."))
+        # Whitelist requested columns against the real table: names are
+        # identifiers (can't be bound), so verify they exist rather than splice an
+        # unknown name into DDL.
+        valid = {c.name for c in self.list_columns(schema, table)}
+        unknown = [c for c in columns if c not in valid]
+        if unknown:
+            raise EngineError(_("No such column(s): %(cols)s") % {"cols": ', '.join(unknown)})
+        # Auto-name like Postgres' default if the user left it blank.
+        index_name = name or f"{table}_{'_'.join(columns)}_idx"
+        cols_sql = ", ".join(_ident(c) for c in columns)
+        unique_sql = "UNIQUE " if unique else ""
+        self._execute(
+            f"CREATE {unique_sql}INDEX {_ident(index_name)} "
+            f"ON {_ident(schema)}.{_ident(table)} ({cols_sql}) USING {method.upper()}")
+
+    def drop_index(self, schema: str, name: str, table: str | None = None) -> None:
+        # MySQL indexes are scoped to a table (an index name isn't unique within a
+        # database), so DROP INDEX needs it; the detail panel posts the table.
+        if not table:
+            raise EngineError(_("Dropping an index needs the table it's on."))
+        self._execute(
+            f"DROP INDEX {_ident(name)} ON {_ident(schema)}.{_ident(table)}")
+
+    # --- table-level operations ------------------------------------------
+
+    def rename_table(self, schema: str, table: str, new_name: str) -> None:
+        self._execute(
+            f"RENAME TABLE {_ident(schema)}.{_ident(table)} "
+            f"TO {_ident(schema)}.{_ident(new_name)}")
+
+    def truncate_table(self, schema: str, table: str) -> None:
+        self._execute(f"TRUNCATE TABLE {_ident(schema)}.{_ident(table)}")
+
+    def drop_table(self, schema: str, table: str) -> None:
+        self._execute(f"DROP TABLE {_ident(schema)}.{_ident(table)}")
+
+    # --- column-level operations (ALTER TABLE) ---------------------------
+
+    def add_column(self, schema: str, table: str, name: str, col_type: str, *,
+                   nullable: bool = True, default: str | None = None) -> None:
+        if col_type not in COLUMN_TYPES:
+            raise EngineError(_(
+                "Unsupported column type: %(t)s. Pick one of the listed types.")
+                % {"t": col_type})
+        stmt = (f"ALTER TABLE {_ident(schema)}.{_ident(table)} "
+                f"ADD COLUMN {_ident(name)} {col_type}")
+        params: list = []
+        if default not in (None, ""):
+            stmt += " DEFAULT %s"
+            params.append(default)
+        if not nullable:
+            stmt += " NOT NULL"
+        self._execute(stmt, params or None)
+
+    def rename_column(self, schema: str, table: str, old: str, new: str) -> None:
+        # RENAME COLUMN is 8.0+; it keeps the existing type/attributes (unlike the
+        # old CHANGE syntax, which needs them respecified).
+        self._require_column(schema, table, old)
+        self._execute(
+            f"ALTER TABLE {_ident(schema)}.{_ident(table)} "
+            f"RENAME COLUMN {_ident(old)} TO {_ident(new)}")
+
+    def drop_column(self, schema: str, table: str, name: str) -> None:
+        self._require_column(schema, table, name)
+        self._execute(
+            f"ALTER TABLE {_ident(schema)}.{_ident(table)} DROP COLUMN {_ident(name)}")
+
+    def alter_column_type(self, schema: str, table: str, name: str,
+                          new_type: str) -> None:
+        if new_type not in COLUMN_TYPES:
+            raise EngineError(_(
+                "Unsupported column type: %(t)s. Pick one of the listed types.")
+                % {"t": new_type})
+        # MySQL's MODIFY re-states the whole column, so any attribute left off is
+        # dropped. Preserve NOT NULL (the safety-critical one — silently allowing
+        # NULLs into a previously NOT NULL column would be surprising). A DEFAULT
+        # can be an expression we can't safely re-quote, so it's not carried over;
+        # the user can re-set it from the column menu.
+        col = self._column(schema, table, name)
+        null_sql = "" if col.nullable else " NOT NULL"
+        self._execute(
+            f"ALTER TABLE {_ident(schema)}.{_ident(table)} "
+            f"MODIFY COLUMN {_ident(name)} {new_type}{null_sql}")
+
+    def set_column_null(self, schema: str, table: str, name: str, *,
+                        nullable: bool) -> None:
+        # MySQL has no "ALTER COLUMN … SET/DROP NOT NULL"; toggling nullability
+        # means re-stating the column's type via MODIFY. Re-derive the type from
+        # the catalog so the change is type-preserving.
+        col = self._column(schema, table, name)
+        null_sql = "NULL" if nullable else "NOT NULL"
+        self._execute(
+            f"ALTER TABLE {_ident(schema)}.{_ident(table)} "
+            f"MODIFY COLUMN {_ident(name)} {col.type} {null_sql}")
+
+    def set_column_default(self, schema: str, table: str, name: str,
+                           default: str | None) -> None:
+        self._require_column(schema, table, name)
+        if default in (None, ""):
+            self._execute(
+                f"ALTER TABLE {_ident(schema)}.{_ident(table)} "
+                f"ALTER COLUMN {_ident(name)} DROP DEFAULT")
+        else:
+            self._execute(
+                f"ALTER TABLE {_ident(schema)}.{_ident(table)} "
+                f"ALTER COLUMN {_ident(name)} SET DEFAULT %s", (default,))
+
+    def _require_column(self, schema: str, table: str, name: str) -> None:
+        if name not in {c.name for c in self.list_columns(schema, table)}:
+            raise EngineError(_("No such column: %(name)s") % {"name": name})
+
+    def _column(self, schema: str, table: str, name: str) -> Column:
+        for c in self.list_columns(schema, table):
+            if c.name == name:
+                return c
+        raise EngineError(_("No such column: %(name)s") % {"name": name})
+
+    # --- health ----------------------------------------------------------
+
+    def table_sizes(self, limit: int = 20) -> list[TableSize]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(TABLE_SIZES_SQL, (self.connection.dbname, limit))
+                return [
+                    TableSize(
+                        schema=row[0], name=row[1], total_bytes=int(row[2] or 0),
+                        total=_pretty_size(row[2]) or "0 B",
+                        table=_pretty_size(row[3]) or "0 B",
+                        index=_pretty_size(row[4]) or "0 B",
+                    )
+                    for row in cur.fetchall()
+                ]
+
+    def unused_indexes(self):
+        # Deferred: needs performance_schema.table_io_waits_summary_by_index_usage.
+        return []
+
+    def vacuum_stats(self):
+        return []   # InnoDB has no vacuum / dead-tuple model
+
+    def bloat_estimates(self, limit: int = 20):
+        return []   # no MySQL equivalent of the pg_stats bloat estimate
+
+    # --- shared DDL runner -----------------------------------------------
+
+    def _execute(self, statement: str, params=None) -> None:
+        """Run a DDL/DML statement (autocommit connection — MySQL DDL commits
+        implicitly anyway), mapping driver errors to EngineError."""
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                try:
+                    cur.execute(statement, params)
+                except pymysql.Error as exc:
+                    raise EngineError(_clean(exc)) from exc
+
+
+# --- row → dataclass helpers ---------------------------------------------
+
+def _activity(row) -> Activity:
+    (pid, user, db, host, command, state, secs, info, is_self) = row
+    cmd = command or ""
+    return Activity(
+        pid=pid,
+        user=user,
+        database=db,
+        app=None,                       # MySQL has no per-session application name
+        client=host,
+        # Map MySQL's COMMAND onto the active/idle the overview counts: a running
+        # query is COMMAND='Query'; everything else (Sleep, …) is shown verbatim.
+        state="active" if cmd == "Query" else cmd.lower() or None,
+        wait=state or None,             # MySQL's detailed STATE string
+        blocked_by=[],                  # lock-wait graph deferred (see list_blocking)
+        query_secs=secs,
+        query=info or "",
+        is_self=bool(is_self),
+    )
+
+
+def _role(row) -> Role:
+    """Turn a mysql.user row into the attribute labels the objects panel shows."""
+    user, host, super_priv, locked = row
+    can_login = (locked or "").upper() != "Y"
+    is_super = (super_priv or "").upper() == "Y"
+    attrs = []
+    if is_super:
+        attrs.append("Superuser")
+    if not can_login:
+        attrs.append("Locked")
+    return Role(name=f"{user}@{host}", attributes=attrs, can_login=can_login,
+                superuser=is_super)
+
+
+def _index(row) -> Index:
+    name, method, non_unique, columns = row
+    unique = (int(non_unique) == 0)
+    primary = (name == "PRIMARY")
+    cols = columns or ""
+    kind = "UNIQUE INDEX" if unique else "INDEX"
+    definition = f"{kind} {name} ({cols}) USING {method}"
+    # Per-index on-disk size isn't exposed by information_schema, so it's unknown.
+    return Index(name=name, method=(method or "").lower(), unique=unique,
+                 primary=primary, definition=definition, size=None, valid=True)
+
+
+def _pretty_size(n) -> str | None:
+    """Pretty-print a byte count like pg_size_pretty; None passes through (a
+    database with no tables reports NULL for its summed size)."""
+    if n is None:
+        return None
+    n = int(n)
+    if n >= 1073741824:
+        return f"{n / 1073741824:.1f} GB"
+    if n >= 1048576:
+        return f"{n / 1048576:.1f} MB"
+    if n >= 1024:
+        return f"{n / 1024:.0f} kB"
+    return f"{n} B"
+
+
+def _clean(exc: pymysql.Error) -> str:
+    """PyMySQL errors carry (errno, message); surface the message, falling back
+    to the string form's first line."""
+    args = getattr(exc, "args", None)
+    if args and len(args) >= 2 and isinstance(args[1], str):
+        return args[1]
+    msg = str(exc).strip()
+    return msg.splitlines()[0] if msg else "Could not connect to MySQL."
+
+
+# --- EXPLAIN FORMAT=JSON → PlanNode --------------------------------------
+
+# MySQL access_type → a readable node label. Labels that describe a table access
+# end in "Scan" so plan_diff aligns a method swap on the same table into one
+# 'changed' row (its _shape_key keys scans by relation).
+_ACCESS_LABELS = {
+    "ALL": "Full Table Scan",
+    "index": "Index Scan",
+    "range": "Index Range Scan",
+    "ref": "Index Scan",
+    "eq_ref": "Index Scan",
+    "ref_or_null": "Index Scan",
+    "const": "Const Scan",
+    "system": "Const Scan",
+    "fulltext": "Fulltext Scan",
+    "index_merge": "Index Merge Scan",
+    "unique_subquery": "Index Scan",
+    "index_subquery": "Index Scan",
+}
+
+# query_block keys that wrap an inner operation → the node label to show for them.
+_WRAP_OPS = {
+    "ordering_operation": "Sort",
+    "grouping_operation": "Aggregate",
+    "duplicates_removal": "Distinct",
+    "buffer_result": "Materialize",
+}
+
+
+def _parse_plan(payload) -> PlanNode:
+    """Turn EXPLAIN FORMAT=JSON output into a PlanNode tree. PyMySQL returns it as
+    a JSON string; accept an already-decoded dict too."""
+    if isinstance(payload, (str, bytes)):
+        payload = json.loads(payload)
+    return _mysql_node(payload["query_block"])
+
+
+def _f(value) -> float:
+    """MySQL reports costs/rows as strings in the JSON; coerce, defaulting to 0."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _mysql_node(d: dict) -> PlanNode:
+    """Recursively map one level of MySQL's EXPLAIN JSON to a PlanNode.
+
+    A level is either a wrapper operation (ordering/grouping/…), a join
+    (`nested_loop`), or a leaf table access (`table`). Unknown shapes degrade to a
+    generic node so an unexpected plan never crashes the EXPLAIN view."""
+    cost = _f((d.get("cost_info") or {}).get("query_cost"))
+
+    for key, label in _WRAP_OPS.items():
+        if key in d:
+            child = _mysql_node(d[key])
+            return PlanNode(
+                node_type=label, relation=None, index=None,
+                plan_rows=child.plan_rows, total_cost=cost or child.total_cost,
+                plan_width=0, actual_rows=None, actual_ms=None, loops=None,
+                detail=None, children=[child])
+
+    if "nested_loop" in d:
+        children = [_mysql_node(item) for item in d["nested_loop"]]
+        rows = children[-1].plan_rows if children else 0.0
+        return PlanNode(
+            node_type="Nested Loop", relation=None, index=None,
+            plan_rows=rows, total_cost=cost, plan_width=0,
+            actual_rows=None, actual_ms=None, loops=None, detail=None,
+            children=children)
+
+    if "table" in d:
+        return _mysql_table(d["table"])
+
+    return PlanNode(
+        node_type="Result", relation=None, index=None, plan_rows=0.0,
+        total_cost=cost, plan_width=0, actual_rows=None, actual_ms=None,
+        loops=None, detail=None, children=[])
+
+
+def _mysql_table(t: dict) -> PlanNode:
+    access = t.get("access_type", "")
+    label = _ACCESS_LABELS.get(access, "Table Scan")
+    rows = t.get("rows_produced_per_join")
+    if rows is None:
+        rows = t.get("rows_examined_per_scan", 0)
+    cost_info = t.get("cost_info") or {}
+    cost = _f(cost_info.get("prefix_cost") or cost_info.get("read_cost"))
+    children = []
+    sub = t.get("materialized_from_subquery")
+    if isinstance(sub, dict) and "query_block" in sub:
+        children.append(_mysql_node(sub["query_block"]))
+    return PlanNode(
+        node_type=label, relation=t.get("table_name"), index=t.get("key"),
+        plan_rows=_f(rows), total_cost=cost, plan_width=0,
+        actual_rows=None, actual_ms=None, loops=None,
+        detail=t.get("attached_condition"), children=children)

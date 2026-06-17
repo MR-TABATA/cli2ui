@@ -1,2 +1,6 @@
 Django==5.1.15
 psycopg2-binary==2.9.10
+PyMySQL==1.1.1
+# Required by PyMySQL for MySQL 8's default caching_sha2_password auth over a
+# non-TLS connection; without it the very first connect fails.
+cryptography==49.0.0

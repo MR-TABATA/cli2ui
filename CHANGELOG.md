@@ -17,6 +17,29 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Added
+- MySQL support (phase 1) — a `MysqlEngine` (PyMySQL) wired into the engine
+  factory, so a connection of kind "mysql" now works for: connecting, the table
+  list / column detail / row preview, the read-only ad-hoc query runner (the
+  server enforces read-only via `START TRANSACTION READ ONLY`) with write mode,
+  the filter builder, CSV import, streamed CSV/JSON exports, `EXPLAIN`
+  (`FORMAT=JSON` parsed into the shared plan tree, so snapshots/diffs work),
+  the session/process list (`SHOW PROCESSLIST`) with cancel/kill, index list +
+  create/drop, table rename/truncate/drop, column add/rename/drop/retype/
+  nullability/default, database create/drop, the user list, and table sizes.
+  The connection form defaults the port to 3306 for MySQL and the detail panel's
+  starter query uses backtick quoting.
+- `cryptography` dependency — PyMySQL needs it for MySQL 8's default
+  `caching_sha2_password` auth over a non-TLS connection.
+
+### Notes
+- MySQL has no schema-vs-database split, so the engine reports the connection's
+  database as each table's schema and scopes catalog queries to it. Capabilities
+  with no MySQL equivalent or deferred to a later phase — replication, the
+  server-config editor, role/schema mutations, `mysqldump` backups, the planner
+  what-if lab, and bloat/vacuum/unused-index health — return empty or raise a
+  clear message, so panels degrade rather than break.
+
 ## [0.9.0] - 2026-06-17
 
 PostgreSQL feature-freeze milestone: the explicit PostgreSQL backlog is now

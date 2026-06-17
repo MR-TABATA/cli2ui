@@ -824,7 +824,9 @@ class PostgresEngine(Engine):
             name=name, concurrently=True,
         ))
 
-    def drop_index(self, schema: str, name: str) -> None:
+    def drop_index(self, schema: str, name: str, table: str | None = None) -> None:
+        # `table` is unused: Postgres indexes live in a schema, so name+schema is
+        # enough. It's in the signature only for parity with MySQL (see base).
         self._execute(sql.SQL("DROP INDEX CONCURRENTLY {}.{}").format(
             sql.Identifier(schema), sql.Identifier(name)))
 

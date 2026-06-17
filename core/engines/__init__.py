@@ -16,6 +16,10 @@ def get_engine(connection) -> Engine:
         from .postgres import PostgresEngine
 
         return PostgresEngine(connection)
+    if connection.kind == "mysql":
+        from .mysql import MysqlEngine
+
+        return MysqlEngine(connection)
     raise EngineError(_("Unsupported database kind: %(kind)s") % {"kind": connection.kind})
 
 

@@ -498,9 +498,127 @@ class GetEngineTests(SimpleTestCase):
         conn = SimpleNamespace(kind="postgres")
         self.assertIsInstance(get_engine(conn), PostgresEngine)
 
+    def test_mysql_returns_engine(self):
+        from core.engines.mysql import MysqlEngine
+        conn = SimpleNamespace(kind="mysql")
+        self.assertIsInstance(get_engine(conn), MysqlEngine)
+
     def test_unsupported_kind_raises(self):
         with self.assertRaises(EngineError):
-            get_engine(SimpleNamespace(kind="mysql"))
+            get_engine(SimpleNamespace(kind="sqlite"))
+
+
+# --- MySQL engine pure logic (no DB) ----------------------------------------
+
+class MysqlPureLogicTests(SimpleTestCase):
+    """The database-independent helpers of the MySQL engine: identifier quoting,
+    size formatting, row→dataclass mappers, the EXPLAIN JSON parser and the
+    error cleaner. No MySQL server — the catalog-touching methods are verified by
+    hand against a sample DB (see project notes)."""
+
+    def test_ident_quotes_and_doubles_backticks(self):
+        from core.engines.mysql import _ident
+        self.assertEqual(_ident("orders"), "`orders`")
+        self.assertEqual(_ident("we`ird"), "`we``ird`")
+
+    def test_pretty_size_scales_units(self):
+        from core.engines.mysql import _pretty_size
+        self.assertIsNone(_pretty_size(None))
+        self.assertEqual(_pretty_size(0), "0 B")
+        self.assertEqual(_pretty_size(2048), "2 kB")
+        self.assertEqual(_pretty_size(5 * 1048576), "5.0 MB")
+        self.assertEqual(_pretty_size(3 * 1073741824), "3.0 GB")
+
+    def test_clean_prefers_driver_message(self):
+        import pymysql
+        from core.engines.mysql import _clean
+        self.assertEqual(_clean(pymysql.Error(1045, "Access denied")), "Access denied")
+        self.assertEqual(_clean(pymysql.Error()), "Could not connect to MySQL.")
+
+    def test_role_mapping(self):
+        from core.engines.mysql import _role
+        r = _role(("root", "localhost", "Y", "N"))
+        self.assertEqual(r.name, "root@localhost")
+        self.assertTrue(r.superuser)
+        self.assertTrue(r.can_login)
+        self.assertIn("Superuser", r.attributes)
+        locked = _role(("app", "%", "N", "Y"))
+        self.assertFalse(locked.can_login)
+        self.assertIn("Locked", locked.attributes)
+
+    def test_index_mapping_aggregates_columns(self):
+        from core.engines.mysql import _index
+        idx = _index(("PRIMARY", "BTREE", 0, "id"))
+        self.assertTrue(idx.primary)
+        self.assertTrue(idx.unique)
+        self.assertEqual(idx.method, "btree")
+        self.assertIsNone(idx.size)
+        multi = _index(("idx_cust_date", "BTREE", 1, "customer_id, created_at"))
+        self.assertFalse(multi.unique)
+        self.assertFalse(multi.primary)
+        # columns_text reads the parenthesised list out of the definition.
+        self.assertEqual(multi.columns_text, "customer_id, created_at")
+
+    def test_activity_mapping_maps_command_to_state(self):
+        from core.engines.mysql import _activity
+        running = _activity((7, "demo", "shop", "h:1", "Query", "executing",
+                             3, "SELECT 1", 0))
+        self.assertEqual(running.state, "active")
+        self.assertEqual(running.query, "SELECT 1")
+        self.assertFalse(running.is_self)
+        idle = _activity((8, "demo", "shop", "h:2", "Sleep", None, 99, None, 1))
+        self.assertEqual(idle.state, "sleep")
+        self.assertEqual(idle.query, "")
+        self.assertTrue(idle.is_self)
+
+    def test_parse_plan_builds_tree(self):
+        import json
+        from core.engines.mysql import _parse_plan
+        from core.plan_diff import to_text
+        payload = {"query_block": {
+            "cost_info": {"query_cost": "12.34"},
+            "ordering_operation": {"nested_loop": [
+                {"table": {"table_name": "orders", "access_type": "ALL",
+                           "rows_produced_per_join": 1000,
+                           "cost_info": {"prefix_cost": "5.0"},
+                           "attached_condition": "(o.total > 1)"}},
+                {"table": {"table_name": "customers", "access_type": "eq_ref",
+                           "key": "PRIMARY", "rows_produced_per_join": 1,
+                           "cost_info": {"prefix_cost": "10.0"}}},
+            ]}}}
+        node = _parse_plan(json.dumps(payload))
+        self.assertEqual(node.node_type, "Sort")
+        self.assertEqual(node.total_cost, 12.34)
+        loop = node.children[0]
+        self.assertEqual(loop.node_type, "Nested Loop")
+        self.assertEqual(loop.children[0].relation, "orders")
+        self.assertEqual(loop.children[0].node_type, "Full Table Scan")
+        self.assertEqual(loop.children[1].node_type, "Index Scan")
+        # The whole tree renders without error (used by snapshots / diffs).
+        self.assertIn("orders", to_text(node))
+
+    def test_unsupported_features_raise_engine_error(self):
+        from core.engines import EngineError
+        from core.engines.mysql import MysqlEngine
+        conn = Connection(kind="mysql", host="h", port=3306,
+                          dbname="shop", user="u", password="p")
+        engine = MysqlEngine(conn)
+        with self.assertRaises(EngineError):
+            engine.rename_database("a", "b")
+        with self.assertRaises(EngineError):
+            engine.create_database("x", template="shop")
+        with self.assertRaises(EngineError):
+            engine.drop_index("shop", "idx")           # no table given
+        with self.assertRaises(EngineError):
+            engine.drop_database("shop")               # the connected DB
+        with self.assertRaises(EngineError):
+            engine.whatif_cursor()
+        # Health probes with no MySQL equivalent degrade to empty, never raise.
+        self.assertEqual(engine.vacuum_stats(), [])
+        self.assertEqual(engine.bloat_estimates(), [])
+        self.assertEqual(engine.unused_indexes(), [])
+        self.assertEqual(engine.list_schemas(), [])
+        self.assertEqual(engine.list_blocking(), [])
 
 
 # --- models + form (sqlite management DB) -----------------------------------
