@@ -4,7 +4,7 @@ An app registers its key in its AppConfig.ready(); the core nav shows a panel's
 buttons only when its key is registered (via the `enabled_features` context
 processor), and the URLconf includes the panel's routes only when its app is
 installed. Dropping the app from INSTALLED_APPS makes the feature vanish — nav
-and routes alike — which is what keeps future paid features cleanly separable.
+and routes alike — which keeps optional features cleanly separable.
 """
 _REGISTRY: set[str] = set()
 
