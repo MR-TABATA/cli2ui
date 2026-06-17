@@ -55,6 +55,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.template.context_processors.i18n",
                 "core.context_processors.features",
+                "core.context_processors.version",
             ],
         },
     },
