@@ -31,14 +31,29 @@ Versioning convention for this project:
   starter query uses backtick quoting.
 - `cryptography` dependency — PyMySQL needs it for MySQL 8's default
   `caching_sha2_password` auth over a non-TLS connection.
+- MySQL support (phase 2) — the locks panel now shows a real lock-wait graph for
+  MySQL (`performance_schema.data_lock_waits`, MySQL 8.0+), and the health panel
+  lists unused indexes (`sys.schema_unused_indexes`). When the server can't
+  answer "is anything blocked?" — `performance_schema` is off, or the server is
+  older than 8.0 — the panel raises a clear message instead of reporting a false
+  "nothing blocked".
+- `Engine.supports()` / `UNSUPPORTED` — engines can declare a feature
+  *conceptually absent* (e.g. InnoDB has no vacuum or bloat model, and MySQL has
+  no schema separate from a database). Panels then show "not applicable to this
+  engine" rather than an empty card, so a structural absence is never confused
+  with "no data".
 
 ### Notes
 - MySQL has no schema-vs-database split, so the engine reports the connection's
   database as each table's schema and scopes catalog queries to it. Capabilities
-  with no MySQL equivalent or deferred to a later phase — replication, the
-  server-config editor, role/schema mutations, `mysqldump` backups, the planner
-  what-if lab, and bloat/vacuum/unused-index health — return empty or raise a
-  clear message, so panels degrade rather than break.
+  with no MySQL equivalent — replication, the server-config editor, role
+  mutations, `mysqldump` backups, the planner what-if lab (MySQL DDL commits
+  implicitly, so it can't be rolled back), and vacuum/bloat/schema health — raise
+  a clear message or are flagged "not applicable", so panels degrade rather than
+  break. The distinction is deliberate: a feature that *could* report a problem
+  but can't right now (lock waits with `performance_schema` off) raises, while one
+  that is conceptually absent returns empty and is flagged — a safety signal like
+  "is anything blocked?" must never degrade to a false negative.
 
 ## [0.9.0] - 2026-06-17
 
