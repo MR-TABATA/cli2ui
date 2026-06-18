@@ -341,6 +341,9 @@ def _render_objects(request, connection, error=None, notice=None):
             "databases": databases,
             "schemas": schemas,
             "roles": roles,
+            # MySQL has no schema distinct from a database: the panel shows a note
+            # in the schemas section instead of an always-empty list.
+            "supports_schemas": engine.supports("schemas"),
             "error": error,
             "notice": notice,
         },

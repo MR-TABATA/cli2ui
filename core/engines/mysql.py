@@ -2,11 +2,18 @@
 
 Phase 1 scope: browsing, ad-hoc queries (read-only enforced), the filter builder,
 CSV import, streamed exports, EXPLAIN, the session/process list, table + column
-DDL, indexes, databases and table sizes. Capabilities with no MySQL equivalent
-or deferred to a later phase (replication, server-config editor, role mutations,
-schema objects, mysqldump backups, the planner what-if lab, bloat/vacuum/unused-
-index health) raise a clear EngineError or return empty, so the UI degrades to a
-message or an empty card instead of crashing.
+DDL, indexes, databases and table sizes. Phase 2 adds the lock-wait graph
+(list_blocking) and unused-index detection. Capabilities with no MySQL equivalent
+(replication, server-config editor, role mutations, the planner what-if lab,
+mysqldump backups, schema objects, bloat/vacuum health) raise a clear EngineError
+or are declared UNSUPPORTED so the UI shows a "not applicable here" state.
+
+Two failure shapes are kept distinct on purpose (see base.Engine.supports):
+a feature that is *conceptually absent* (vacuum/bloat — InnoDB has no dead-tuple
+model) returns empty and is flagged UNSUPPORTED, while one that *could* report a
+problem but can't right now (lock waits when performance_schema is OFF) raises
+EngineError. A safety signal like "is anything blocked?" must never degrade to a
+false "nothing blocked".
 
 MySQL has no schema-vs-database split: a schema *is* a database. The rest of the
 app is written around (schema, table); the engine bridges that by reporting the
@@ -23,26 +30,31 @@ from django.utils.translation import gettext as _
 
 from .base import (
     Activity,
+    Blocker,
     Column,
     Database,
     Engine,
     EngineError,
     Index,
+    LockWait,
     Preview,
     QueryResult,
     PlanNode,
     Role,
     Table,
     TableSize,
+    UnusedIndex,
 )
 from .mysql_sql import (
     ACTIVITY_SQL,
+    BLOCKING_SQL,
     LIST_COLUMNS_SQL,
     LIST_DATABASES_SQL,
     LIST_INDEXES_SQL,
     LIST_ROLES_SQL,
     LIST_TABLES_SQL,
     TABLE_SIZES_SQL,
+    UNUSED_INDEXES_SQL,
 )
 
 # Index access methods MySQL accepts in CREATE INDEX … USING. A fixed allow-list
@@ -93,6 +105,14 @@ def _ident(name: str) -> str:
 
 
 class MysqlEngine(Engine):
+    # Health features with no InnoDB equivalent: there is no vacuum / dead-tuple
+    # model, so vacuum stats and the bloat estimate are conceptually absent (not
+    # "implemented later"), and MySQL has no schema distinct from a database.
+    # Panels read this to show "not applicable to MySQL" rather than an empty
+    # card. Lock waits are NOT here — they're implemented (list_blocking) and
+    # raise when they can't be determined, never silently report "nothing".
+    UNSUPPORTED = frozenset({"vacuum", "bloat", "schemas"})
+
     # When inside session(), the one open connection reused for every probe;
     # otherwise None and each _connect() dials its own. Mirrors PostgresEngine.
     _held = None
@@ -415,9 +435,32 @@ class MysqlEngine(Engine):
                     raise EngineError(_clean(exc)) from exc
 
     def list_blocking(self):
-        # Lock-wait introspection (performance_schema.data_lock_waits) is deferred
-        # to a later phase; the panel shows "nothing blocked" rather than erroring.
-        return []
+        """The lock-wait graph: who is stuck on a lock and who holds it.
+
+        Safety-critical, so it must never answer a false "nothing blocked". The
+        data lives in performance_schema.data_lock_waits (MySQL 8.0+); when that
+        instrumentation is OFF the table is simply empty, indistinguishable from
+        "no waits", so we check @@performance_schema first and raise rather than
+        return an empty list. Older servers without data_lock_waits raise too."""
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT @@performance_schema")
+                if not cur.fetchone()[0]:
+                    raise EngineError(_(
+                        "Can't check for lock waits: the MySQL performance_schema "
+                        "is disabled on this server, so blocking can't be detected. "
+                        "Enable it (performance_schema=ON) to use this panel."))
+                try:
+                    cur.execute(BLOCKING_SQL)
+                    rows = cur.fetchall()
+                except pymysql.Error as exc:
+                    # data_lock_waits / data_locks are MySQL 8.0+; older servers
+                    # lack them. Surface that instead of a misleading empty panel.
+                    raise EngineError(_(
+                        "Can't check for lock waits: this needs MySQL 8.0+ "
+                        "(performance_schema.data_lock_waits is unavailable here).")
+                    ) from exc
+        return _lock_waits(rows)
 
     # --- catalog browsing ------------------------------------------------
 
@@ -619,15 +662,22 @@ class MysqlEngine(Engine):
                     for row in cur.fetchall()
                 ]
 
-    def unused_indexes(self):
-        # Deferred: needs performance_schema.table_io_waits_summary_by_index_usage.
-        return []
+    def unused_indexes(self) -> list[UnusedIndex]:
+        """Drop-candidate indexes (never read) for the connected database, via
+        sys.schema_unused_indexes. Unlike list_blocking this is an optimisation
+        hint, not a safety signal, so when performance_schema is off the view is
+        simply empty (best-effort) rather than an error — and it feeds an
+        aggregate count card that must keep working."""
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(UNUSED_INDEXES_SQL, (self.connection.dbname,))
+                return [_unused_index(row) for row in cur.fetchall()]
 
     def vacuum_stats(self):
-        return []   # InnoDB has no vacuum / dead-tuple model
+        return []   # "vacuum" not applicable — InnoDB has no dead-tuple model
 
     def bloat_estimates(self, limit: int = 20):
-        return []   # no MySQL equivalent of the pg_stats bloat estimate
+        return []   # "bloat" not applicable — no MySQL pg_stats-style estimate
 
     # --- shared DDL runner -----------------------------------------------
 
@@ -657,7 +707,7 @@ def _activity(row) -> Activity:
         # query is COMMAND='Query'; everything else (Sleep, …) is shown verbatim.
         state="active" if cmd == "Query" else cmd.lower() or None,
         wait=state or None,             # MySQL's detailed STATE string
-        blocked_by=[],                  # lock-wait graph deferred (see list_blocking)
+        blocked_by=[],                  # per-session blockers aren't joined here; the dedicated locks panel (list_blocking) shows the full wait graph
         query_secs=secs,
         query=info or "",
         is_self=bool(is_self),
@@ -688,6 +738,50 @@ def _index(row) -> Index:
     # Per-index on-disk size isn't exposed by information_schema, so it's unknown.
     return Index(name=name, method=(method or "").lower(), unique=unique,
                  primary=primary, definition=definition, size=None, valid=True)
+
+
+def _lock_waits(rows) -> list[LockWait]:
+    """Fold the flat (blocked, blocker) pairs from BLOCKING_SQL into one LockWait
+    per blocked session, collecting its blockers. The blocked-side columns repeat
+    across a session's rows; we read them once and append each distinct blocker.
+
+    A blocker whose processlist COMMAND is 'Sleep' is holding the lock while
+    sitting idle inside an open transaction — the classic MySQL stall — so we
+    label it 'idle in transaction' to reuse the locks panel's amber badge."""
+    waits: dict[int, LockWait] = {}
+    seen_blockers: set[tuple[int, int]] = set()
+    for row in rows:
+        (blocked_pid, blocked_user, blocked_query, wait_secs, lock_type,
+         lock_mode, obj, blocker_pid, blocker_user, blocker_command,
+         blocker_query) = row
+        wait = waits.get(blocked_pid)
+        if wait is None:
+            wait = LockWait(
+                blocked_pid=blocked_pid, blocked_user=blocked_user,
+                blocked_query=blocked_query or "", wait_secs=wait_secs,
+                lock_type=lock_type or "", lock_mode=lock_mode or "",
+                object=obj or (lock_type or ""), blockers=[],
+            )
+            waits[blocked_pid] = wait
+        if blocker_pid is not None and (blocked_pid, blocker_pid) not in seen_blockers:
+            seen_blockers.add((blocked_pid, blocker_pid))
+            state = ("idle in transaction"
+                     if (blocker_command or "") == "Sleep"
+                     else (blocker_command or "").lower() or None)
+            wait.blockers.append(Blocker(
+                pid=blocker_pid, user=blocker_user, state=state,
+                query=blocker_query or "",
+            ))
+    return list(waits.values())
+
+
+def _unused_index(row) -> UnusedIndex:
+    """Map a sys.schema_unused_indexes row to UnusedIndex. By definition these had
+    zero reads (scans=0); MySQL exposes no cheap per-index byte size, so it's
+    reported as unknown — same as list_indexes."""
+    schema, table, name = row
+    return UnusedIndex(schema=schema, table=table, name=name,
+                       scans=0, bytes=0, size=None)
 
 
 def _pretty_size(n) -> str | None:

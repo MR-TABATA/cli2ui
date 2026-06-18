@@ -380,8 +380,22 @@ class BloatEstimate:
 class Engine:
     """Base class. One Engine wraps one saved Connection."""
 
+    # Maintenance/introspection features this engine cannot answer *at all*
+    # because the concept does not exist for it (e.g. InnoDB has no vacuum or
+    # dead-tuple model). Panels use this to show a "not applicable to this
+    # engine" state instead of an empty-data state, so a structural absence is
+    # never misread as "nothing to report". A feature that *could* return rows
+    # but is simply not implemented yet must NOT live here — it should raise
+    # EngineError so the caller surfaces "couldn't determine", never a false
+    # empty. Keys are stable strings: "vacuum", "bloat", "schemas".
+    UNSUPPORTED: frozenset = frozenset()
+
     def __init__(self, connection):
         self.connection = connection
+
+    def supports(self, feature: str) -> bool:
+        """Whether this engine can answer `feature` at all (see UNSUPPORTED)."""
+        return feature not in self.UNSUPPORTED
 
     def test(self) -> None:
         """Open a connection and fail loudly (EngineError) if it can't."""

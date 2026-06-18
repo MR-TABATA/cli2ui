@@ -613,12 +613,179 @@ class MysqlPureLogicTests(SimpleTestCase):
             engine.drop_database("shop")               # the connected DB
         with self.assertRaises(EngineError):
             engine.whatif_cursor()
-        # Health probes with no MySQL equivalent degrade to empty, never raise.
+        # Features with no InnoDB concept degrade to empty without touching a DB.
         self.assertEqual(engine.vacuum_stats(), [])
         self.assertEqual(engine.bloat_estimates(), [])
-        self.assertEqual(engine.unused_indexes(), [])
         self.assertEqual(engine.list_schemas(), [])
-        self.assertEqual(engine.list_blocking(), [])
+
+    def test_supports_flags_separate_na_from_empty(self):
+        # vacuum/bloat/schemas are conceptually absent for MySQL, so panels show
+        # "not applicable" rather than an empty card. Lock waits are NOT declared
+        # unsupported — they're implemented and raise when undetectable, so they
+        # must never be reported as a flat "supported but empty".
+        from core.engines.mysql import MysqlEngine
+        engine = MysqlEngine(Connection(kind="mysql", host="h", port=3306,
+                                        dbname="shop", user="u", password="p"))
+        self.assertFalse(engine.supports("vacuum"))
+        self.assertFalse(engine.supports("bloat"))
+        self.assertFalse(engine.supports("schemas"))
+        self.assertTrue(engine.supports("locks"))
+
+    def test_lock_waits_group_blockers_per_blocked_session(self):
+        from core.engines.mysql import _lock_waits
+        # PID 20 is blocked by two holders (51, 52); PID 30 by one (51). Each
+        # (blocked, blocker) pair is one SQL row; the helper folds them.
+        rows = [
+            (20, "app", "UPDATE t SET x=1", 7, "RECORD", "X", "shop.t",
+             51, "root", "Sleep", "BEGIN"),
+            (20, "app", "UPDATE t SET x=1", 7, "RECORD", "X", "shop.t",
+             52, "etl", "Query", "UPDATE t SET y=2"),
+            (30, "web", "DELETE FROM t", 3, "RECORD", "X", "shop.t",
+             51, "root", "Sleep", "BEGIN"),
+        ]
+        waits = _lock_waits(rows)
+        self.assertEqual({w.blocked_pid for w in waits}, {20, 30})
+        first = next(w for w in waits if w.blocked_pid == 20)
+        self.assertEqual([b.pid for b in first.blockers], [51, 52])
+        self.assertEqual(first.object, "shop.t")
+        self.assertEqual(first.wait_secs, 7)
+        # A blocker sitting in COMMAND='Sleep' is idle inside an open txn.
+        self.assertEqual(first.blockers[0].state, "idle in transaction")
+        self.assertEqual(first.blockers[1].state, "query")
+
+    def test_lock_waits_empty_when_nothing_blocked(self):
+        from core.engines.mysql import _lock_waits
+        self.assertEqual(_lock_waits([]), [])
+
+    def test_unused_index_mapping(self):
+        from core.engines.mysql import _unused_index
+        u = _unused_index(("shop", "orders", "idx_old"))
+        self.assertEqual((u.schema, u.table, u.name), ("shop", "orders", "idx_old"))
+        self.assertEqual(u.scans, 0)        # unused by definition
+        self.assertIsNone(u.size)           # MySQL exposes no per-index size
+
+
+class MysqlConnectionMockTests(SimpleTestCase):
+    """The MySQL engine's connection-touching SQL: the lock-wait safety guard,
+    the unused-index lookup, and the SQL the filter builder / DDL generate. No
+    MySQL server — pymysql.connect is mocked and we assert what the engine *would*
+    send, mirroring the Postgres connection tests (psycopg2.connect mocked)."""
+
+    def _engine(self):
+        from core.engines.mysql import MysqlEngine
+        return MysqlEngine(Connection(kind="mysql", host="h", port=3306,
+                                      dbname="shop", user="u", password="p"))
+
+    @staticmethod
+    def _cursor(connect):
+        """Point mocked pymysql.connect at a cursor we control, so
+        `with self._connect() as conn: with conn.cursor() as cur:` yields it."""
+        cur = unittest.mock.MagicMock()
+        connect.return_value.cursor.return_value.__enter__.return_value = cur
+        return cur
+
+    # --- list_blocking: the safety guard (must never answer a false "empty") --
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_blocking_raises_when_performance_schema_off(self, connect):
+        from core.engines.mysql import BLOCKING_SQL
+        cur = self._cursor(connect)
+        cur.fetchone.return_value = (0,)            # @@performance_schema = OFF
+        with self.assertRaises(EngineError):
+            self._engine().list_blocking()
+        # It must NOT have run the lock-wait query and returned its empty result —
+        # that would be the false negative Phase 2 exists to prevent.
+        ran = [c.args[0] for c in cur.execute.call_args_list]
+        self.assertNotIn(BLOCKING_SQL, ran)
+        cur.fetchall.assert_not_called()
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_blocking_raises_on_pre_8_0_server(self, connect):
+        import pymysql
+        cur = self._cursor(connect)
+        cur.fetchone.return_value = (1,)            # PS on, but the query fails…
+        # …because data_lock_waits is missing on the server (older than 8.0).
+        cur.execute.side_effect = [None,
+                                   pymysql.err.ProgrammingError(1146, "no such table")]
+        with self.assertRaises(EngineError):
+            self._engine().list_blocking()
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_blocking_returns_grouped_waits_when_enabled(self, connect):
+        cur = self._cursor(connect)
+        cur.fetchone.return_value = (1,)
+        cur.fetchall.return_value = [
+            (20, "app", "UPDATE t", 5, "RECORD", "X", "shop.t",
+             51, "root", "Sleep", "BEGIN"),
+        ]
+        waits = self._engine().list_blocking()
+        self.assertEqual(len(waits), 1)
+        self.assertEqual(waits[0].blocked_pid, 20)
+        self.assertEqual(waits[0].blockers[0].pid, 51)
+
+    # --- unused_indexes: scoped to the connected database --------------------
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_unused_indexes_scopes_to_database_and_maps(self, connect):
+        from core.engines.mysql import UNUSED_INDEXES_SQL
+        cur = self._cursor(connect)
+        cur.fetchall.return_value = [("shop", "orders", "idx_old")]
+        result = self._engine().unused_indexes()
+        cur.execute.assert_called_once_with(UNUSED_INDEXES_SQL, ("shop",))
+        self.assertEqual(result[0].name, "idx_old")
+
+    # --- filter builder / DDL: identifiers quoted, values bound --------------
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_filter_rows_quotes_identifiers_and_binds_values(self, connect):
+        engine = self._engine()
+        cur = self._cursor(connect)
+        cur.fetchmany.return_value = []
+        cur.description = [("status",)]
+        cols = [SimpleNamespace(name="status"), SimpleNamespace(name="total")]
+        with unittest.mock.patch.object(engine, "list_columns", return_value=cols):
+            engine.filter_rows("shop", "orders", [
+                {"column": "status", "op": "eq", "value": "paid"},
+                {"column": "total", "op": "ge", "value": "100"},
+            ], limit=50)
+        query = next(c for c in cur.execute.call_args_list
+                     if c.args[0].startswith("SELECT * FROM"))
+        self.assertEqual(
+            query.args[0],
+            "SELECT * FROM `shop`.`orders` "
+            "WHERE `status` = %s AND `total` >= %s LIMIT %s")
+        self.assertEqual(query.args[1], ["paid", "100", 51])  # 51 = limit + 1 sentinel
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_filter_rows_rejects_unknown_column(self, connect):
+        engine = self._engine()
+        with unittest.mock.patch.object(
+                engine, "list_columns",
+                return_value=[SimpleNamespace(name="status")]):
+            with self.assertRaises(EngineError):
+                engine.filter_rows("shop", "orders",
+                                   [{"column": "evil", "op": "eq", "value": "x"}])
+
+    def test_create_index_builds_quoted_ddl(self):
+        engine = self._engine()
+        cols = [SimpleNamespace(name="customer_id"), SimpleNamespace(name="created_at")]
+        with unittest.mock.patch.object(engine, "list_columns", return_value=cols), \
+             unittest.mock.patch.object(engine, "_execute") as ex:
+            engine.create_index("shop", "orders", ["customer_id", "created_at"],
+                                method="btree", name="idx_cust_date")
+        self.assertEqual(
+            ex.call_args.args[0],
+            "CREATE INDEX `idx_cust_date` ON `shop`.`orders` "
+            "(`customer_id`, `created_at`) USING BTREE")
+
+    def test_create_index_rejects_unknown_column_and_bad_method(self):
+        engine = self._engine()
+        with unittest.mock.patch.object(
+                engine, "list_columns", return_value=[SimpleNamespace(name="id")]):
+            with self.assertRaises(EngineError):
+                engine.create_index("shop", "orders", ["nope"])      # unknown column
+            with self.assertRaises(EngineError):
+                engine.create_index("shop", "orders", ["id"], method="gist")  # bad method
 
 
 # --- models + form (sqlite management DB) -----------------------------------

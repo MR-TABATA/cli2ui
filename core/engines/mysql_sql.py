@@ -91,3 +91,46 @@ WHERE TABLE_SCHEMA = %s AND TABLE_TYPE = 'BASE TABLE'
 ORDER BY total_bytes DESC
 LIMIT %s;
 """
+
+# Lock-wait graph (MySQL 8.0+): who is stuck waiting on a row/table lock and who
+# holds it. performance_schema.data_lock_waits pairs a *requesting* lock with the
+# *blocking* lock; we map both back to their InnoDB transaction and, through
+# trx_mysql_thread_id, to the processlist id — the same id `KILL` (cancel/kill)
+# takes, so the panel's buttons line up with list_activity. One row per
+# (blocked, blocker) pair; the engine groups them per blocked session.
+# Returns no rows when nothing is blocked; the engine checks @@performance_schema
+# separately so "disabled" is never silently reported as "nothing blocked".
+BLOCKING_SQL = """
+SELECT rt.trx_mysql_thread_id                          AS blocked_pid,
+       rp.USER                                         AS blocked_user,
+       COALESCE(rt.trx_query, '')                      AS blocked_query,
+       TIMESTAMPDIFF(SECOND, rt.trx_wait_started, NOW()) AS wait_secs,
+       rl.LOCK_TYPE                                     AS lock_type,
+       rl.LOCK_MODE                                     AS lock_mode,
+       CONCAT_WS('.', rl.OBJECT_SCHEMA, rl.OBJECT_NAME) AS object,
+       bt.trx_mysql_thread_id                          AS blocker_pid,
+       bp.USER                                         AS blocker_user,
+       bp.COMMAND                                      AS blocker_command,
+       COALESCE(bt.trx_query, '')                      AS blocker_query
+FROM performance_schema.data_lock_waits w
+JOIN performance_schema.data_locks rl ON w.REQUESTING_ENGINE_LOCK_ID = rl.ENGINE_LOCK_ID
+JOIN performance_schema.data_locks bl ON w.BLOCKING_ENGINE_LOCK_ID  = bl.ENGINE_LOCK_ID
+JOIN information_schema.INNODB_TRX rt ON w.REQUESTING_ENGINE_TRANSACTION_ID = rt.trx_id
+JOIN information_schema.INNODB_TRX bt ON w.BLOCKING_ENGINE_TRANSACTION_ID  = bt.trx_id
+LEFT JOIN information_schema.PROCESSLIST rp ON rp.ID = rt.trx_mysql_thread_id
+LEFT JOIN information_schema.PROCESSLIST bp ON bp.ID = bt.trx_mysql_thread_id
+ORDER BY blocked_pid, blocker_pid;
+"""
+
+# Indexes the server has never read since the last stats reset — drop candidates.
+# sys.schema_unused_indexes is a view over performance_schema index-io summaries;
+# it already excludes primary keys. Scoped to the connected database. MySQL does
+# not expose a cheap per-index on-disk size, so the engine reports size unknown.
+# Needs performance_schema ON (and the sys schema, default on 8.0); with it off
+# the view is empty — a best-effort optimisation hint, not a safety signal.
+UNUSED_INDEXES_SQL = """
+SELECT object_schema, object_name, index_name
+FROM sys.schema_unused_indexes
+WHERE object_schema = %s
+ORDER BY object_name, index_name;
+"""

@@ -266,6 +266,10 @@ def health(request, pk):
             "unused": unused,
             "vacuum": vacuum,
             "bloat": bloat,
+            # Some engines have no vacuum/bloat concept (e.g. MySQL/InnoDB): the
+            # panel shows a "not applicable here" note instead of an empty card.
+            "supports_vacuum": engine.supports("vacuum"),
+            "supports_bloat": engine.supports("bloat"),
             "sizes_sql": SIZES_SHOW_SQL,
             "unused_sql": UNUSED_SHOW_SQL,
             "vacuum_sql": VACUUM_SHOW_SQL,
