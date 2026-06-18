@@ -29,6 +29,7 @@ import re
 import subprocess  # nosec B404 — used only to run mysqldump/mysql with a fixed argv, no shell
 import threading
 import time
+from dataclasses import dataclass
 from datetime import datetime
 
 import pymysql
@@ -124,6 +125,65 @@ MYSQL_COMMON_SETTINGS = [
 # this before splicing a (catalog-verified) name into SET PERSIST, where it can't
 # be bound as a parameter.
 _VAR_NAME_RE = re.compile(r"\A[A-Za-z0-9_]+\Z")
+
+
+# MySQL replication is binlog/GTID-based, not WAL/slots, so it has its own shapes
+# (rendered by partials/replication_mysql.html) rather than the Postgres ones.
+@dataclass
+class MysqlReplStatus:
+    """The server's replication posture: am I a source, a replica, or neither;
+    is binary logging on; where is the binlog; and (as a replica) are my threads
+    running and how far behind am I?"""
+
+    role: str                    # "source" | "replica" | "standalone"
+    log_bin: bool
+    server_id: int
+    gtid_mode: str               # ON | OFF | ON_PERMISSIVE | …
+    binlog_file: str | None
+    binlog_pos: int | None
+    source_host: str | None      # replica only
+    io_running: bool | None      # replica only
+    sql_running: bool | None     # replica only
+    seconds_behind: int | None   # replica only
+
+    @property
+    def ready(self) -> bool:
+        """Configured to act as a replication source: binary logging on and a
+        non-zero server_id (every server in a topology needs a unique id)."""
+        return self.log_bin and self.server_id != 0
+
+    @property
+    def healthy(self) -> bool:
+        """Both replica threads running (only meaningful when role == replica)."""
+        return bool(self.io_running and self.sql_running)
+
+
+@dataclass
+class MysqlReplica:
+    """One connected replica, from SHOW REPLICAS on the source."""
+
+    server_id: int
+    host: str | None
+    port: int | None
+
+
+@dataclass
+class MysqlReplRecipe:
+    """A copy-paste walkthrough for attaching a replica to this server, with the
+    current connection values filled in. Pure string assembly — nothing is run."""
+
+    source_host: str
+    source_port: int
+    repl_user: str
+    # (param, recommended value) the source still needs; empty when already ready.
+    conf_changes: list
+    create_user_sql: str         # run on the source
+    change_source_sql: str       # run on the replica
+    start_replica_sql: str       # run on the replica
+
+    @property
+    def ready(self) -> bool:
+        return not self.conf_changes
 
 
 def _ident(name: str) -> str:
@@ -796,6 +856,116 @@ class MysqlEngine(Engine):
         if proc.returncode != 0:
             raise EngineError(_tool_error(b"".join(err_chunks), "restore failed."))
 
+    # --- replication (binlog / GTID) -------------------------------------
+
+    def replication_status(self) -> MysqlReplStatus:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT @@global.log_bin, @@global.server_id, @@global.gtid_mode")
+                log_bin, server_id, gtid_mode = cur.fetchone()
+                binlog_file, binlog_pos = self._binlog_position(cur)
+                repl = self._replica_row(cur)
+        is_replica = repl is not None
+        role = "replica" if is_replica else ("source" if log_bin else "standalone")
+        repl = repl or {}
+        return MysqlReplStatus(
+            role=role, log_bin=bool(log_bin), server_id=int(server_id or 0),
+            gtid_mode=gtid_mode or "OFF",
+            binlog_file=binlog_file, binlog_pos=binlog_pos,
+            source_host=repl.get("source_host"), io_running=repl.get("io_running"),
+            sql_running=repl.get("sql_running"),
+            seconds_behind=repl.get("seconds_behind"),
+        )
+
+    @staticmethod
+    def _binlog_position(cur):
+        # SHOW BINARY LOG STATUS (MySQL 8.2+) → SHOW MASTER STATUS (8.0). One
+        # returns (File, Position, …); neither returns a row if binlog is off.
+        for stmt in ("SHOW BINARY LOG STATUS", "SHOW MASTER STATUS"):
+            try:
+                cur.execute(stmt)
+            except pymysql.Error:
+                continue
+            row = cur.fetchone()
+            return (row[0], int(row[1])) if row else (None, None)
+        return None, None
+
+    @staticmethod
+    def _replica_row(cur):
+        # SHOW REPLICA STATUS (8.0.22+) → SHOW SLAVE STATUS (older). ~50 columns;
+        # map by name and read the few we show, tolerating both spellings.
+        for stmt in ("SHOW REPLICA STATUS", "SHOW SLAVE STATUS"):
+            try:
+                cur.execute(stmt)
+            except pymysql.Error:
+                continue
+            row = cur.fetchone()
+            if not row:
+                return None
+            d = {desc[0]: val for desc, val in zip(cur.description, row)}
+
+            def pick(*keys):
+                return next((d[k] for k in keys if k in d), None)
+
+            return {
+                "source_host": pick("Source_Host", "Master_Host"),
+                "io_running": pick("Replica_IO_Running", "Slave_IO_Running") == "Yes",
+                "sql_running": pick("Replica_SQL_Running", "Slave_SQL_Running") == "Yes",
+                "seconds_behind": pick("Seconds_Behind_Source", "Seconds_Behind_Master"),
+            }
+        return None
+
+    def list_standbys(self) -> list:
+        """Connected replicas on a source — SHOW REPLICAS (8.0.22+) → SHOW SLAVE
+        HOSTS (older). Empty unless a replica is attached (or we lack the priv)."""
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                for stmt in ("SHOW REPLICAS", "SHOW SLAVE HOSTS"):
+                    try:
+                        cur.execute(stmt)
+                    except pymysql.Error:
+                        continue
+                    cols = [d[0] for d in cur.description]
+                    return [_replica(dict(zip(cols, r))) for r in cur.fetchall()]
+        return []
+
+    def list_replication_slots(self) -> list:
+        return []   # MySQL has no replication-slot concept (UNSUPPORTED)
+
+    def create_replication_slot(self, name: str) -> None:
+        raise EngineError(_(
+            "MySQL has no replication slots — it streams the binary log directly, "
+            "so there's nothing to create."))
+
+    def drop_replication_slot(self, name: str) -> None:
+        raise EngineError(_("MySQL has no replication slots — nothing to drop."))
+
+    def replication_recipe(self, status, slots=None) -> MysqlReplRecipe:
+        c = self.connection
+        conf = []
+        if not status.log_bin:
+            conf.append(("log_bin", "ON  (--log-bin in my.cnf; needs a restart)"))
+        if status.server_id == 0:
+            conf.append(("server_id", "1  (unique per server; needs a restart)"))
+        if status.gtid_mode != "ON":
+            conf.append(("gtid_mode / enforce_gtid_consistency",
+                         "ON  (recommended — enables SOURCE_AUTO_POSITION)"))
+        repl_user = "repl"
+        create_user = (
+            f"CREATE USER '{repl_user}'@'%' IDENTIFIED BY '<password>';\n"
+            f"GRANT REPLICATION SLAVE ON *.* TO '{repl_user}'@'%';")
+        change_source = (
+            "CHANGE REPLICATION SOURCE TO\n"
+            f"  SOURCE_HOST='{c.host}', SOURCE_PORT={c.port},\n"
+            f"  SOURCE_USER='{repl_user}', SOURCE_PASSWORD='<password>',\n"
+            "  SOURCE_AUTO_POSITION=1;")
+        return MysqlReplRecipe(
+            source_host=c.host, source_port=c.port, repl_user=repl_user,
+            conf_changes=conf, create_user_sql=create_user,
+            change_source_sql=change_source, start_replica_sql="START REPLICA;",
+        )
+
     # --- server configuration (global variables, via SQL) ----------------
 
     def common_settings(self) -> list[str]:
@@ -937,6 +1107,19 @@ def _setting(name: str, value) -> Setting:
         vartype="bool" if is_bool else "string",
         context="user", enumvals=None, min_val=None, max_val=None,
         default=None, pending_restart=False,
+    )
+
+
+def _replica(d) -> MysqlReplica:
+    """Map a SHOW REPLICAS / SHOW SLAVE HOSTS row (already a name→value dict) to a
+    MysqlReplica, tolerating the two column-name spellings."""
+    def pick(*keys):
+        return next((d[k] for k in keys if k in d), None)
+    port = pick("Port")
+    return MysqlReplica(
+        server_id=int(pick("Server_Id", "Server_id") or 0),
+        host=pick("Host"),
+        port=int(port) if port else None,
     )
 
 

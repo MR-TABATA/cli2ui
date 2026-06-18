@@ -903,6 +903,70 @@ class MysqlConnectionMockTests(SimpleTestCase):
         self.assertEqual(engine.pending_restart_settings(), [])
         self.assertIn("innodb_buffer_pool_size", engine.common_settings())
 
+    # --- replication: binlog/GTID status, recipe, no slots -------------------
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_replication_status_reads_source_posture(self, connect):
+        cur = self._cursor(connect)
+        # 1: the @@global vars; 2: SHOW BINARY LOG STATUS; 3: SHOW REPLICA STATUS.
+        cur.fetchone.side_effect = [
+            (1, 5, "ON"),                       # log_bin, server_id, gtid_mode
+            ("mysql-bin.000007", 154),          # binlog file, position
+            None,                               # not a replica
+        ]
+        status = self._engine().replication_status()
+        self.assertEqual(status.role, "source")
+        self.assertTrue(status.log_bin)
+        self.assertEqual(status.server_id, 5)
+        self.assertEqual(status.binlog_file, "mysql-bin.000007")
+        self.assertEqual(status.binlog_pos, 154)
+        self.assertTrue(status.ready)
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_replication_status_detects_replica(self, connect):
+        cur = self._cursor(connect)
+        # SHOW REPLICA STATUS columns are mapped by name (zip with description).
+        cur.description = [("Source_Host",), ("Replica_IO_Running",),
+                           ("Replica_SQL_Running",), ("Seconds_Behind_Source",)]
+        cur.fetchone.side_effect = [
+            (1, 12, "ON"),                      # vars: log_bin, server_id, gtid_mode
+            ("mysql-bin.000003", 99),           # binlog file, position
+            ("10.0.0.9", "Yes", "Yes", 0),      # the replica-status row
+        ]
+        status = self._engine().replication_status()
+        self.assertEqual(status.role, "replica")
+        self.assertEqual(status.source_host, "10.0.0.9")
+        self.assertTrue(status.io_running)
+        self.assertTrue(status.healthy)
+        self.assertEqual(status.seconds_behind, 0)
+
+    def test_replication_recipe_lists_steps_when_not_ready(self):
+        engine = self._engine()
+        not_ready = SimpleNamespace(log_bin=False, server_id=0, gtid_mode="OFF")
+        recipe = engine.replication_recipe(not_ready)
+        self.assertFalse(recipe.ready)
+        params = [p for p, _ in recipe.conf_changes]
+        self.assertIn("log_bin", params)
+        self.assertIn("server_id", params)
+        self.assertIn("GRANT REPLICATION SLAVE", recipe.create_user_sql)
+        self.assertIn("CHANGE REPLICATION SOURCE TO", recipe.change_source_sql)
+        self.assertIn("SOURCE_HOST='h'", recipe.change_source_sql)
+        self.assertEqual(recipe.start_replica_sql, "START REPLICA;")
+
+    def test_replication_recipe_ready_when_configured(self):
+        engine = self._engine()
+        ready = SimpleNamespace(log_bin=True, server_id=1, gtid_mode="ON")
+        self.assertTrue(engine.replication_recipe(ready).ready)
+
+    def test_replication_slots_unsupported(self):
+        engine = self._engine()
+        self.assertEqual(engine.list_replication_slots(), [])
+        self.assertFalse(engine.supports("replication_slots"))
+        with self.assertRaises(EngineError):
+            engine.create_replication_slot("s1")
+        with self.assertRaises(EngineError):
+            engine.drop_replication_slot("s1")
+
 
 # --- models + form (sqlite management DB) -----------------------------------
 

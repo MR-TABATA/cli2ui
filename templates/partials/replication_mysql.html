@@ -1,0 +1,140 @@
+{% load i18n %}<div class="space-y-5">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h2 class="text-lg font-semibold flex items-center gap-2"><span>🔁</span> {% trans "Replication" %}</h2>
+      <p class="text-xs text-zinc-400 mono">{% trans "readiness · binlog / GTID · replicas" %}</p>
+    </div>
+    <button hx-get="{% url 'replication' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
+            class="text-xs text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1.5
+                   hover:border-zinc-600 transition">{% trans "↻ Refresh" %}</button>
+  </div>
+
+  {% include "partials/_banner.html" %}
+
+  <!-- Readiness + role: is binary logging on, what's the server's identity -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-zinc-400">{% trans "Readiness" %}</span>
+      {% if status.ready %}
+        <span class="text-[11px] px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/60">{% trans "ready as a source" %}</span>
+      {% else %}
+        <span class="text-[11px] px-1.5 py-0.5 rounded bg-amber-950/50 text-amber-400 border border-amber-900/60">{% trans "not ready to replicate" %}</span>
+      {% endif %}
+    </div>
+    <div class="px-5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5 text-sm">
+      <div><div class="text-xs text-zinc-400">{% trans "role" %}</div>
+        <div class="mono text-zinc-200">{{ status.role }}</div></div>
+      <div><div class="text-xs text-zinc-400">log_bin</div>
+        <div class="mono {% if not status.log_bin %}text-amber-400{% else %}text-zinc-200{% endif %}">{% if status.log_bin %}ON{% else %}OFF{% endif %}</div></div>
+      <div><div class="text-xs text-zinc-400">server_id</div>
+        <div class="mono {% if status.server_id == 0 %}text-amber-400{% else %}text-zinc-200{% endif %}">{{ status.server_id }}</div></div>
+      <div><div class="text-xs text-zinc-400">gtid_mode</div>
+        <div class="mono text-zinc-200">{{ status.gtid_mode }}</div></div>
+      <div><div class="text-xs text-zinc-400">{% trans "binlog position" %}</div>
+        <div class="mono text-zinc-200">{% if status.binlog_file %}{{ status.binlog_file }}:{{ status.binlog_pos }}{% else %}—{% endif %}</div></div>
+    </div>
+    {% if status.role == 'replica' %}
+      <div class="px-5 py-3 border-t border-zinc-800 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2.5 text-sm">
+        <div><div class="text-xs text-zinc-400">{% trans "source host" %}</div>
+          <div class="mono text-zinc-200">{{ status.source_host|default:"—" }}</div></div>
+        <div><div class="text-xs text-zinc-400">IO</div>
+          <div class="mono {% if status.io_running %}text-emerald-300{% else %}text-red-400{% endif %}">{% if status.io_running %}{% trans "running" %}{% else %}{% trans "stopped" %}{% endif %}</div></div>
+        <div><div class="text-xs text-zinc-400">SQL</div>
+          <div class="mono {% if status.sql_running %}text-emerald-300{% else %}text-red-400{% endif %}">{% if status.sql_running %}{% trans "running" %}{% else %}{% trans "stopped" %}{% endif %}</div></div>
+        <div><div class="text-xs text-zinc-400">{% trans "lag" %}</div>
+          <div class="mono text-zinc-200">{% if status.seconds_behind is not None %}{{ status.seconds_behind }}s{% else %}—{% endif %}</div></div>
+      </div>
+    {% endif %}
+    <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
+      {% blocktrans %}A source needs <span class="mono">log_bin</span> ON and a non-zero <span class="mono">server_id</span>. GTID is recommended.{% endblocktrans %}
+    </div>
+  </section>
+
+  <!-- Setup recipe: copy-paste steps to attach a replica, current values filled in. -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden" x-data="{ open: false }">
+    <button @click="open = !open"
+            class="w-full px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3 text-left hover:bg-zinc-900/40 transition">
+      <span class="text-xs uppercase tracking-wide text-zinc-400">{% trans "Set up a replica" %}
+        <span class="mono lowercase text-zinc-500">{% trans "recipe with your values filled in" %}</span></span>
+      <span class="text-zinc-500 text-xs" x-text="open ? '▾' : '▸'">▸</span>
+    </button>
+    <div x-show="open" x-cloak class="px-5 py-4 space-y-5 text-sm">
+
+      <!-- Step 1: make the source ready -->
+      <div>
+        <div class="text-zinc-300 font-medium mb-1.5">{% trans "1 · Make the source ready" %}</div>
+        {% if recipe.ready %}
+          <p class="text-emerald-400 text-xs">{% trans "✓ Binary logging and server_id are configured." %}</p>
+        {% else %}
+          <p class="text-zinc-400 text-xs mb-2">{% trans "Set these on the source, then restart it:" %}</p>
+          <div class="rounded-lg border border-zinc-800 bg-zinc-950/60 divide-y divide-zinc-800/60">
+            {% for param, val in recipe.conf_changes %}
+              <div class="px-3 py-1.5 flex items-center justify-between gap-3 mono text-xs">
+                <span class="text-zinc-300">{{ param }}</span>
+                <span class="text-emerald-300">{{ val }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Step 2: a replication user on the source -->
+      <div>
+        <div class="text-zinc-300 font-medium mb-1.5">{% trans "2 · Create a replication user (on the source)" %}</div>
+        <div x-data="{ copied: false }" class="relative">
+          <pre x-ref="s2" class="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 pr-16 mono text-xs text-zinc-200 overflow-x-auto whitespace-pre-wrap break-all">{{ recipe.create_user_sql }}</pre>
+          <button @click="navigator.clipboard.writeText($refs.s2.textContent.trim()); copied=true; setTimeout(()=>copied=false,1500)"
+                  class="absolute top-1.5 right-1.5 text-[11px] text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 bg-zinc-900 hover:border-zinc-600 transition"
+                  x-text="copied ? '{% trans "copied" %}' : '{% trans "copy" %}'">{% trans "copy" %}</button>
+        </div>
+      </div>
+
+      <!-- Step 3: point the replica at the source -->
+      <div>
+        <div class="text-zinc-300 font-medium mb-1.5">{% trans "3 · Point the replica at the source (on the replica)" %}</div>
+        <div x-data="{ copied: false }" class="relative">
+          <pre x-ref="s3" class="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 pr-16 mono text-xs text-zinc-200 overflow-x-auto whitespace-pre-wrap break-all">{{ recipe.change_source_sql }}
+{{ recipe.start_replica_sql }}</pre>
+          <button @click="navigator.clipboard.writeText($refs.s3.textContent.trim()); copied=true; setTimeout(()=>copied=false,1500)"
+                  class="absolute top-1.5 right-1.5 text-[11px] text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 bg-zinc-900 hover:border-zinc-600 transition"
+                  x-text="copied ? '{% trans "copied" %}' : '{% trans "copy" %}'">{% trans "copy" %}</button>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-amber-400/80 border-t border-zinc-800 pt-3">
+        {% blocktrans with host=recipe.source_host port=recipe.source_port %}⚠ The replica must be able to reach <span class="mono">{{ host }}:{{ port }}</span> over the network and authenticate as the replication user. This is a starting point; see the MySQL docs for production (TLS, a dedicated account, GTID).{% endblocktrans %}
+      </p>
+    </div>
+  </section>
+
+  <!-- Connected replicas: SHOW REPLICAS. Empty unless a replica is attached. -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800">
+      <span class="text-xs uppercase tracking-wide text-zinc-400">
+        {% trans "Replicas" %} <span class="mono lowercase text-zinc-500">SHOW REPLICAS</span>
+      </span>
+    </div>
+    {% if standbys %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">server_id</th>
+            <th class="px-5 py-2 font-medium">{% trans "Host" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Port" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in standbys %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono text-zinc-400">{{ r.server_id }}</td>
+              <td class="px-5 py-2 mono text-zinc-300">{{ r.host|default:"—" }}</td>
+              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ r.port|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No replica connected." %}</p>
+    {% endif %}
+  </section>
+</div>

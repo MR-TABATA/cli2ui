@@ -176,9 +176,14 @@ def _render_replication(request, connection, error=None):
         recipe = engine.replication_recipe(status, slots)
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
+    # MySQL's replication model (binlog/GTID, no slots, CHANGE REPLICATION SOURCE
+    # TO) is too different from Postgres' (WAL/slots/pg_basebackup) to share a
+    # template, so each engine gets its own.
+    template = ("partials/replication_mysql.html" if connection.kind == "mysql"
+                else "partials/replication.html")
     return render(
         request,
-        "partials/replication.html",
+        template,
         {"connection": connection, "status": status, "standbys": standbys,
          "slots": slots, "recipe": recipe, "standbys_sql": STANDBYS_SHOW_SQL,
          "slots_sql": SLOTS_SHOW_SQL, "error": error},
