@@ -126,6 +126,11 @@ MYSQL_COMMON_SETTINGS = [
 # be bound as a parameter.
 _VAR_NAME_RE = re.compile(r"\A[A-Za-z0-9_]+\Z")
 
+# A numeric system variable (e.g. long_query_time) rejects a *quoted* value with
+# "Incorrect argument type", so a digits-only value is spliced unquoted (safe —
+# no SQL metacharacters can appear); everything else is bound as a parameter.
+_NUMERIC_RE = re.compile(r"\A-?\d+(\.\d+)?\Z")
+
 
 # MySQL replication is binlog/GTID-based, not WAL/slots, so it has its own shapes
 # (rendered by partials/replication_mysql.html) rather than the Postgres ones.
@@ -1000,9 +1005,13 @@ class MysqlEngine(Engine):
             with conn.cursor() as cur:
                 self._require_var(cur, name)
                 try:
-                    # name is catalog-verified + charset-checked (can't be bound);
-                    # value is bound as a parameter.
-                    cur.execute(f"SET PERSIST {name} = %s", [value])  # nosec B608 — name whitelisted via _require_var; value bound
+                    # name is catalog-verified + charset-checked (can't be bound).
+                    if _NUMERIC_RE.match(value):
+                        # A numeric variable rejects a quoted value; the value is
+                        # digits only here, so splicing it is injection-safe.
+                        cur.execute(f"SET PERSIST {name} = {value}")  # nosec B608 — name whitelisted; value is digits-only
+                    else:
+                        cur.execute(f"SET PERSIST {name} = %s", [value])  # nosec B608 — name whitelisted; value bound
                 except pymysql.Error as exc:
                     raise EngineError(_clean(exc)) from exc
                 return self._one_setting(cur, name)

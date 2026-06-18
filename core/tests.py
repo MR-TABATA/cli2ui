@@ -853,16 +853,27 @@ class MysqlConnectionMockTests(SimpleTestCase):
     # --- settings: SET PERSIST, name whitelisted, value bound ----------------
 
     @unittest.mock.patch("core.engines.mysql.pymysql.connect")
-    def test_update_setting_uses_set_persist_with_bound_value(self, connect):
+    def test_update_setting_splices_numeric_value_unquoted(self, connect):
+        # A numeric variable rejects a quoted value ("Incorrect argument type"),
+        # so a digits-only value is spliced directly (and is injection-safe).
         cur = self._cursor(connect)
-        # 1st fetchone = existence check, 2nd = the re-read for the returned row.
         cur.fetchone.side_effect = [(1,), ("max_connections", "200")]
         setting = self._engine().update_setting("max_connections", "200")
         persist = next(c for c in cur.execute.call_args_list
                        if c.args[0].startswith("SET PERSIST"))
-        self.assertEqual(persist.args[0], "SET PERSIST max_connections = %s")
-        self.assertEqual(persist.args[1], ["200"])      # value bound, not spliced
+        self.assertEqual(persist.args[0], "SET PERSIST max_connections = 200")
+        self.assertEqual(len(persist.args), 1)          # no bound params
         self.assertEqual(setting.value, "200")
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_update_setting_binds_non_numeric_value(self, connect):
+        cur = self._cursor(connect)
+        cur.fetchone.side_effect = [(1,), ("character_set_server", "utf8mb4")]
+        self._engine().update_setting("character_set_server", "utf8mb4")
+        persist = next(c for c in cur.execute.call_args_list
+                       if c.args[0].startswith("SET PERSIST"))
+        self.assertEqual(persist.args[0], "SET PERSIST character_set_server = %s")
+        self.assertEqual(persist.args[1], ["utf8mb4"])  # string value bound, quoted
 
     @unittest.mock.patch("core.engines.mysql.pymysql.connect")
     def test_update_setting_rejects_unknown_variable(self, connect):
