@@ -787,6 +787,69 @@ class MysqlConnectionMockTests(SimpleTestCase):
             with self.assertRaises(EngineError):
                 engine.create_index("shop", "orders", ["id"], method="gist")  # bad method
 
+    # --- backup: mysqldump / mysql, password via env, no shell ---------------
+
+    @unittest.mock.patch("core.engines.mysql.subprocess.run")
+    def test_dump_database_runs_mysqldump_with_password_in_env(self, run):
+        run.return_value = SimpleNamespace(returncode=0, stdout=b"-- dump", stderr=b"")
+        dump = self._engine().dump_database("shop", fmt="custom")
+        argv, kwargs = run.call_args.args[0], run.call_args.kwargs
+        self.assertEqual(argv[0], "mysqldump")
+        self.assertIn("shop", argv)
+        self.assertIn("--single-transaction", argv)
+        # The password goes through the environment, never the command line.
+        self.assertEqual(kwargs["env"]["MYSQL_PWD"], "p")
+        self.assertNotIn("p", argv)
+        self.assertTrue(dump.filename.endswith(".sql"))
+        self.assertEqual(dump.data, b"-- dump")
+
+    @unittest.mock.patch("core.engines.mysql.subprocess.run")
+    def test_dump_table_passes_database_and_table(self, run):
+        run.return_value = SimpleNamespace(returncode=0, stdout=b"-- dump", stderr=b"")
+        self._engine().dump_table("shop", "orders")
+        argv = run.call_args.args[0]
+        self.assertEqual(argv[-2:], ["shop", "orders"])  # mysqldump <db> <table>
+
+    @unittest.mock.patch("core.engines.mysql.subprocess.run")
+    def test_dump_raises_when_tool_missing(self, run):
+        run.side_effect = FileNotFoundError()
+        with self.assertRaises(EngineError):
+            self._engine().dump_database("shop")
+
+    @unittest.mock.patch("core.engines.mysql.subprocess.run")
+    def test_dump_raises_on_nonzero_exit(self, run):
+        run.return_value = SimpleNamespace(
+            returncode=2, stdout=b"", stderr=b"mysqldump: Error: access denied")
+        with self.assertRaises(EngineError) as ctx:
+            self._engine().dump_database("shop")
+        self.assertIn("access denied", str(ctx.exception))
+
+    @unittest.mock.patch("core.engines.mysql.subprocess.Popen")
+    def test_restore_stream_pipes_into_mysql_client(self, popen):
+        proc = popen.return_value
+        proc.stderr.read.return_value = b""
+        proc.wait.return_value = 0
+        proc.returncode = 0
+        self._engine().restore_stream("shop", io.BytesIO(b"-- sql"))
+        argv, kwargs = popen.call_args.args[0], popen.call_args.kwargs
+        self.assertEqual(argv[0], "mysql")
+        self.assertEqual(argv[-1], "shop")
+        self.assertEqual(kwargs["env"]["MYSQL_PWD"], "p")
+
+    @unittest.mock.patch("core.engines.mysql.subprocess.Popen")
+    def test_restore_stream_raises_on_nonzero_exit(self, popen):
+        proc = popen.return_value
+        proc.stderr.read.return_value = b""
+        proc.wait.return_value = 1
+        proc.returncode = 1
+        with self.assertRaises(EngineError):
+            self._engine().restore_stream("shop", io.BytesIO(b"-- sql"))
+
+    def test_mysql_does_not_support_db_template(self):
+        # Drives the restore-into-new-db path: MySQL has no CREATE DATABASE …
+        # TEMPLATE, so the view must create the database empty instead.
+        self.assertFalse(self._engine().supports("db_template"))
+
 
 # --- models + form (sqlite management DB) -----------------------------------
 

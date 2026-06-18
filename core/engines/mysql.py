@@ -22,8 +22,13 @@ that one database. See mysql_sql.py.
 """
 import contextlib
 import csv
+import io
 import json
+import os
+import subprocess  # nosec B404 — used only to run mysqldump/mysql with a fixed argv, no shell
+import threading
 import time
+from datetime import datetime
 
 import pymysql
 from django.utils.translation import gettext as _
@@ -33,6 +38,7 @@ from .base import (
     Blocker,
     Column,
     Database,
+    Dump,
     Engine,
     EngineError,
     Index,
@@ -97,6 +103,10 @@ _WHATIF_UNSUPPORTED = (
     "The planner what-if lab isn't available for MySQL — it relies on rolling "
     "back catalog edits, which MySQL DDL can't do (it commits implicitly).")
 
+# How long a single mysqldump / restore may run before we give up (seconds).
+MYSQLDUMP_TIMEOUT = 120
+RESTORE_TIMEOUT = 300
+
 
 def _ident(name: str) -> str:
     """Backtick-quote an identifier, doubling any embedded backtick — MySQL's
@@ -105,13 +115,16 @@ def _ident(name: str) -> str:
 
 
 class MysqlEngine(Engine):
-    # Health features with no InnoDB equivalent: there is no vacuum / dead-tuple
-    # model, so vacuum stats and the bloat estimate are conceptually absent (not
-    # "implemented later"), and MySQL has no schema distinct from a database.
+    # Capabilities this engine doesn't have. Health features with no InnoDB
+    # equivalent (no vacuum / dead-tuple model → "vacuum"/"bloat"), no schema
+    # distinct from a database ("schemas"), no replication-slot concept
+    # ("replication_slots"), and no CREATE DATABASE … TEMPLATE ("db_template").
     # Panels read this to show "not applicable to MySQL" rather than an empty
-    # card. Lock waits are NOT here — they're implemented (list_blocking) and
-    # raise when they can't be determined, never silently report "nothing".
-    UNSUPPORTED = frozenset({"vacuum", "bloat", "schemas"})
+    # card, and callers gate engine-specific behaviour on it. Lock waits are NOT
+    # here — they're implemented (list_blocking) and raise when they can't be
+    # determined, never silently report "nothing".
+    UNSUPPORTED = frozenset({"vacuum", "bloat", "schemas",
+                             "replication_slots", "db_template"})
 
     # When inside session(), the one open connection reused for every probe;
     # otherwise None and each _connect() dials its own. Mirrors PostgresEngine.
@@ -679,6 +692,92 @@ class MysqlEngine(Engine):
     def bloat_estimates(self, limit: int = 20):
         return []   # "bloat" not applicable — no MySQL pg_stats-style estimate
 
+    # --- backup (mysqldump / mysql) --------------------------------------
+
+    def dump_database(self, dbname: str, *, fmt: str = "plain") -> Dump:
+        """Dump a whole database with mysqldump, returned as a downloadable blob.
+        MySQL has only one dump shape (SQL text), so `fmt` is accepted (the
+        auto-snapshot path asks for "custom") but always yields SQL."""
+        return self._run_mysqldump([dbname], base=dbname)
+
+    def dump_table(self, schema: str, table: str, *, fmt: str = "plain") -> Dump:
+        """Dump a single table. MySQL has no schema-vs-database split, so `schema`
+        is the database; mysqldump takes `<database> <table>` positionally."""
+        return self._run_mysqldump([schema, table], base=f"{schema}.{table}")
+
+    def _run_mysqldump(self, scope: list[str], *, base: str) -> Dump:
+        conn = self.connection
+        argv = [
+            "mysqldump",
+            "-h", conn.host, "-P", str(conn.port), "-u", conn.user,
+            # A consistent InnoDB snapshot without locking; skip tablespaces so
+            # the dump doesn't need the PROCESS privilege (mysqldump 8.0).
+            "--single-transaction", "--no-tablespaces", *scope,
+        ]
+        env = {**os.environ, "MYSQL_PWD": conn.password or ""}
+        try:
+            # No shell, fixed argv, password via env (never on the command line).
+            proc = subprocess.run(  # nosec B603 B607
+                argv, capture_output=True, env=env, timeout=MYSQLDUMP_TIMEOUT)
+        except FileNotFoundError as exc:
+            raise EngineError(
+                "mysqldump not found — install the mysql client package "
+                "(it ships in the Docker image).") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise EngineError(_("mysqldump timed out.")) from exc
+        if proc.returncode != 0:
+            raise EngineError(_tool_error(proc.stderr, "mysqldump failed."))
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        return Dump(filename=f"{base}-{stamp}.sql",
+                    content_type="application/sql", data=proc.stdout)
+
+    def restore(self, dbname: str, data: bytes) -> None:
+        """Restore dump bytes into an existing database (in-memory convenience)."""
+        self.restore_stream(dbname, io.BytesIO(data))
+
+    def restore_stream(self, dbname: str, fileobj) -> None:
+        """Restore a mysqldump SQL dump (a file-like object) into an existing
+        database by streaming it to the `mysql` client's stdin in chunks rather
+        than loading the whole dump into memory. The client runs in batch mode,
+        which stops and exits non-zero on the first failed statement."""
+        conn = self.connection
+        argv = ["mysql", "-h", conn.host, "-P", str(conn.port),
+                "-u", conn.user, dbname]
+        env = {**os.environ, "MYSQL_PWD": conn.password or ""}
+        try:
+            # No shell; the dump is fed on stdin in chunks, never written to disk.
+            proc = subprocess.Popen(  # nosec B603 B607
+                argv, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE, env=env)
+        except FileNotFoundError as exc:
+            raise EngineError(
+                "mysql not found — install the mysql client package "
+                "(it ships in the Docker image).") from exc
+        # Drain stderr on a thread so a chatty client can't fill the pipe and
+        # deadlock us while we're busy writing stdin.
+        err_chunks: list[bytes] = []
+        drainer = threading.Thread(
+            target=lambda: err_chunks.extend(iter(lambda: proc.stderr.read(8192), b"")),
+            daemon=True)
+        drainer.start()
+        try:
+            with proc.stdin as stdin:
+                for chunk in iter(lambda: fileobj.read(65536), b""):
+                    stdin.write(chunk)
+            proc.wait(timeout=RESTORE_TIMEOUT)
+        except subprocess.TimeoutExpired as exc:
+            proc.kill()
+            proc.wait()
+            raise EngineError(_("restore timed out.")) from exc
+        except BrokenPipeError:
+            # The client exited early (e.g. an error mid-stream); fall through to
+            # report it from the captured stderr below.
+            proc.wait()
+        finally:
+            drainer.join(timeout=5)
+        if proc.returncode != 0:
+            raise EngineError(_tool_error(b"".join(err_chunks), "restore failed."))
+
     # --- shared DDL runner -----------------------------------------------
 
     def _execute(self, statement: str, params=None) -> None:
@@ -807,6 +906,20 @@ def _clean(exc: pymysql.Error) -> str:
         return args[1]
     msg = str(exc).strip()
     return msg.splitlines()[0] if msg else "Could not connect to MySQL."
+
+
+def _tool_error(stderr: bytes, fallback: str) -> str:
+    """Pull the useful cause out of a mysqldump/mysql stderr dump. These tools
+    interleave notices with the real failure, so prefer lines carrying an error
+    marker (`mysqldump: Error:`, `ERROR 1045 (28000):`), keeping the first few
+    for context; fall back to the closing lines, then a generic message."""
+    lines = [ln.strip() for ln in stderr.decode(errors="replace").splitlines()
+             if ln.strip()]
+    if not lines:
+        return fallback
+    flagged = [ln for ln in lines if "error" in ln.lower()]
+    chosen = flagged or lines[-3:]
+    return " · ".join(chosen[:3])
 
 
 # --- EXPLAIN FORMAT=JSON → PlanNode --------------------------------------

@@ -105,8 +105,11 @@ def _restore_into_new_db(connection, name, stream):
     if not name:
         return _("Provide a new database name.")
     engine = get_engine(connection)
+    # template0 gives Postgres a pristine starting point; MySQL has no
+    # CREATE DATABASE … TEMPLATE, so it creates the database empty instead.
+    template = "template0" if engine.supports("db_template") else None
     try:
-        engine.create_database(name, template="template0")
+        engine.create_database(name, template=template)
     except EngineError as exc:
         return str(exc)
     try:
