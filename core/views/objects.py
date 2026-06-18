@@ -13,17 +13,6 @@ from ..models import Backup, Connection
 from ._shared import _auto_backup
 
 
-# The parameters people actually reach for — connections, memory, WAL, logging.
-# Shown by default so the editor isn't a wall of 350 obscure GUCs.
-COMMON_SETTINGS = [
-    "max_connections", "shared_buffers", "effective_cache_size", "work_mem",
-    "maintenance_work_mem", "wal_buffers", "min_wal_size", "max_wal_size",
-    "checkpoint_completion_target", "random_page_cost", "effective_io_concurrency",
-    "default_statistics_target", "log_min_duration_statement", "log_statement",
-    "log_connections", "log_disconnections", "log_lock_waits",
-    "idle_in_transaction_session_timeout", "statement_timeout", "timezone",
-]
-
 
 def objects(request, pk):
     """Catalog browser: databases (\\l), schemas (\\dn), roles (\\du) — htmx partial."""
@@ -362,7 +351,7 @@ def settings(request, pk):
         if category:
             rows = engine.list_settings(category=category)
         else:
-            rows = engine.list_settings(names=COMMON_SETTINGS)
+            rows = engine.list_settings(names=engine.common_settings())
         categories = engine.list_setting_categories()
         pending = [s.name for s in engine.pending_restart_settings()]
     except EngineError as exc:

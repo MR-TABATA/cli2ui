@@ -25,6 +25,7 @@ import csv
 import io
 import json
 import os
+import re
 import subprocess  # nosec B404 — used only to run mysqldump/mysql with a fixed argv, no shell
 import threading
 import time
@@ -47,6 +48,7 @@ from .base import (
     QueryResult,
     PlanNode,
     Role,
+    Setting,
     Table,
     TableSize,
     UnusedIndex,
@@ -106,6 +108,22 @@ _WHATIF_UNSUPPORTED = (
 # How long a single mysqldump / restore may run before we give up (seconds).
 MYSQLDUMP_TIMEOUT = 120
 RESTORE_TIMEOUT = 300
+
+# The server variables people actually reach for — connections, InnoDB memory,
+# the binlog, logging — shown by default so the editor isn't a wall of ~600 vars.
+MYSQL_COMMON_SETTINGS = [
+    "max_connections", "max_allowed_packet", "wait_timeout",
+    "innodb_buffer_pool_size", "innodb_log_file_size", "innodb_flush_log_at_trx_commit",
+    "innodb_flush_method", "innodb_io_capacity", "innodb_lock_wait_timeout",
+    "sync_binlog", "binlog_expire_logs_seconds", "slow_query_log",
+    "long_query_time", "general_log", "log_output", "sql_mode",
+    "character_set_server", "collation_server", "time_zone", "transaction_isolation",
+]
+
+# A real MySQL system-variable name is always [A-Za-z0-9_]; we whitelist against
+# this before splicing a (catalog-verified) name into SET PERSIST, where it can't
+# be bound as a parameter.
+_VAR_NAME_RE = re.compile(r"\A[A-Za-z0-9_]+\Z")
 
 
 def _ident(name: str) -> str:
@@ -778,6 +796,83 @@ class MysqlEngine(Engine):
         if proc.returncode != 0:
             raise EngineError(_tool_error(b"".join(err_chunks), "restore failed."))
 
+    # --- server configuration (global variables, via SQL) ----------------
+
+    def common_settings(self) -> list[str]:
+        return MYSQL_COMMON_SETTINGS
+
+    def list_settings(self, names=None, category=None) -> list[Setting]:
+        # MySQL has no setting categories (list_setting_categories is empty), so
+        # `category` is ignored; the panel filters client-side instead.
+        where, params = "", []
+        if names:
+            placeholders = ", ".join(["%s"] * len(names))
+            where = f"WHERE VARIABLE_NAME IN ({placeholders})"
+            params = list(names)
+        sql_text = ("SELECT VARIABLE_NAME, VARIABLE_VALUE "  # nosec B608 — `where` holds only %s placeholders; names are bound, nothing interpolated
+                    f"FROM performance_schema.global_variables {where} "
+                    "ORDER BY VARIABLE_NAME")
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql_text, params)
+                return [_setting(name, value) for name, value in cur.fetchall()]
+
+    def list_setting_categories(self) -> list[str]:
+        return []   # MySQL system variables aren't grouped into categories
+
+    def pending_restart_settings(self) -> list[Setting]:
+        return []   # no clean MySQL equivalent of pg_settings.pending_restart
+
+    def update_setting(self, name: str, value: str) -> Setting:
+        """Persist a global variable with SET PERSIST (writes mysqld-auto.cnf, so
+        it survives a restart — the closest match to Postgres' ALTER SYSTEM)."""
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                self._require_var(cur, name)
+                try:
+                    # name is catalog-verified + charset-checked (can't be bound);
+                    # value is bound as a parameter.
+                    cur.execute(f"SET PERSIST {name} = %s", [value])  # nosec B608 — name whitelisted via _require_var; value bound
+                except pymysql.Error as exc:
+                    raise EngineError(_clean(exc)) from exc
+                return self._one_setting(cur, name)
+
+    def reset_setting(self, name: str) -> Setting:
+        """Drop the persisted value (RESET PERSIST) and revert the running value
+        to the server default (SET GLOBAL … = DEFAULT)."""
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                self._require_var(cur, name)
+                try:
+                    cur.execute(f"RESET PERSIST IF EXISTS {name}")  # nosec B608 — name whitelisted via _require_var
+                    cur.execute(f"SET GLOBAL {name} = DEFAULT")     # nosec B608 — name whitelisted via _require_var
+                except pymysql.Error as exc:
+                    raise EngineError(_clean(exc)) from exc
+                return self._one_setting(cur, name)
+
+    @staticmethod
+    def _require_var(cur, name: str) -> None:
+        """Guard a variable name before it's spliced into SET PERSIST: it must
+        match the system-variable charset and actually exist on the server."""
+        if not _VAR_NAME_RE.match(name):
+            raise EngineError(_("Unknown setting: %(name)s") % {"name": name})
+        cur.execute(
+            "SELECT 1 FROM performance_schema.global_variables "
+            "WHERE VARIABLE_NAME = %s", [name])
+        if cur.fetchone() is None:
+            raise EngineError(_("Unknown setting: %(name)s") % {"name": name})
+
+    @staticmethod
+    def _one_setting(cur, name: str) -> Setting:
+        cur.execute(
+            "SELECT VARIABLE_NAME, VARIABLE_VALUE "
+            "FROM performance_schema.global_variables WHERE VARIABLE_NAME = %s",
+            [name])
+        row = cur.fetchone()
+        if row is None:
+            raise EngineError(_("Unknown setting: %(name)s") % {"name": name})
+        return _setting(row[0], row[1])
+
     # --- shared DDL runner -----------------------------------------------
 
     def _execute(self, statement: str, params=None) -> None:
@@ -825,6 +920,24 @@ def _role(row) -> Role:
         attrs.append("Locked")
     return Role(name=f"{user}@{host}", attributes=attrs, can_login=can_login,
                 superuser=is_super)
+
+
+def _setting(name: str, value) -> Setting:
+    """Map a global_variables row to the shared Setting shape. MySQL exposes far
+    less metadata than pg_settings (no unit/category/range/default/restart flag),
+    so those are left empty; ON/OFF values render as a bool toggle. All variables
+    are shown editable — MySQL reports read-only ones only when SET PERSIST is
+    attempted, and update_setting surfaces that error inline."""
+    val = "" if value is None else str(value)
+    is_bool = val in ("ON", "OFF")
+    return Setting(
+        name=name,
+        value=val.lower() if is_bool else val,
+        unit=None, category="", description="",
+        vartype="bool" if is_bool else "string",
+        context="user", enumvals=None, min_val=None, max_val=None,
+        default=None, pending_restart=False,
+    )
 
 
 def _index(row) -> Index:

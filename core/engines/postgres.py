@@ -90,6 +90,17 @@ DUMP_FORMATS = {
 DUMP_TIMEOUT = 120
 RESTORE_TIMEOUT = 300
 
+# The parameters people actually reach for — connections, memory, WAL, logging.
+# Shown by default so the editor isn't a wall of 350 obscure GUCs.
+COMMON_SETTINGS = [
+    "max_connections", "shared_buffers", "effective_cache_size", "work_mem",
+    "maintenance_work_mem", "wal_buffers", "min_wal_size", "max_wal_size",
+    "checkpoint_completion_target", "random_page_cost", "effective_io_concurrency",
+    "default_statistics_target", "log_min_duration_statement", "log_statement",
+    "log_connections", "log_disconnections", "log_lock_waits",
+    "idle_in_transaction_session_timeout", "statement_timeout", "timezone",
+]
+
 # Filter-builder operators. Maps a stable key (sent by the UI <select>) to the
 # SQL operator, whether it takes a value, and an optional pattern wrapper for
 # the value (LIKE patterns). The query is always composed with sql.Identifier /
@@ -1089,6 +1100,9 @@ class PostgresEngine(Engine):
                 ]
 
     # --- server configuration --------------------------------------------
+
+    def common_settings(self) -> list[str]:
+        return COMMON_SETTINGS
 
     def list_settings(self, names=None, category=None) -> list[Setting]:
         where, params = "", []

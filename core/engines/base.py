@@ -631,6 +631,11 @@ class Engine:
 
     # --- server configuration (postgresql.conf, via SQL) -------------------
 
+    def common_settings(self) -> list[str]:
+        """The parameters shown by default in the settings editor (so it isn't a
+        wall of obscure tunables). Engine-specific; empty if unsupported."""
+        return []
+
     def list_settings(self, names=None, category=None) -> list[Setting]:
         """Read configuration parameters. The Web equivalent of `SHOW ALL`."""
         raise NotImplementedError

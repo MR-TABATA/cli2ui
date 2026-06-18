@@ -850,6 +850,59 @@ class MysqlConnectionMockTests(SimpleTestCase):
         # TEMPLATE, so the view must create the database empty instead.
         self.assertFalse(self._engine().supports("db_template"))
 
+    # --- settings: SET PERSIST, name whitelisted, value bound ----------------
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_update_setting_uses_set_persist_with_bound_value(self, connect):
+        cur = self._cursor(connect)
+        # 1st fetchone = existence check, 2nd = the re-read for the returned row.
+        cur.fetchone.side_effect = [(1,), ("max_connections", "200")]
+        setting = self._engine().update_setting("max_connections", "200")
+        persist = next(c for c in cur.execute.call_args_list
+                       if c.args[0].startswith("SET PERSIST"))
+        self.assertEqual(persist.args[0], "SET PERSIST max_connections = %s")
+        self.assertEqual(persist.args[1], ["200"])      # value bound, not spliced
+        self.assertEqual(setting.value, "200")
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_update_setting_rejects_unknown_variable(self, connect):
+        cur = self._cursor(connect)
+        cur.fetchone.return_value = None                # not in global_variables
+        with self.assertRaises(EngineError):
+            self._engine().update_setting("max_connections", "200")
+        ran = [c.args[0] for c in cur.execute.call_args_list]
+        self.assertFalse(any(s.startswith("SET PERSIST") for s in ran))
+
+    def test_update_setting_rejects_malformed_name_without_db(self):
+        # A name that isn't a valid system-variable identifier is refused before
+        # it could ever reach SET PERSIST.
+        with self.assertRaises(EngineError):
+            self._engine().update_setting("max_connections; DROP", "1")
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_reset_setting_drops_persisted_and_reverts_runtime(self, connect):
+        cur = self._cursor(connect)
+        cur.fetchone.side_effect = [(1,), ("max_connections", "151")]
+        self._engine().reset_setting("max_connections")
+        ran = [c.args[0] for c in cur.execute.call_args_list]
+        self.assertIn("RESET PERSIST IF EXISTS max_connections", ran)
+        self.assertIn("SET GLOBAL max_connections = DEFAULT", ran)
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_list_settings_maps_and_detects_bool(self, connect):
+        cur = self._cursor(connect)
+        cur.fetchall.return_value = [("max_connections", "151"), ("autocommit", "ON")]
+        rows = {s.name: s for s in self._engine().list_settings(names=["x"])}
+        self.assertEqual(rows["max_connections"].vartype, "string")
+        self.assertEqual(rows["autocommit"].vartype, "bool")
+        self.assertEqual(rows["autocommit"].value, "on")   # normalised for the toggle
+
+    def test_settings_categories_empty_and_common_nonempty(self):
+        engine = self._engine()
+        self.assertEqual(engine.list_setting_categories(), [])
+        self.assertEqual(engine.pending_restart_settings(), [])
+        self.assertIn("innodb_buffer_pool_size", engine.common_settings())
+
 
 # --- models + form (sqlite management DB) -----------------------------------
 

@@ -1,8 +1,13 @@
 {% load i18n %}<div class="space-y-5" x-data="{ q: '' }">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
-      <h2 class="text-lg font-semibold flex items-center gap-2"><span>⚙</span> postgresql.conf</h2>
-      <p class="text-xs text-zinc-400 mono">pg_settings → ALTER SYSTEM SET → pg_reload_conf()</p>
+      {% if connection.kind == 'mysql' %}
+        <h2 class="text-lg font-semibold flex items-center gap-2"><span>⚙</span> {% trans "Server variables" %}</h2>
+        <p class="text-xs text-zinc-400 mono">global_variables → SET PERSIST</p>
+      {% else %}
+        <h2 class="text-lg font-semibold flex items-center gap-2"><span>⚙</span> postgresql.conf</h2>
+        <p class="text-xs text-zinc-400 mono">pg_settings → ALTER SYSTEM SET → pg_reload_conf()</p>
+      {% endif %}
     </div>
     <div class="flex items-center gap-2">
       <input type="text" x-model="q" placeholder="{% trans 'Filter settings…' %}" class="field field-sm w-44">
@@ -36,9 +41,17 @@
     {% endif %}
   </div>
 
+  {% if connection.kind == 'mysql' %}
+  <p class="text-xs text-zinc-400">
+    {% blocktrans %}Changes use <span class="mono">SET PERSIST</span> (writes mysqld-auto.cnf) and apply immediately
+    to running, dynamic variables. Read-only variables can't be changed without a restart and will report an
+    error. Requires a connection with the <span class="mono">SYSTEM_VARIABLES_ADMIN</span> privilege.{% endblocktrans %}
+  </p>
+  {% else %}
   <p class="text-xs text-zinc-400">
     {% blocktrans %}Changes use <span class="mono">ALTER SYSTEM</span> (writes postgresql.auto.conf) and reload
     automatically. <span class="text-amber-400/80">restart</span>-tagged settings only take effect
     after a server restart. Requires a superuser connection.{% endblocktrans %}
   </p>
+  {% endif %}
 </div>
