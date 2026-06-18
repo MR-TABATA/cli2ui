@@ -171,7 +171,7 @@ class MysqlEngine(Engine):
                 ]
 
     def preview_rows(self, schema: str, table: str, limit: int = 50) -> Preview:
-        query = f"SELECT * FROM {_ident(schema)}.{_ident(table)} LIMIT %s"
+        query = f"SELECT * FROM {_ident(schema)}.{_ident(table)} LIMIT %s"  # nosec B608 — identifiers go through _ident (backtick-quoted); limit is bound as %s
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(query, (limit,))
@@ -237,7 +237,7 @@ class MysqlEngine(Engine):
             else:
                 conds.append(f"{_ident(col)} {sql_op}")
         where = (" WHERE " + " AND ".join(conds)) if conds else ""
-        query = f"SELECT * FROM {_ident(schema)}.{_ident(table)}{where} LIMIT %s"
+        query = f"SELECT * FROM {_ident(schema)}.{_ident(table)}{where} LIMIT %s"  # nosec B608 — identifiers via _ident; operators from FILTER_OPS allow-list; values bound as %s
         params.append(limit + 1)  # one extra row tells us the result was capped
 
         with self._connect() as conn:
@@ -294,7 +294,7 @@ class MysqlEngine(Engine):
             return 0
         cols_sql = ", ".join(_ident(c) for c in header)
         placeholders = ", ".join(["%s"] * len(header))
-        insert = (f"INSERT INTO {_ident(schema)}.{_ident(table)} "
+        insert = (f"INSERT INTO {_ident(schema)}.{_ident(table)} "  # nosec B608 — schema/table/columns via _ident; row values bound as %s placeholders
                   f"({cols_sql}) VALUES ({placeholders})")
         with self._connect() as conn:
             try:
@@ -321,7 +321,7 @@ class MysqlEngine(Engine):
                      max_rows: int = 1_000_000):
         """Stream a whole table for a CSV/JSON export — identifiers backtick-quoted,
         then streamed through the same read-only server-side cursor path."""
-        query = f"SELECT * FROM {_ident(schema)}.{_ident(table)}"
+        query = f"SELECT * FROM {_ident(schema)}.{_ident(table)}"  # nosec B608 — identifiers via _ident; no user values in this statement
         return self._stream(query, timeout_ms=timeout_ms, max_rows=max_rows)
 
     def _stream(self, query: str, *, timeout_ms: int, max_rows: int):
