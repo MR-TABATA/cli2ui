@@ -42,18 +42,32 @@ Versioning convention for this project:
   no schema separate from a database). Panels then show "not applicable to this
   engine" rather than an empty card, so a structural absence is never confused
   with "no data".
+- MySQL support (phase 3) — the three remaining ops surfaces now work for MySQL:
+  - **Backup** via `mysqldump` / `mysql` (fixed argv, no shell, password through
+    the `MYSQL_PWD` environment, never the command line). This also fixes a
+    latent crash: destructive operations snapshot first via `_auto_backup`, which
+    had no MySQL dump to call and 500'd before the operation ran.
+  - **Settings editor** reads `performance_schema.global_variables` and persists
+    changes with `SET PERSIST` (writes `mysqld-auto.cnf`, surviving a restart —
+    the closest match to Postgres' `ALTER SYSTEM`). Variable names are whitelisted
+    against the server catalog before use; values are bound.
+  - **Replication** shows the binlog/GTID posture (role, `log_bin`, `server_id`,
+    `gtid_mode`, binlog position, and replica thread/lag health), connected
+    replicas, and a copy-paste recipe to attach one (`GRANT REPLICATION SLAVE` →
+    `CHANGE REPLICATION SOURCE TO … SOURCE_AUTO_POSITION=1` → `START REPLICA`).
+    MySQL has no replication slots, so that part is flagged not-applicable.
 
 ### Notes
 - MySQL has no schema-vs-database split, so the engine reports the connection's
-  database as each table's schema and scopes catalog queries to it. Capabilities
-  with no MySQL equivalent — replication, the server-config editor, role
-  mutations, `mysqldump` backups, the planner what-if lab (MySQL DDL commits
-  implicitly, so it can't be rolled back), and vacuum/bloat/schema health — raise
-  a clear message or are flagged "not applicable", so panels degrade rather than
-  break. The distinction is deliberate: a feature that *could* report a problem
-  but can't right now (lock waits with `performance_schema` off) raises, while one
-  that is conceptually absent returns empty and is flagged — a safety signal like
-  "is anything blocked?" must never degrade to a false negative.
+  database as each table's schema and scopes catalog queries to it. The remaining
+  capabilities with no MySQL equivalent — role mutations, the planner what-if lab
+  (MySQL DDL commits implicitly, so it can't be rolled back), replication slots,
+  and vacuum/bloat/schema health — raise a clear message or are flagged "not
+  applicable", so panels degrade rather than break. The distinction is
+  deliberate: a feature that *could* report a problem but can't right now (lock
+  waits with `performance_schema` off) raises, while one that is conceptually
+  absent returns empty and is flagged — a safety signal like "is anything
+  blocked?" must never degrade to a false negative.
 
 ## [0.9.0] - 2026-06-17
 
