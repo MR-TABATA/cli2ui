@@ -17,6 +17,13 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-20
+
+First stable release: cli2ui becomes a multi-database ops console. A full MySQL
+engine lands alongside the mature PostgreSQL one, behind the same safety-first,
+local-only UI — where a feature has no MySQL equivalent the panel degrades to a
+clear "not applicable" rather than a misleading empty card.
+
 ### Added
 - MySQL support (phase 1) — a `MysqlEngine` (PyMySQL) wired into the engine
   factory, so a connection of kind "mysql" now works for: connecting, the table
@@ -113,6 +120,7 @@ reserved for multi-DB support).
 - Internationalisation (English / Japanese).
 - Workspace overview dashboard and unified UI (design system).
 
-[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/MR-TABATA/cli2ui/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/MR-TABATA/cli2ui/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/MR-TABATA/cli2ui/releases/tag/v0.8.0

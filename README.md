@@ -143,7 +143,15 @@ MVP. `docker compose up` → connect → browse your tables in a DB-client layou
   for activity, snapshots, backups, replication readiness…), one click away
 - ✅ Internationalization: full English / Japanese UI with a header toggle
   (cookie-persisted, falling back to the browser's `Accept-Language`)
-- ⬜ MySQL (the engine layer is ready for it)
+- ✅ MySQL (8.0+): the same console over a MySQL connection — browse, read-only +
+  write query runner, filter builder, CSV import, CSV/JSON export, `EXPLAIN` (into
+  the shared plan tree, so snapshots/diff work), index + table + column DDL,
+  database create/drop, activity (`SHOW PROCESSLIST`), locks
+  (`performance_schema`), health (unused indexes / sizes), backup & restore
+  (`mysqldump`/`mysql`), a settings editor (`SET PERSIST`), and replication
+  status. Features with no MySQL equivalent (vacuum/bloat, schemas separate from
+  databases, the planner what-if lab, replication slots) show as "not applicable"
+  rather than an empty card.
 
 ## Stack
 
