@@ -202,6 +202,10 @@
       A real DB-client layout, one panel per job.
     </p>
 
+    <p class="mt-4 text-sm text-zinc-400 leading-relaxed max-w-2xl">
+      <span class="text-zinc-200">Works with PostgreSQL and MySQL (8.0+)</span> — the same panels over either engine, behind the same read-only-by-default, local-only UI. The cards below use Postgres wording (<span class="mono">pg_stat_activity</span>, <span class="mono">postgresql.conf</span>); MySQL uses its own equivalents (<span class="mono">SHOW PROCESSLIST</span>, <span class="mono">performance_schema</span>, <span class="mono">SET PERSIST</span>). Where a feature has no MySQL equivalent (vacuum/bloat, the planner what-if lab, replication slots), the panel shows &ldquo;not applicable&rdquo; rather than a misleading empty card.
+    </p>
+
     <div class="mt-10 grid gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 lg:grid-cols-3">
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">SQL runner</h3>

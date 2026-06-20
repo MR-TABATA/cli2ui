@@ -202,6 +202,10 @@
       本物の DB クライアント風レイアウト。1仕事＝1パネル。
     </p>
 
+    <p class="mt-4 text-sm text-zinc-400 leading-relaxed max-w-2xl">
+      <span class="text-zinc-200">PostgreSQL と MySQL（8.0+）に対応</span> — 同じパネル群がどちらのエンジンでも動き、既定リードオンリー・ローカル限定の UI も同じです。以下のカードは Postgres の用語（<span class="mono">pg_stat_activity</span>、<span class="mono">postgresql.conf</span>）で書いていますが、MySQL では相当機能（<span class="mono">SHOW PROCESSLIST</span>、<span class="mono">performance_schema</span>、<span class="mono">SET PERSIST</span>）を使います。MySQL に相当機能がないもの（vacuum/bloat、プランナー what-if、レプリケーションスロット）は、空カードではなく「対象外」と表示します。
+    </p>
+
     <div class="mt-10 grid gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 lg:grid-cols-3">
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">SQL ランナー</h3>
