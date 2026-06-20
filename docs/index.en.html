@@ -4,19 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>cli2ui — CLI database ops, as buttons</title>
-  <meta name="description" content="A web UI over the psql operations you keep half-remembering. No AI, no SaaS — just CLI database ops turned into clicks, running fully on your machine.">
+  <meta name="description" content="A web UI over the psql / mysql operations you keep half-remembering. No AI, no SaaS — just CLI database ops turned into clicks, running fully on your machine.">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="cli2ui">
   <meta property="og:title" content="cli2ui — CLI database ops, as buttons">
-  <meta property="og:description" content="The psql commands you keep half-remembering, turned into clicks. No AI, no SaaS, local-only.">
+  <meta property="og:description" content="The psql / mysql commands you keep half-remembering, turned into clicks. No AI, no SaaS, local-only.">
   <meta property="og:url" content="https://cli2ui.com/">
   <meta property="og:image" content="https://cli2ui.com/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="cli2ui — CLI database ops, as buttons">
-  <meta name="twitter:description" content="The psql commands you keep half-remembering, turned into clicks. No AI, no SaaS, local-only.">
+  <meta name="twitter:description" content="The psql / mysql commands you keep half-remembering, turned into clicks. No AI, no SaaS, local-only.">
   <meta name="twitter:image" content="https://cli2ui.com/og-image.png">
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='25' font-size='24' fill='%2334d399' font-family='monospace'>%E2%96%B8</text></svg>">
@@ -152,7 +152,7 @@
 
       <div class="card p-5">
         <div class="text-xs text-zinc-500 mb-3">You'd type</div>
-        <code class="mono block text-[13px] text-zinc-300 break-all">SELECT<br>pg_terminate_backend(pid)</code>
+        <code class="mono block text-[13px] text-zinc-300 break-all">mysql -e "KILL 4242"</code>
         <div class="my-4 flex items-center gap-2 text-zinc-600">
           <span class="h-px flex-1 bg-zinc-800"></span>
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
