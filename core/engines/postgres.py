@@ -18,6 +18,7 @@ from .base import (
     Blocker,
     BloatEstimate,
     Column,
+    ConnectionHeadroom,
     Database,
     Dump,
     Engine,
@@ -47,6 +48,7 @@ from .pg_sql import (
     ACTIVITY_SQL,
     BLOAT_SQL,
     BLOCKING_SQL,
+    HEADROOM_SQL,
     LIST_COLUMNS_SQL,
     LIST_DATABASES_SQL,
     LIST_INDEXES_SQL,
@@ -510,6 +512,20 @@ class PostgresEngine(Engine):
                     )
                     for row in cur.fetchall()
                 ]
+
+    def connection_headroom(self) -> ConnectionHeadroom:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(HEADROOM_SQL)
+                used, active, idle, idle_in_txn, max_conn, reserved = cur.fetchone()
+        return ConnectionHeadroom(
+            used=used, max=max_conn, reserved=reserved,
+            by_state={
+                "active": active,
+                "idle": idle,
+                "idle in transaction": idle_in_txn,
+            },
+        )
 
     def cancel_backend(self, pid: int) -> bool:
         return self._signal("pg_cancel_backend", pid)

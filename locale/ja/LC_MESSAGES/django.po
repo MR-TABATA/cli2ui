@@ -1941,3 +1941,26 @@ msgstr "+ 新しい接続"
 #: templates/workspace.html:104
 msgid "back to connections"
 msgstr "接続一覧に戻る"
+
+#: templates/partials/activity.html:18
+msgid "Connections"
+msgstr "接続数"
+
+#: templates/partials/activity.html:21
+msgid "— in use vs the server limit"
+msgstr "— サーバ上限に対する使用数"
+
+#: templates/partials/activity.html:27
+#, python-format
+msgid "%(used)s / %(max)s used"
+msgstr "%(used)s / %(max)s 使用中"
+
+#: templates/partials/activity.html:39
+#, python-format
+msgid "%(n)s available"
+msgstr "残り %(n)s"
+
+#: templates/partials/activity.html:41
+#, python-format
+msgid "%(n)s reserved for superusers"
+msgstr "%(n)s はスーパーユーザー用に予約済み"

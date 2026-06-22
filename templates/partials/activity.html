@@ -13,6 +13,42 @@
 
   {% include "partials/_banner.html" %}
 
+  {% if headroom %}
+    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl px-4 py-3">
+      <div class="flex items-baseline justify-between gap-3">
+        <p class="text-xs text-zinc-400">
+          {% trans "Connections" %}
+          <span class="text-zinc-500">{% trans "— in use vs the server limit" %}</span>
+        </p>
+        <p class="text-xs mono
+                  {% if headroom.level == 'critical' %}text-red-400
+                  {% elif headroom.level == 'warn' %}text-amber-400
+                  {% else %}text-zinc-300{% endif %}">
+          {% blocktrans with used=headroom.used max=headroom.max %}{{ used }} / {{ max }} used{% endblocktrans %}
+          <span class="text-zinc-500">· {{ headroom.pct }}%</span>
+        </p>
+      </div>
+      <div class="mt-2 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+        <div class="h-full rounded-full
+                    {% if headroom.level == 'critical' %}bg-red-500
+                    {% elif headroom.level == 'warn' %}bg-amber-500
+                    {% else %}bg-emerald-500{% endif %}"
+             style="width: {{ headroom.pct }}%"></div>
+      </div>
+      <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-400">
+        <span>{% blocktrans with n=headroom.available %}{{ n }} available{% endblocktrans %}</span>
+        {% if headroom.reserved %}
+          <span class="text-zinc-500">{% blocktrans with n=headroom.reserved %}{{ n }} reserved for superusers{% endblocktrans %}</span>
+        {% endif %}
+        {% if headroom.by_state %}
+          {% for state, count in headroom.by_state.items %}
+            <span class="mono text-zinc-500">{{ state }}: {{ count }}</span>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
   {% if sessions %}
     <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
       <div>

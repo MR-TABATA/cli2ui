@@ -50,13 +50,20 @@ def _activity_signal(request, connection, action):
 
 def _render_activity(request, connection, error=None):
     try:
-        sessions = get_engine(connection).list_activity()
+        engine = get_engine(connection)
+        sessions = engine.list_activity()
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
+    # Headroom is a nice-to-have summary; a hiccup fetching it must not blank the
+    # session list, so degrade to None and let the template omit the bar.
+    try:
+        headroom = engine.connection_headroom()
+    except EngineError:
+        headroom = None
     return render(
         request,
         "partials/activity.html",
-        {"connection": connection, "sessions": sessions,
+        {"connection": connection, "sessions": sessions, "headroom": headroom,
          "query_sql": ACTIVITY_SHOW_SQL, "error": error},
     )
 

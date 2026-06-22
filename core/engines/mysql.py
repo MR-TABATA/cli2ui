@@ -39,6 +39,7 @@ from .base import (
     Activity,
     Blocker,
     Column,
+    ConnectionHeadroom,
     Database,
     Dump,
     Engine,
@@ -512,6 +513,21 @@ class MysqlEngine(Engine):
             with conn.cursor() as cur:
                 cur.execute(ACTIVITY_SQL)
                 return [_activity(row) for row in cur.fetchall()]
+
+    def connection_headroom(self) -> ConnectionHeadroom:
+        # Threads_connected is the live count; max_connections the ceiling.
+        # MySQL has no superuser-reserved pool and no clean idle/active split
+        # per connection (Command varies), so reserved=0 and by_state stays None.
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                try:
+                    cur.execute("SHOW STATUS LIKE 'Threads_connected'")
+                    used = int(cur.fetchone()[1])
+                    cur.execute("SHOW VARIABLES LIKE 'max_connections'")
+                    max_conn = int(cur.fetchone()[1])
+                except pymysql.Error as exc:
+                    raise EngineError(_clean(exc)) from exc
+        return ConnectionHeadroom(used=used, max=max_conn)
 
     def cancel_backend(self, pid: int) -> bool:
         return self._kill(pid, "QUERY")

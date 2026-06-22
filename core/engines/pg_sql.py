@@ -76,6 +76,22 @@ WHERE backend_type = 'client backend'
 ORDER BY (pid = pg_backend_pid()) ASC, (state = 'active') DESC, query_start ASC NULLS LAST;
 """
 
+# Connection headroom: how many connections are in use against max_connections,
+# the number behind "FATAL: too many connections". Counts client backends only
+# (background workers/autovacuum don't draw on the user-facing pool the way a
+# client does) and breaks them down by state for the panel. superuser_reserved
+# slots are kept back from non-superusers, so they're surfaced alongside.
+HEADROOM_SQL = """
+SELECT count(*) FILTER (WHERE backend_type = 'client backend')                              AS used,
+       count(*) FILTER (WHERE backend_type = 'client backend' AND state = 'active')         AS active,
+       count(*) FILTER (WHERE backend_type = 'client backend' AND state = 'idle')           AS idle,
+       count(*) FILTER (WHERE backend_type = 'client backend'
+                        AND state = 'idle in transaction')                                  AS idle_in_txn,
+       current_setting('max_connections')::int                                              AS max_conn,
+       current_setting('superuser_reserved_connections')::int                               AS reserved
+FROM pg_stat_activity;
+"""
+
 # Blocked sessions: every backend stuck on a lock it can't get, plus how long
 # it's waited and the contended object. pg_blocking_pids() yields the holders;
 # the guard keeps only sessions actually blocked. A waiting backend has exactly

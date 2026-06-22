@@ -171,6 +171,38 @@ class Activity:
 
 
 @dataclass
+class ConnectionHeadroom:
+    """How close the server is to refusing new connections: current connection
+    count vs the server's limit. The number behind 'FATAL: too many connections'
+    — the one operational signal a session list doesn't make obvious. Read-only."""
+
+    used: int                              # connections counted against the limit
+    max: int                               # the server's limit (max_connections)
+    reserved: int = 0                      # slots held back for superusers; 0 if N/A
+    by_state: dict[str, int] | None = None  # client sessions per state; None if N/A
+
+    @property
+    def available(self) -> int:
+        return self.max - self.used if self.max > self.used else 0
+
+    @property
+    def pct(self) -> int:
+        """Used as a percentage of the limit, 0..100 — the headline number."""
+        return round(self.used / self.max * 100) if self.max else 0
+
+    @property
+    def level(self) -> str:
+        """ok | warn | critical — drives the bar colour. Crossing ~75% is worth
+        noticing; ~90% means new connections are about to start failing."""
+        p = self.pct
+        if p >= 90:
+            return "critical"
+        if p >= 75:
+            return "warn"
+        return "ok"
+
+
+@dataclass
 class Blocker:
     """One session holding a lock that another session is waiting on."""
 
@@ -472,6 +504,13 @@ class Engine:
     def list_activity(self) -> list[Activity]:
         """Running queries and connections. The Web equivalent of querying
         `pg_stat_activity` / `SHOW PROCESSLIST`."""
+        raise NotImplementedError
+
+    def connection_headroom(self) -> "ConnectionHeadroom":
+        """Current connection count vs the server's max_connections — how much
+        room is left before it refuses new connections. The Web equivalent of
+        `count(*) FROM pg_stat_activity` vs `max_connections` (PostgreSQL) /
+        `Threads_connected` vs `max_connections` (MySQL). Read-only."""
         raise NotImplementedError
 
     def cancel_backend(self, pid: int) -> bool:

@@ -18,7 +18,9 @@ import psycopg2
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.engines import EngineError, get_engine
-from core.engines.base import Activity, Index, PlanNode, Setting, Table
+from core.engines.base import (
+    Activity, ConnectionHeadroom, Index, PlanNode, Setting, Table,
+)
 from core.engines.postgres import (
     INDEX_METHODS,
     PostgresEngine,
@@ -488,6 +490,20 @@ class DataclassPropertyTests(SimpleTestCase):
                     state="active", wait=None, query_secs=1, query="...")
         self.assertTrue(Activity(blocked_by=[42], **base).blocked)
         self.assertFalse(Activity(blocked_by=[], **base).blocked)
+
+    def test_connection_headroom_pct_available_and_levels(self):
+        h = ConnectionHeadroom(used=30, max=100, reserved=3)
+        self.assertEqual(h.pct, 30)
+        self.assertEqual(h.available, 70)
+        self.assertEqual(h.level, "ok")
+        self.assertEqual(ConnectionHeadroom(used=80, max=100).level, "warn")
+        self.assertEqual(ConnectionHeadroom(used=95, max=100).level, "critical")
+
+    def test_connection_headroom_handles_full_and_zero_limit(self):
+        # At/over the limit there is no room left, never a negative count.
+        self.assertEqual(ConnectionHeadroom(used=100, max=100).available, 0)
+        # A zero/unknown limit must not divide by zero.
+        self.assertEqual(ConnectionHeadroom(used=5, max=0).pct, 0)
 
 
 # --- engine factory (no DB) -------------------------------------------------
@@ -1112,6 +1128,14 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
         # no fragile SQL scanning on our side.
         with self.assertRaises(EngineError):
             self.engine.run_query("CREATE TEMP TABLE _cli2ui_probe (x int)")
+
+    def test_connection_headroom_reports_usage_against_limit(self):
+        h = self.engine.connection_headroom()
+        # Our own connection counts, so at least one is in use, under the limit.
+        self.assertGreaterEqual(h.used, 1)
+        self.assertGreater(h.max, h.used)
+        self.assertEqual(h.available, h.max - h.used)
+        self.assertEqual(set(h.by_state), {"active", "idle", "idle in transaction"})
 
     def test_stream_query_yields_header_then_all_rows(self):
         # The export path streams the FULL result, past run_query's display cap.
