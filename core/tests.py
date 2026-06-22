@@ -19,7 +19,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.engines import EngineError, get_engine
 from core.engines.base import (
-    Activity, ConnectionHeadroom, Index, PlanNode, Setting, Table,
+    Activity, Column, ConnectionHeadroom, Index, PlanNode, Setting, Table,
 )
 from core.engines.postgres import (
     INDEX_METHODS,
@@ -504,6 +504,15 @@ class DataclassPropertyTests(SimpleTestCase):
         self.assertEqual(ConnectionHeadroom(used=100, max=100).available, 0)
         # A zero/unknown limit must not divide by zero.
         self.assertEqual(ConnectionHeadroom(used=5, max=0).pct, 0)
+
+    def test_column_comment_defaults_to_none(self):
+        # comment is optional, so existing positional construction stays valid.
+        c = Column(name="id", type="integer", nullable=False, default=None)
+        self.assertIsNone(c.comment)
+        self.assertEqual(
+            Column("id", "integer", False, None, "the primary key").comment,
+            "the primary key",
+        )
 
 
 # --- engine factory (no DB) -------------------------------------------------
@@ -1505,6 +1514,19 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
             self.engine.rename_column("public", "orders", "no_such_col", "y")
         with self.assertRaises(EngineError):
             self.engine.drop_column("public", "orders", "no_such_col")
+
+    def test_column_comment_is_surfaced(self):
+        # COMMENT ON COLUMN shows up on the right column; uncommented = None.
+        t = "cli2ui_test_comment"
+        self._drop_table_if_exists(t)
+        self._exec(f'CREATE TABLE public."{t}" (id int, note text)')
+        self._exec(f'COMMENT ON COLUMN public."{t}".id IS \'the primary key\'')
+        try:
+            cols = {c.name: c for c in self.engine.list_columns("public", t)}
+            self.assertEqual(cols["id"].comment, "the primary key")
+            self.assertIsNone(cols["note"].comment)
+        finally:
+            self._drop_table_if_exists(t)
 
     def test_alter_column_type_casts_existing_values(self):
         # text→integer isn't an implicit cast; the generated USING x::integer

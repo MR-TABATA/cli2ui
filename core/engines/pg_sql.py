@@ -19,12 +19,22 @@ WHERE t.schemaname NOT IN ('pg_catalog', 'information_schema')
 ORDER BY t.schemaname, t.tablename;
 """
 
-# The Web equivalent of `\d table`: column name, type, nullability, default.
+# The Web equivalent of `\d table`: column name, type, nullability, default,
+# plus the column COMMENT. col_description needs the table oid + attnum, so we
+# join pg_attribute (by name, skipping dropped columns so attnum stays correct).
+# NOTE: the `%%I` are doubled on purpose — psycopg2 reads a lone `%` as a
+# parameter marker and would collide with the `%s` binds below. `%%` emits a
+# literal `%` for format()'s own placeholders. Do not "simplify" to `%I`.
 LIST_COLUMNS_SQL = """
-SELECT column_name, data_type, is_nullable, column_default
-FROM information_schema.columns
-WHERE table_schema = %s AND table_name = %s
-ORDER BY ordinal_position;
+SELECT c.column_name, c.data_type, c.is_nullable, c.column_default,
+       col_description(a.attrelid, a.attnum) AS comment
+FROM information_schema.columns c
+LEFT JOIN pg_attribute a
+       ON a.attrelid = format('%%I.%%I', c.table_schema, c.table_name)::regclass
+      AND a.attname  = c.column_name
+      AND NOT a.attisdropped
+WHERE c.table_schema = %s AND c.table_name = %s
+ORDER BY c.ordinal_position;
 """
 
 # The Web equivalent of `\l`: every database with owner, encoding and size.

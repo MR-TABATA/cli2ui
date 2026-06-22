@@ -247,6 +247,7 @@ class PostgresEngine(Engine):
                         type=row[1],
                         nullable=(row[2] == "YES"),
                         default=row[3],
+                        comment=row[4],
                     )
                     for row in cur.fetchall()
                 ]

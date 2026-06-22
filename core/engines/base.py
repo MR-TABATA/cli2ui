@@ -35,6 +35,7 @@ class Column:
     type: str
     nullable: bool
     default: str | None
+    comment: str | None = None  # COMMENT ON COLUMN / COLUMN_COMMENT, if any
 
 
 @dataclass

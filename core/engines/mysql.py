@@ -283,6 +283,8 @@ class MysqlEngine(Engine):
                         type=row[1],
                         nullable=(row[2] == "YES"),
                         default=row[3],
+                        # MySQL returns '' (not NULL) for no comment; normalise.
+                        comment=row[4] or None,
                     )
                     for row in cur.fetchall()
                 ]
