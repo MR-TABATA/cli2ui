@@ -96,8 +96,9 @@ copy-paste compose file and the exact connection details.
 
 ## Status
 
-MVP. `docker compose up` → connect → browse your tables in a DB-client layout
-(table list in the sidebar, table detail in the main pane).
+v1.0.0 — a multi-DB (PostgreSQL & MySQL) ops console. `docker compose up` →
+connect → browse your tables in a DB-client layout (table list in the sidebar,
+table detail in the main pane).
 
 - ✅ PostgreSQL: connect + list tables (estimated row counts)
 - ✅ Table detail: column definitions (`\d table`), a row preview, and a **filter
