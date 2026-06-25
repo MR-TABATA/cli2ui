@@ -11,6 +11,7 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
         {% blocktrans count nc=columns|length %}{{ nc }} column{% plural %}{{ nc }} columns{% endblocktrans %} ·
         {% blocktrans count nr=preview_rows|length %}previewing up to {{ nr }} row{% plural %}previewing up to {{ nr }} rows{% endblocktrans %}
       </p>
+      {% if table_comment %}<p class="mt-1 text-xs text-zinc-500 max-w-prose whitespace-normal">{{ table_comment }}</p>{% endif %}
     </div>
     <div class="shrink-0 flex items-center gap-1.5">
       <button hx-get="{% url 'query' connection.pk %}?sql={{ query_sql|urlencode }}"

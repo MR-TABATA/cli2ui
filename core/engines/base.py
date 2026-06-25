@@ -442,6 +442,11 @@ class Engine:
         """Column definitions for one table. The Web equivalent of `\\d table`."""
         raise NotImplementedError
 
+    def table_comment(self, schema: str, table: str) -> str | None:
+        """The table's own COMMENT, if any — the description psql shows at the
+        foot of `\\d+ table`. None when the table has no comment."""
+        raise NotImplementedError
+
     def preview_rows(self, schema: str, table: str, limit: int = 50) -> Preview:
         """First rows of a table. The Web equivalent of `SELECT * ... LIMIT n`."""
         raise NotImplementedError

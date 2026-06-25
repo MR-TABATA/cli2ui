@@ -30,6 +30,7 @@ def _render_detail(request, connection, schema, table, error=None, notice=None):
         columns = engine.list_columns(schema, table)
         indexes = engine.list_indexes(schema, table)
         preview = engine.preview_rows(schema, table)
+        comment = engine.table_comment(schema, table)
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
 
@@ -46,6 +47,7 @@ def _render_detail(request, connection, schema, table, error=None, notice=None):
             "connection": connection,
             "schema": schema,
             "table": table,
+            "table_comment": comment,
             "columns": columns,
             "indexes": indexes,
             "index_methods": INDEX_METHODS,

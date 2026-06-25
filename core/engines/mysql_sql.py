@@ -20,6 +20,14 @@ WHERE TABLE_SCHEMA = %s AND TABLE_TYPE = 'BASE TABLE'
 ORDER BY TABLE_NAME;
 """
 
+# The table's own COMMENT. MySQL stores it on the table row and returns '' (not
+# NULL) when there is none — the engine normalises that to None.
+TABLE_COMMENT_SQL = """
+SELECT TABLE_COMMENT
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s;
+"""
+
 # The Web equivalent of `DESCRIBE table`: column name, full type, nullability,
 # default. COLUMN_TYPE carries the precise type ("varchar(255)", "int unsigned"),
 # richer than DATA_TYPE alone.

@@ -19,6 +19,17 @@ WHERE t.schemaname NOT IN ('pg_catalog', 'information_schema')
 ORDER BY t.schemaname, t.tablename;
 """
 
+# The table's own COMMENT — the description psql prints at the foot of
+# `\d+ table`. Looked up by name through pg_class/pg_namespace so it's pure `%s`
+# binds (no format() `%%` collision like LIST_COLUMNS_SQL). Zero rows if the
+# table is gone; a NULL comment column if it simply has no comment.
+TABLE_COMMENT_SQL = """
+SELECT obj_description(c.oid, 'pg_class') AS comment
+FROM pg_catalog.pg_class c
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = %s AND c.relname = %s;
+"""
+
 # The Web equivalent of `\d table`: column name, type, nullability, default,
 # plus the column COMMENT. col_description needs the table oid + attnum, so we
 # join pg_attribute (by name, skipping dropped columns so attnum stays correct).

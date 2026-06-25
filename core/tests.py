@@ -1528,6 +1528,19 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
         finally:
             self._drop_table_if_exists(t)
 
+    def test_table_comment_is_surfaced(self):
+        # COMMENT ON TABLE shows up; an uncommented table reports None.
+        t = "cli2ui_test_tcomment"
+        self._drop_table_if_exists(t)
+        self._exec(f'CREATE TABLE public."{t}" (id int)')
+        try:
+            self.assertIsNone(self.engine.table_comment("public", t))
+            self._exec(f'COMMENT ON TABLE public."{t}" IS \'orders, one per line\'')
+            self.assertEqual(self.engine.table_comment("public", t),
+                             "orders, one per line")
+        finally:
+            self._drop_table_if_exists(t)
+
     def test_alter_column_type_casts_existing_values(self):
         # text→integer isn't an implicit cast; the generated USING x::integer
         # makes it work and converts the stored values.

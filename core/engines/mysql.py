@@ -63,6 +63,7 @@ from .mysql_sql import (
     LIST_INDEXES_SQL,
     LIST_ROLES_SQL,
     LIST_TABLES_SQL,
+    TABLE_COMMENT_SQL,
     TABLE_SIZES_SQL,
     UNUSED_INDEXES_SQL,
 )
@@ -288,6 +289,14 @@ class MysqlEngine(Engine):
                     )
                     for row in cur.fetchall()
                 ]
+
+    def table_comment(self, schema: str, table: str) -> str | None:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(TABLE_COMMENT_SQL, (schema, table))
+                row = cur.fetchone()
+                # MySQL returns '' (not NULL) for no comment; normalise.
+                return (row[0] or None) if row else None
 
     def preview_rows(self, schema: str, table: str, limit: int = 50) -> Preview:
         query = f"SELECT * FROM {_ident(schema)}.{_ident(table)} LIMIT %s"  # nosec B608 — identifiers go through _ident (backtick-quoted); limit is bound as %s

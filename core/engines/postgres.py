@@ -59,6 +59,7 @@ from .pg_sql import (
     SETTINGS_SELECT,
     SLOTS_SQL,
     STANDBYS_SQL,
+    TABLE_COMMENT_SQL,
     TABLE_SIZES_SQL,
     UNUSED_INDEXES_SQL,
     VACUUM_STATS_SQL,
@@ -251,6 +252,13 @@ class PostgresEngine(Engine):
                     )
                     for row in cur.fetchall()
                 ]
+
+    def table_comment(self, schema: str, table: str) -> str | None:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(TABLE_COMMENT_SQL, (schema, table))
+                row = cur.fetchone()
+                return row[0] if row else None
 
     def preview_rows(self, schema: str, table: str, limit: int = 50) -> Preview:
         # Identifiers come from the schema, but compose them safely anyway so a
