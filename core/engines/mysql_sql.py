@@ -29,10 +29,13 @@ WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s;
 """
 
 # The Web equivalent of `DESCRIBE table`: column name, full type, nullability,
-# default. COLUMN_TYPE carries the precise type ("varchar(255)", "int unsigned"),
-# richer than DATA_TYPE alone.
+# default, comment, and generated-column info. COLUMN_TYPE carries the precise
+# type ("varchar(255)", "int unsigned"), richer than DATA_TYPE alone. EXTRA holds
+# "STORED GENERATED" / "VIRTUAL GENERATED" for generated columns ('' otherwise),
+# and GENERATION_EXPRESSION carries the expression ('' for a plain column).
 LIST_COLUMNS_SQL = """
-SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMN_COMMENT
+SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMN_COMMENT,
+       EXTRA, GENERATION_EXPRESSION
 FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s
 ORDER BY ORDINAL_POSITION;

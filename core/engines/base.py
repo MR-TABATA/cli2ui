@@ -36,6 +36,18 @@ class Column:
     nullable: bool
     default: str | None
     comment: str | None = None  # COMMENT ON COLUMN / COLUMN_COMMENT, if any
+    # Generated columns: a value computed from other columns rather than stored
+    # directly. `generated` is "stored" or "virtual" (PostgreSQL 18+ defaults new
+    # generated columns to VIRTUAL), or None for an ordinary column;
+    # `generation_expr` is the expression it's computed from. Without these a
+    # generated column reads as a plain column with no default — the `\d` view
+    # would be quietly wrong.
+    generated: str | None = None
+    generation_expr: str | None = None
+
+    @property
+    def is_generated(self) -> bool:
+        return self.generated is not None
 
 
 @dataclass

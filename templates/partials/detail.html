@@ -81,7 +81,14 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
               </td>
               <td class="px-5 py-2 text-zinc-400 mono align-top">{{ col.type }}</td>
               <td class="px-5 py-2 text-zinc-400 align-top">{% if col.nullable %}{% trans "yes" %}{% else %}<span class="text-zinc-200">{% trans "no" %}</span>{% endif %}</td>
-              <td class="px-5 py-2 text-zinc-400 mono truncate max-w-[200px] align-top">{{ col.default|default:"—" }}</td>
+              <td class="px-5 py-2 text-zinc-400 mono truncate max-w-[200px] align-top">
+                {% if col.generated %}
+                  <span class="inline-block text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-sans not-italic align-middle" title="generated always as ({{ col.generation_expr }}) {{ col.generated }}">{% trans "generated" %} · {{ col.generated }}</span>
+                  {% if col.generation_expr %}<span title="{{ col.generation_expr }}">{{ col.generation_expr }}</span>{% endif %}
+                {% else %}
+                  {{ col.default|default:"—" }}
+                {% endif %}
+              </td>
               <td class="px-5 py-2 text-right whitespace-nowrap align-top">
                 <div class="flex items-center gap-3 justify-end">
                   <button type="button" class="text-xs text-zinc-400 hover:text-zinc-100"

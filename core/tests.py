@@ -514,6 +514,17 @@ class DataclassPropertyTests(SimpleTestCase):
             "the primary key",
         )
 
+    def test_column_generated_defaults_to_none(self):
+        # generated/generation_expr are optional and trail comment, so existing
+        # positional construction stays valid and a plain column isn't generated.
+        c = Column(name="id", type="integer", nullable=False, default=None)
+        self.assertIsNone(c.generated)
+        self.assertFalse(c.is_generated)
+        g = Column("area", "integer", True, None, generated="stored",
+                   generation_expr="(w * h)")
+        self.assertTrue(g.is_generated)
+        self.assertEqual(g.generated, "stored")
+
 
 # --- engine factory (no DB) -------------------------------------------------
 
@@ -545,6 +556,15 @@ class MysqlPureLogicTests(SimpleTestCase):
         from core.engines.mysql import _ident
         self.assertEqual(_ident("orders"), "`orders`")
         self.assertEqual(_ident("we`ird"), "`we``ird`")
+
+    def test_generated_kind_maps_extra_flag(self):
+        from core.engines.mysql import _generated_kind
+        self.assertEqual(_generated_kind("VIRTUAL GENERATED"), "virtual")
+        self.assertEqual(_generated_kind("STORED GENERATED"), "stored")
+        # EXTRA may carry other flags; substring match still finds the kind.
+        self.assertEqual(_generated_kind("DEFAULT_GENERATED on update CURRENT_TIMESTAMP"), None)
+        self.assertIsNone(_generated_kind(""))
+        self.assertIsNone(_generated_kind(None))
 
     def test_pretty_size_scales_units(self):
         from core.engines.mysql import _pretty_size
@@ -1525,6 +1545,24 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
             cols = {c.name: c for c in self.engine.list_columns("public", t)}
             self.assertEqual(cols["id"].comment, "the primary key")
             self.assertIsNone(cols["note"].comment)
+        finally:
+            self._drop_table_if_exists(t)
+
+    def test_generated_column_is_surfaced(self):
+        # A generated column reports its kind + expression; a plain column reports
+        # neither. STORED works on every supported PG (VIRTUAL is the PG18+
+        # default but isn't needed to prove the column viewer no longer hides it).
+        t = "cli2ui_test_generated"
+        self._drop_table_if_exists(t)
+        self._exec(f'CREATE TABLE public."{t}" '
+                   f'(w int, h int, area int GENERATED ALWAYS AS (w * h) STORED)')
+        try:
+            cols = {c.name: c for c in self.engine.list_columns("public", t)}
+            self.assertEqual(cols["area"].generated, "stored")
+            self.assertTrue(cols["area"].is_generated)
+            self.assertIn("*", cols["area"].generation_expr or "")
+            self.assertIsNone(cols["w"].generated)
+            self.assertFalse(cols["w"].is_generated)
         finally:
             self._drop_table_if_exists(t)
 

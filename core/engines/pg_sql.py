@@ -31,19 +31,28 @@ WHERE n.nspname = %s AND c.relname = %s;
 """
 
 # The Web equivalent of `\d table`: column name, type, nullability, default,
-# plus the column COMMENT. col_description needs the table oid + attnum, so we
-# join pg_attribute (by name, skipping dropped columns so attnum stays correct).
+# the column COMMENT, and whether it's a generated column. col_description and
+# attgenerated both need the table oid + attnum, so we join pg_attribute (by
+# name, skipping dropped columns so attnum stays correct); pg_attrdef carries the
+# generation expression. attgenerated is '' for a plain column, 's' for STORED
+# and 'v' for VIRTUAL (PostgreSQL 18+) — without it a generated column reads as a
+# plain column with a NULL default. The CASE keeps pg_get_expr off ordinary
+# columns (whose adbin is a default literal, not a generation expression).
 # NOTE: the `%%I` are doubled on purpose — psycopg2 reads a lone `%` as a
 # parameter marker and would collide with the `%s` binds below. `%%` emits a
 # literal `%` for format()'s own placeholders. Do not "simplify" to `%I`.
 LIST_COLUMNS_SQL = """
 SELECT c.column_name, c.data_type, c.is_nullable, c.column_default,
-       col_description(a.attrelid, a.attnum) AS comment
+       col_description(a.attrelid, a.attnum) AS comment,
+       a.attgenerated AS generated,
+       CASE WHEN a.attgenerated <> '' THEN pg_get_expr(ad.adbin, ad.adrelid) END AS gen_expr
 FROM information_schema.columns c
 LEFT JOIN pg_attribute a
        ON a.attrelid = format('%%I.%%I', c.table_schema, c.table_name)::regclass
       AND a.attname  = c.column_name
       AND NOT a.attisdropped
+LEFT JOIN pg_attrdef ad
+       ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
 WHERE c.table_schema = %s AND c.table_name = %s
 ORDER BY c.ordinal_position;
 """

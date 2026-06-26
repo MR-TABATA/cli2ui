@@ -249,6 +249,9 @@ class PostgresEngine(Engine):
                         nullable=(row[2] == "YES"),
                         default=row[3],
                         comment=row[4],
+                        # attgenerated: '' plain, 's' STORED, 'v' VIRTUAL (PG18+)
+                        generated={"s": "stored", "v": "virtual"}.get(row[5] or ""),
+                        generation_expr=row[6],
                     )
                     for row in cur.fetchall()
                 ]

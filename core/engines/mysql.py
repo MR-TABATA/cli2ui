@@ -199,6 +199,17 @@ def _ident(name: str) -> str:
     return "`" + str(name).replace("`", "``") + "`"
 
 
+def _generated_kind(extra) -> str | None:
+    """Map information_schema.COLUMNS.EXTRA to "stored"/"virtual"/None. EXTRA may
+    also carry other flags (auto_increment, on update …), so we substring-match."""
+    e = (extra or "").upper()
+    if "VIRTUAL GENERATED" in e:
+        return "virtual"
+    if "STORED GENERATED" in e:
+        return "stored"
+    return None
+
+
 class MysqlEngine(Engine):
     # Capabilities this engine doesn't have. Health features with no InnoDB
     # equivalent (no vacuum / dead-tuple model → "vacuum"/"bloat"), no schema
@@ -286,6 +297,10 @@ class MysqlEngine(Engine):
                         default=row[3],
                         # MySQL returns '' (not NULL) for no comment; normalise.
                         comment=row[4] or None,
+                        # EXTRA carries "STORED GENERATED"/"VIRTUAL GENERATED";
+                        # GENERATION_EXPRESSION is '' for an ordinary column.
+                        generated=_generated_kind(row[5]),
+                        generation_expr=row[6] or None,
                     )
                     for row in cur.fetchall()
                 ]
