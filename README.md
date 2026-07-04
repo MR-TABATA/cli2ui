@@ -133,6 +133,9 @@ table detail in the main pane).
   connected standbys (`pg_stat_replication`), and slot create / drop
 - ✅ Health: bloat estimate — wasted table space from a stats-only query
   (no scan), next to the dead-rows / vacuum card
+- ✅ Dependencies: the foreign-key graph topologically sorted (`graphlib`) into a
+  safe TRUNCATE/DELETE order and its reverse (the load order), with foreign-key
+  cycles detected and named — read-only, nothing is truncated (PostgreSQL & MySQL)
 - ✅ Command history: SQL run through the runner, logged to the management DB —
   status, row count, timing, and one-click re-open
 - ✅ Backup / restore: automatic table snapshots (`pg_dump` custom format) before

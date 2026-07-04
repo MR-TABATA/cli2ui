@@ -44,6 +44,7 @@ from .base import (
     Dump,
     Engine,
     EngineError,
+    ForeignKeyEdge,
     Index,
     LockWait,
     Preview,
@@ -58,6 +59,7 @@ from .base import (
 from .mysql_sql import (
     ACTIVITY_SQL,
     BLOCKING_SQL,
+    FK_EDGES_SQL,
     LIST_COLUMNS_SQL,
     LIST_DATABASES_SQL,
     LIST_INDEXES_SQL,
@@ -816,6 +818,18 @@ class MysqlEngine(Engine):
 
     def bloat_estimates(self, limit: int = 20):
         return []   # "bloat" not applicable — no MySQL pg_stats-style estimate
+
+    # --- foreign-key dependency graph ------------------------------------
+
+    def foreign_keys(self) -> list[ForeignKeyEdge]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(FK_EDGES_SQL, (self.connection.dbname,))
+                return [
+                    ForeignKeyEdge(constraint=row[0], child=row[1],
+                                   parent=row[2], columns=row[3] or "")
+                    for row in cur.fetchall()
+                ]
 
     # --- backup (mysqldump / mysql) --------------------------------------
 

@@ -257,6 +257,37 @@ BLOAT_SHOW_SQL = (
 )
 
 
+FK_EDGES_SHOW_SQL = (
+    "SELECT con.conname,\n"
+    "       ns.nspname  || '.' || cl.relname  AS child,\n"
+    "       fns.nspname || '.' || fcl.relname AS parent\n"
+    "FROM pg_constraint con\n"
+    "JOIN pg_class cl      ON cl.oid = con.conrelid\n"
+    "JOIN pg_namespace ns  ON ns.oid = cl.relnamespace\n"
+    "JOIN pg_class fcl     ON fcl.oid = con.confrelid\n"
+    "JOIN pg_namespace fns ON fns.oid = fcl.relnamespace\n"
+    "WHERE con.contype = 'f'\n"
+    "  AND ns.nspname NOT IN ('pg_catalog','information_schema')\n"
+    "ORDER BY child, con.conname;"
+)
+
+
+def dependencies(request, pk):
+    """Foreign-key dependency graph: a safe TRUNCATE/load order for the tables,
+    and any FK cycle. Read-only — it only reads the catalog and computes."""
+    connection = get_object_or_404(Connection, pk=pk)
+    try:
+        graph = get_engine(connection).dependency_graph()
+    except EngineError as exc:
+        return render(request, "partials/error.html", {"message": str(exc)})
+    return render(
+        request,
+        "partials/dependencies.html",
+        {"connection": connection, "graph": graph,
+         "fk_sql": FK_EDGES_SHOW_SQL},
+    )
+
+
 def health(request, pk):
     """Health panel: table sizes, unused indexes, dead-tuple/vacuum, bloat."""
     connection = get_object_or_404(Connection, pk=pk)

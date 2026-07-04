@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-26 06:28-0500\n"
+"POT-Creation-Date: 2026-07-04 00:10-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,29 +22,29 @@ msgstr ""
 msgid "Unsupported database kind: %(kind)s"
 msgstr "未対応のデータベース種別: %(kind)s"
 
-#: core/engines/mysql.py:372 core/engines/mysql.py:779
-#: core/engines/mysql.py:785 core/engines/postgres.py:330
-#: core/engines/postgres.py:959
+#: core/engines/mysql.py:374 core/engines/mysql.py:781
+#: core/engines/mysql.py:787 core/engines/postgres.py:332
+#: core/engines/postgres.py:961
 #, python-format
 msgid "No such column: %(name)s"
 msgstr "存在しない列: %(name)s"
 
-#: core/engines/mysql.py:374 core/engines/postgres.py:332
+#: core/engines/mysql.py:376 core/engines/postgres.py:334
 #, python-format
 msgid "Unknown filter operator: %(op)s"
 msgstr "不明なフィルタ演算子: %(op)s"
 
-#: core/engines/mysql.py:419 core/engines/mysql.py:424
-#: core/engines/postgres.py:382
+#: core/engines/mysql.py:421 core/engines/mysql.py:426
+#: core/engines/postgres.py:384
 msgid "The CSV file is empty."
 msgstr "CSV ファイルが空です。"
 
-#: core/engines/mysql.py:429 core/engines/postgres.py:389
+#: core/engines/mysql.py:431 core/engines/postgres.py:391
 #, python-format
 msgid "CSV header has columns not in %(table)s: %(cols)s"
 msgstr "%(table)s に無い列が CSV ヘッダにあります: %(cols)s"
 
-#: core/engines/mysql.py:588
+#: core/engines/mysql.py:590
 msgid ""
 "Can't check for lock waits: the MySQL performance_schema is disabled on this "
 "server, so blocking can't be detected. Enable it (performance_schema=ON) to "
@@ -54,7 +54,7 @@ msgstr ""
 "効なため、ブロッキングを検出できません。このパネルを使うには有効化してくださ"
 "い (performance_schema=ON)。"
 
-#: core/engines/mysql.py:598
+#: core/engines/mysql.py:600
 msgid ""
 "Can't check for lock waits: this needs MySQL 8.0+ "
 "(performance_schema.data_lock_waits is unavailable here)."
@@ -62,7 +62,7 @@ msgstr ""
 "ロック待ちを確認できません: これには MySQL 8.0 以降が必要です "
 "(performance_schema.data_lock_waits がここでは利用できません)。"
 
-#: core/engines/mysql.py:633
+#: core/engines/mysql.py:635
 msgid ""
 "MySQL can't create a database from a template (no TEMPLATE/CREATE DATABASE … "
 "LIKE). Create it empty, then load a dump."
@@ -70,7 +70,7 @@ msgstr ""
 "MySQL はテンプレートからデータベースを作成できません (TEMPLATE/CREATE "
 "DATABASE … LIKE は非対応)。空で作成してからダンプを読み込んでください。"
 
-#: core/engines/mysql.py:646
+#: core/engines/mysql.py:648
 msgid ""
 "Can't drop the database this connection is using — connect to another "
 "database first."
@@ -78,7 +78,7 @@ msgstr ""
 "この接続が使用中のデータベースは削除できません — 先に別のデータベースに接続し"
 "てください。"
 
-#: core/engines/mysql.py:652
+#: core/engines/mysql.py:654
 msgid ""
 "MySQL doesn't support renaming a database. Create the new one and move the "
 "tables (RENAME TABLE), or dump and reload."
@@ -86,40 +86,40 @@ msgstr ""
 "MySQL はデータベースのリネームに対応していません。新しいデータベースを作成し"
 "てテーブルを移動する (RENAME TABLE) か、ダンプして再読み込みしてください。"
 
-#: core/engines/mysql.py:667 core/engines/postgres.py:136
+#: core/engines/mysql.py:669 core/engines/postgres.py:138
 #, python-format
 msgid "Unsupported index method: %(method)s"
 msgstr "未対応のインデックス方式: %(method)s"
 
-#: core/engines/mysql.py:669 core/engines/postgres.py:138
+#: core/engines/mysql.py:671 core/engines/postgres.py:140
 #: core/views/tables.py:142
 msgid "Select at least one column to index."
 msgstr "インデックス対象の列を1つ以上選んでください。"
 
-#: core/engines/mysql.py:676 core/engines/postgres.py:858
+#: core/engines/mysql.py:678 core/engines/postgres.py:860
 #: planner_lab/whatif.py:115
 #, python-format
 msgid "No such column(s): %(cols)s"
 msgstr "存在しない列: %(cols)s"
 
-#: core/engines/mysql.py:689
+#: core/engines/mysql.py:691
 msgid "Dropping an index needs the table it's on."
 msgstr "インデックスの削除には、対象のテーブルが必要です。"
 
-#: core/engines/mysql.py:712 core/engines/mysql.py:741
+#: core/engines/mysql.py:714 core/engines/mysql.py:743
 #, python-format
 msgid "Unsupported column type: %(t)s. Pick one of the listed types."
 msgstr "未対応の列型です: %(t)s。一覧の型から選んでください。"
 
-#: core/engines/mysql.py:852
+#: core/engines/mysql.py:866
 msgid "mysqldump timed out."
 msgstr "mysqldump がタイムアウトしました。"
 
-#: core/engines/mysql.py:896 core/engines/postgres.py:1065
+#: core/engines/mysql.py:910 core/engines/postgres.py:1067
 msgid "restore timed out."
 msgstr "リストアがタイムアウトしました。"
 
-#: core/engines/mysql.py:985
+#: core/engines/mysql.py:999
 msgid ""
 "MySQL has no replication slots — it streams the binary log directly, so "
 "there's nothing to create."
@@ -127,23 +127,23 @@ msgstr ""
 "MySQL にレプリケーションスロットはありません — バイナリログを直接ストリーミン"
 "グするため、作成するものはありません。"
 
-#: core/engines/mysql.py:989
+#: core/engines/mysql.py:1003
 msgid "MySQL has no replication slots — nothing to drop."
 msgstr ""
 "MySQL にレプリケーションスロットはありません — 削除するものはありません。"
 
-#: core/engines/mysql.py:1079 core/engines/mysql.py:1084
-#: core/engines/mysql.py:1094 core/engines/postgres.py:1190
+#: core/engines/mysql.py:1093 core/engines/mysql.py:1098
+#: core/engines/mysql.py:1108 core/engines/postgres.py:1204
 #, python-format
 msgid "Unknown setting: %(name)s"
 msgstr "不明な設定: %(name)s"
 
-#: core/engines/postgres.py:983
+#: core/engines/postgres.py:985
 #, python-format
 msgid "Unknown dump format: %(fmt)s"
 msgstr "不明なダンプ形式: %(fmt)s"
 
-#: core/engines/postgres.py:1001
+#: core/engines/postgres.py:1003
 msgid "pg_dump timed out."
 msgstr "pg_dump がタイムアウトしました。"
 
@@ -568,11 +568,11 @@ msgstr[0] "%(n)s DB"
 msgstr[1] "%(n)s DB"
 
 #: templates/partials/_bento.html:87 templates/partials/backups.html:3
-#: templates/workspace.html:64
+#: templates/workspace.html:66
 msgid "Backups"
 msgstr "バックアップ"
 
-#: templates/partials/_bento.html:93 templates/workspace.html:66
+#: templates/partials/_bento.html:93 templates/workspace.html:68
 msgid "Config"
 msgstr "設定"
 
@@ -701,10 +701,10 @@ msgstr "現在このデータベースに接続はありません。"
 msgid "The query behind this view"
 msgstr "このビューの元クエリ"
 
-#: templates/partials/activity.html:124 templates/partials/health.html:16
-#: templates/partials/health.html:58 templates/partials/health.html:101
-#: templates/partials/health.html:149 templates/partials/locks.html:81
-#: templates/partials/replication.html:124
+#: templates/partials/activity.html:124 templates/partials/dependencies.html:42
+#: templates/partials/health.html:16 templates/partials/health.html:58
+#: templates/partials/health.html:101 templates/partials/health.html:149
+#: templates/partials/locks.html:81 templates/partials/replication.html:124
 #: templates/partials/replication.html:163
 msgid "open in SQL →"
 msgstr "SQL で開く →"
@@ -775,6 +775,94 @@ msgstr ""
 "スナップショットはまだありません。drop や truncate の直前に自動で取得されま"
 "す。"
 
+#: templates/partials/dependencies.html:3 templates/workspace.html:64
+msgid "Dependencies"
+msgstr "依存関係"
+
+#: templates/partials/dependencies.html:4
+msgid "foreign-key order · safe truncate/load order · cycle check"
+msgstr "外部キー順 · 安全な truncate/load 順 · 循環チェック"
+
+#: templates/partials/dependencies.html:10
+#, python-format
+msgid ""
+"No foreign keys among your %(counter)s table — they can be truncated or "
+"loaded in any order."
+msgid_plural ""
+"No foreign keys among your %(counter)s tables — they can be truncated or "
+"loaded in any order."
+msgstr[0] "%(counter)s 個のテーブルに外部キーはありません — どの順でも truncate / load できます。"
+msgstr[1] "%(counter)s 個のテーブルに外部キーはありません — どの順でも truncate / load できます。"
+
+#: templates/partials/dependencies.html:19
+msgid "Foreign-key cycle"
+msgstr "外部キーの循環"
+
+#: templates/partials/dependencies.html:22
+msgid ""
+"These tables reference each other in a loop, so there is no order that "
+"satisfies every foreign key. You can't compute a safe TRUNCATE/load order "
+"until the cycle is broken (or you TRUNCATE the whole set together with "
+"CASCADE)."
+msgstr ""
+"これらのテーブルはループ状に参照し合っており、すべての外部キーを満たす順序は存在しません。"
+"循環を解消するまで安全な TRUNCATE / load 順は計算できません（または CASCADE で"
+"一式まとめて TRUNCATE してください）。"
+
+#: templates/partials/dependencies.html:34
+msgid "TRUNCATE / DELETE order"
+msgstr "TRUNCATE / DELETE 順"
+
+#: templates/partials/dependencies.html:36
+msgid "INSERT / load order"
+msgstr "INSERT / load 順"
+
+#: templates/partials/dependencies.html:46
+msgid ""
+"Delete/truncate top to bottom: each table comes before the tables it points "
+"at, so you never orphan a referencing row."
+msgstr ""
+"上から順に delete / truncate: 各テーブルは参照先より先に来るので、参照している行が"
+"孤立することはありません。"
+
+#: templates/partials/dependencies.html:47
+msgid ""
+"Insert/restore top to bottom: each referenced table is created before the "
+"tables that point at it."
+msgstr ""
+"上から順に insert / restore: 参照される側のテーブルが、それを参照するテーブルより"
+"先に作られます。"
+
+#: templates/partials/dependencies.html:71
+msgid ""
+"Self-referential — these tables have a foreign key pointing at themselves. "
+"Their position in the order is fine, but a plain TRUNCATE needs CASCADE (or "
+"delete leaf rows first):"
+msgstr ""
+"自己参照 — これらのテーブルは自分自身を指す外部キーを持ちます。順序上の位置は問題"
+"ありませんが、単純な TRUNCATE には CASCADE が必要です（または末端の行を先に削除）:"
+
+#: templates/partials/dependencies.html:80
+msgid "Foreign keys"
+msgstr "外部キー"
+
+#: templates/partials/dependencies.html:86
+msgid "Child (references)"
+msgstr "子（参照する側）"
+
+#: templates/partials/dependencies.html:87
+msgid "Parent (referenced)"
+msgstr "親（参照される側）"
+
+#: templates/partials/dependencies.html:88 templates/partials/detail.html:53
+#: templates/partials/detail.html:130
+msgid "Columns"
+msgstr "列"
+
+#: templates/partials/dependencies.html:89
+msgid "Constraint"
+msgstr "制約"
+
 #: templates/partials/detail.html:12
 #, python-format
 msgid "%(nc)s column"
@@ -828,10 +916,6 @@ msgstr "インポート"
 #: templates/partials/detail.html:45 templates/partials/objects.html:65
 msgid "rename"
 msgstr "リネーム"
-
-#: templates/partials/detail.html:53 templates/partials/detail.html:130
-msgid "Columns"
-msgstr "列"
 
 #: templates/partials/detail.html:54 templates/partials/health.html:25
 msgid "Indexes"
@@ -1105,7 +1189,7 @@ msgstr "インデックス名"
 msgid "built CONCURRENTLY"
 msgstr "CONCURRENTLY で作成"
 
-#: templates/partials/error.html:2 templates/workspace.html:102
+#: templates/partials/error.html:2 templates/workspace.html:104
 msgid "Could not connect"
 msgstr "接続できませんでした"
 
@@ -2229,14 +2313,14 @@ msgstr ""
 msgid "overview"
 msgstr "概要"
 
-#: templates/workspace.html:71
+#: templates/workspace.html:73
 msgid "— hover for the section menu"
 msgstr "— ホバーでセクションメニュー"
 
-#: templates/workspace.html:96
+#: templates/workspace.html:98
 msgid "+ New connection"
 msgstr "+ 新しい接続"
 
-#: templates/workspace.html:104
+#: templates/workspace.html:106
 msgid "back to connections"
 msgstr "接続一覧に戻る"

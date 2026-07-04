@@ -1,0 +1,105 @@
+{% load i18n %}<div class="space-y-5" x-data="{ mode: 'truncate' }">
+  <div>
+    <h2 class="text-lg font-semibold flex items-center gap-2"><span>🔗</span> {% trans "Dependencies" %}</h2>
+    <p class="text-xs text-zinc-400 mono">{% trans "foreign-key order · safe truncate/load order · cycle check" %}</p>
+  </div>
+
+  {% if not graph.edges %}
+    <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl px-5 py-8">
+      <p class="text-center text-zinc-400 text-sm">
+        {% blocktrans count counter=graph.node_count %}No foreign keys among your {{ counter }} table — they can be truncated or loaded in any order.{% plural %}No foreign keys among your {{ counter }} tables — they can be truncated or loaded in any order.{% endblocktrans %}
+      </p>
+    </section>
+  {% else %}
+
+    {% if graph.has_cycle %}
+      <!-- A cycle means no valid order exists — the footgun this panel exists to catch -->
+      <section class="bg-red-950/40 border border-red-900 rounded-xl overflow-hidden">
+        <div class="px-5 py-2.5 border-b border-red-900/70">
+          <span class="text-xs uppercase tracking-wide text-red-300">{% trans "Foreign-key cycle" %}</span>
+        </div>
+        <div class="px-5 py-4 space-y-3">
+          <p class="text-sm text-red-200/90">{% trans "These tables reference each other in a loop, so there is no order that satisfies every foreign key. You can't compute a safe TRUNCATE/load order until the cycle is broken (or you TRUNCATE the whole set together with CASCADE)." %}</p>
+          <p class="mono text-sm text-red-100 flex flex-wrap items-center gap-x-2 gap-y-1">
+            {% for t in graph.cycle %}<span>{{ t }}</span>{% if not forloop.last %}<span class="text-red-400">→</span>{% endif %}{% endfor %}
+          </p>
+        </div>
+      </section>
+    {% else %}
+      <!-- Safe order: TRUNCATE/DELETE (children first) or its reverse, load (parents first) -->
+      <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+        <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+          <div class="inline-flex rounded-lg border border-zinc-800 overflow-hidden text-xs">
+            <button @click="mode = 'truncate'" :class="mode === 'truncate' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400'"
+                    class="px-3 py-1 hover:text-zinc-200 transition">{% trans "TRUNCATE / DELETE order" %}</button>
+            <button @click="mode = 'load'" :class="mode === 'load' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400'"
+                    class="px-3 py-1 hover:text-zinc-200 transition border-l border-zinc-800">{% trans "INSERT / load order" %}</button>
+          </div>
+          {% if connection.kind != 'mysql' %}
+          <button hx-get="{% url 'query' connection.pk %}?sql={{ fk_sql|urlencode }}"
+                  hx-target="#detail" hx-swap="innerHTML"
+                  class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
+                         hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
+          {% endif %}
+        </div>
+
+        <p class="px-5 pt-3 text-xs text-zinc-500" x-show="mode === 'truncate'">{% trans "Delete/truncate top to bottom: each table comes before the tables it points at, so you never orphan a referencing row." %}</p>
+        <p class="px-5 pt-3 text-xs text-zinc-500" x-show="mode === 'load'" x-cloak>{% trans "Insert/restore top to bottom: each referenced table is created before the tables that point at it." %}</p>
+
+        <ol class="px-5 py-3 space-y-0.5" x-show="mode === 'truncate'">
+          {% for t in graph.order %}
+            <li class="flex items-center gap-3 text-sm">
+              <span class="mono text-xs text-zinc-500 tabular-nums w-7 text-right">{{ forloop.counter }}</span>
+              <span class="mono text-zinc-200">{{ t }}</span>
+            </li>
+          {% endfor %}
+        </ol>
+        <ol class="px-5 py-3 space-y-0.5" x-show="mode === 'load'" x-cloak>
+          {% for t in graph.load_order %}
+            <li class="flex items-center gap-3 text-sm">
+              <span class="mono text-xs text-zinc-500 tabular-nums w-7 text-right">{{ forloop.counter }}</span>
+              <span class="mono text-zinc-200">{{ t }}</span>
+            </li>
+          {% endfor %}
+        </ol>
+      </section>
+    {% endif %}
+
+    {% if graph.self_refs %}
+      <!-- Self-referential FKs: fine for table-level order, but block a plain TRUNCATE -->
+      <section class="bg-amber-950/30 border border-amber-900/60 rounded-xl px-5 py-3">
+        <p class="text-sm text-amber-200/90">{% trans "Self-referential — these tables have a foreign key pointing at themselves. Their position in the order is fine, but a plain TRUNCATE needs CASCADE (or delete leaf rows first):" %}</p>
+        <p class="mono text-sm text-amber-100 mt-1.5 flex flex-wrap gap-x-3 gap-y-1">{% for t in graph.self_refs %}<span>{{ t }}</span>{% endfor %}</p>
+      </section>
+    {% endif %}
+
+    <!-- The edges themselves, so you can see (and audit) the graph -->
+    <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+      <div class="px-5 py-2.5 border-b border-zinc-800">
+        <span class="text-xs uppercase tracking-wide text-zinc-400">
+          {% trans "Foreign keys" %} <span class="mono lowercase text-zinc-500">{{ graph.edge_count }} edge{{ graph.edge_count|pluralize }}</span>
+        </span>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">{% trans "Child (references)" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Parent (referenced)" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Columns" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Constraint" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in graph.edges %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono">{{ e.child }}</td>
+              <td class="px-5 py-2 mono text-zinc-400">{% if e.self_ref %}<span class="text-amber-300">↻ {{ e.parent }}</span>{% else %}{{ e.parent }}{% endif %}</td>
+              <td class="px-5 py-2 mono text-zinc-400">{{ e.columns }}</td>
+              <td class="px-5 py-2 mono text-zinc-500 text-xs">{{ e.constraint }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  {% endif %}
+</div>

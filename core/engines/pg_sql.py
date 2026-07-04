@@ -245,6 +245,30 @@ WHERE s.idx_scan = 0
 ORDER BY pg_relation_size(s.indexrelid) DESC;
 """
 
+# Foreign-key edges: every FK as (constraint, child schema.table, parent
+# schema.table, child columns). Read straight from pg_constraint (contype='f')
+# so composite keys are one row; the child columns come from conkey joined back
+# to pg_attribute, ordered as declared. User schemas only. Feeds the dependency
+# graph (safe TRUNCATE order + cycle detection).
+FK_EDGES_SQL = """
+SELECT con.conname,
+       ns.nspname  || '.' || cl.relname  AS child,
+       fns.nspname || '.' || fcl.relname AS parent,
+       (SELECT string_agg(att.attname, ', ' ORDER BY u.ord)
+          FROM unnest(con.conkey) WITH ORDINALITY AS u(attnum, ord)
+          JOIN pg_catalog.pg_attribute att
+            ON att.attrelid = con.conrelid AND att.attnum = u.attnum) AS columns
+FROM pg_catalog.pg_constraint con
+JOIN pg_catalog.pg_class cl      ON cl.oid = con.conrelid
+JOIN pg_catalog.pg_namespace ns  ON ns.oid = cl.relnamespace
+JOIN pg_catalog.pg_class fcl     ON fcl.oid = con.confrelid
+JOIN pg_catalog.pg_namespace fns ON fns.oid = fcl.relnamespace
+WHERE con.contype = 'f'
+  AND ns.nspname  NOT IN ('pg_catalog', 'information_schema')
+  AND fns.nspname NOT IN ('pg_catalog', 'information_schema')
+ORDER BY child, con.conname;
+"""
+
 # Health — dead tuples + last (auto)vacuum/analyze per table. GREATEST ignores
 # NULLs, so it yields the most recent of the manual/auto pair (or NULL if both).
 VACUUM_STATS_SQL = """

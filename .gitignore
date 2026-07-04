@@ -9,3 +9,8 @@ venv/
 .playwright-mcp/
 /*.png
 *.code-workspace
+
+# Local, never-committed working area (strategy notes, drafts, scratch).
+/local/
+.claude/
+.continue/

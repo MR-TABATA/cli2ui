@@ -23,6 +23,7 @@ from .base import (
     Dump,
     Engine,
     EngineError,
+    ForeignKeyEdge,
     Index,
     LockWait,
     PlanNode,
@@ -48,6 +49,7 @@ from .pg_sql import (
     ACTIVITY_SQL,
     BLOAT_SQL,
     BLOCKING_SQL,
+    FK_EDGES_SQL,
     HEADROOM_SQL,
     LIST_COLUMNS_SQL,
     LIST_DATABASES_SQL,
@@ -1124,6 +1126,18 @@ class PostgresEngine(Engine):
                 return [
                     BloatEstimate(schema=row[0], name=row[1], table_bytes=row[2],
                                   wasted_bytes=row[3], bloat_ratio=float(row[4]))
+                    for row in cur.fetchall()
+                ]
+
+    # --- foreign-key dependency graph ------------------------------------
+
+    def foreign_keys(self) -> list[ForeignKeyEdge]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(FK_EDGES_SQL)
+                return [
+                    ForeignKeyEdge(constraint=row[0], child=row[1],
+                                   parent=row[2], columns=row[3] or "")
                     for row in cur.fetchall()
                 ]
 

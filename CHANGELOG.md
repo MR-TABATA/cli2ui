@@ -17,6 +17,16 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Added
+
+- **Dependencies panel** — the foreign-key graph of the current database,
+  topologically sorted (`graphlib.TopologicalSorter`) into a safe TRUNCATE/DELETE
+  order and its reverse (the safe INSERT/load order). Foreign-key cycles are
+  detected and named (no valid order exists), self-referential keys are flagged,
+  and the edges are listed for inspection. Read-only — nothing is truncated; the
+  order is only computed and shown. Works for both PostgreSQL (`pg_constraint`)
+  and MySQL (`information_schema.KEY_COLUMN_USAGE`).
+
 ## [1.0.0] - 2026-06-20
 
 First stable release: cli2ui becomes a multi-database ops console. A full MySQL

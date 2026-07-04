@@ -1,6 +1,7 @@
 """Engine interface shared by all database backends."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from graphlib import CycleError, TopologicalSorter
 
 
 class EngineError(Exception):
@@ -422,6 +423,88 @@ class BloatEstimate:
         return round(self.wasted_bytes / self.table_bytes * 100) if self.table_bytes else 0
 
 
+@dataclass
+class ForeignKeyEdge:
+    """One foreign-key relationship: `child` references `parent`. An edge of the
+    dependency graph used to order safe TRUNCATE/load and to spot FK cycles.
+    A self-referential FK (child == parent) is flagged rather than dropped
+    silently — it doesn't constrain table-level order but does block a plain
+    TRUNCATE, so it's worth surfacing."""
+
+    constraint: str
+    child: str          # qualified "schema.table" that holds the FK
+    parent: str         # qualified "schema.table" it references
+    columns: str        # child column(s), comma-joined, for display
+
+    @property
+    def self_ref(self) -> bool:
+        return self.child == self.parent
+
+
+@dataclass
+class DependencyGraph:
+    """The foreign-key graph of one database, topologically sorted.
+
+    `order` is a safe TRUNCATE/DELETE order — children (referencing tables)
+    before parents (referenced tables) — so you never delete a row another table
+    still points at. `load_order` is the reverse: the safe INSERT/restore order.
+    When the FKs form a cycle no such order exists, so both lists are empty and
+    `cycle` names the tables caught in it (the footgun this surfaces for free).
+    Read-only: nothing is truncated, the order is only computed and shown."""
+
+    edges: list[ForeignKeyEdge]
+    order: list[str]              # safe TRUNCATE order: children first; [] if cyclic
+    load_order: list[str]         # safe INSERT order: parents first; [] if cyclic
+    self_refs: list[str]          # tables with a self-referential FK
+    cycle: list[str]              # tables forming a dependency cycle, or []
+    node_count: int               # user tables considered
+
+    @property
+    def has_cycle(self) -> bool:
+        return bool(self.cycle)
+
+    @property
+    def edge_count(self) -> int:
+        return len(self.edges)
+
+
+def build_dependency_graph(tables: list[str], edges: list[ForeignKeyEdge]) -> DependencyGraph:
+    """Topologically sort the FK graph. Engine-agnostic: the engines supply the
+    table list and edges (from their catalogs); the ordering is pure Python.
+
+    `graphlib.TopologicalSorter` does the work — including cycle detection, which
+    it raises as `CycleError` (with the offending nodes) rather than making us
+    hand-roll a visited/back-edge walk. Self-referential FKs are excluded from
+    the sort (a node can't be its own predecessor without tripping a false cycle)
+    and reported separately."""
+    self_refs = sorted({e.child for e in edges if e.self_ref})
+    sorter: TopologicalSorter = TopologicalSorter()
+    # Add every table first so isolated ones (no FK in or out) still appear.
+    for t in tables:
+        sorter.add(t)
+    for e in edges:
+        if e.self_ref:
+            continue  # not a table-level ordering constraint; tracked in self_refs
+        # child depends on parent → static_order() yields the parent first.
+        sorter.add(e.child, e.parent)
+    try:
+        load_order = list(sorter.static_order())
+        cycle: list[str] = []
+    except CycleError as exc:
+        # CycleError.args == (message, [n1, n2, …, n1]); the second item is the
+        # node list of the cycle, first == last.
+        load_order = []
+        cycle = list(exc.args[1]) if len(exc.args) > 1 else []
+    return DependencyGraph(
+        edges=edges,
+        order=list(reversed(load_order)),  # children before parents
+        load_order=load_order,             # parents before children
+        self_refs=self_refs,
+        cycle=cycle,
+        node_count=len(tables),
+    )
+
+
 class Engine:
     """Base class. One Engine wraps one saved Connection."""
 
@@ -685,6 +768,22 @@ class Engine:
     def bloat_estimates(self, limit: int = 20) -> list[BloatEstimate]:
         """Estimated table bloat from pg_stats (no table scan). Approximate."""
         raise NotImplementedError
+
+    # --- foreign-key dependency graph --------------------------------------
+
+    def foreign_keys(self) -> list[ForeignKeyEdge]:
+        """Every foreign-key relationship in the current database, as child →
+        parent edges. The raw material for the dependency graph."""
+        raise NotImplementedError
+
+    def dependency_graph(self) -> DependencyGraph:
+        """Order the tables by their foreign keys: a safe TRUNCATE order (and its
+        reverse, the safe load order), plus any FK cycle. Read-only — it only
+        reads the catalog and computes; nothing is truncated. The ordering logic
+        is shared (build_dependency_graph); engines only supply foreign_keys()
+        and the table list, so this works the same for any FK-aware engine."""
+        tables = [t.qualified for t in self.list_tables()]
+        return build_dependency_graph(tables, self.foreign_keys())
 
     # --- server configuration (postgresql.conf, via SQL) -------------------
 

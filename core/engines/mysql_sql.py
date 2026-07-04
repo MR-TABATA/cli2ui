@@ -28,6 +28,24 @@ FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s;
 """
 
+# Foreign-key edges within one database: (constraint, child schema.table,
+# parent schema.table, child columns). KEY_COLUMN_USAGE has one row per FK
+# column, so a composite key is folded back with GROUP_CONCAT in declared order.
+# Scoped to the connection's database; feeds the dependency graph. The reported
+# schema is the database name, matching how LIST_TABLES_SQL reports it.
+FK_EDGES_SQL = """
+SELECT kcu.CONSTRAINT_NAME,
+       CONCAT(kcu.TABLE_SCHEMA, '.', kcu.TABLE_NAME)                       AS child,
+       CONCAT(kcu.REFERENCED_TABLE_SCHEMA, '.', kcu.REFERENCED_TABLE_NAME) AS parent,
+       GROUP_CONCAT(kcu.COLUMN_NAME ORDER BY kcu.ORDINAL_POSITION SEPARATOR ', ') AS columns
+FROM information_schema.KEY_COLUMN_USAGE kcu
+WHERE kcu.TABLE_SCHEMA = %s
+  AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+GROUP BY kcu.CONSTRAINT_NAME, kcu.TABLE_SCHEMA, kcu.TABLE_NAME,
+         kcu.REFERENCED_TABLE_SCHEMA, kcu.REFERENCED_TABLE_NAME
+ORDER BY child, kcu.CONSTRAINT_NAME;
+"""
+
 # The Web equivalent of `DESCRIBE table`: column name, full type, nullability,
 # default, comment, and generated-column info. COLUMN_TYPE carries the precise
 # type ("varchar(255)", "int unsigned"), richer than DATA_TYPE alone. EXTRA holds

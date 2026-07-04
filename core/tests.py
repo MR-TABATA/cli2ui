@@ -19,7 +19,8 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.engines import EngineError, get_engine
 from core.engines.base import (
-    Activity, Column, ConnectionHeadroom, Index, PlanNode, Setting, Table,
+    Activity, Column, ConnectionHeadroom, ForeignKeyEdge, Index, PlanNode,
+    Setting, Table, build_dependency_graph,
 )
 from core.engines.postgres import (
     INDEX_METHODS,
@@ -257,6 +258,63 @@ class BuildCreateIndexSqlValidationTests(SimpleTestCase):
     def test_no_columns_rejected(self):
         with self.assertRaises(EngineError):
             build_create_index_sql("public", "t", [])
+
+
+def fk(child, parent, columns="x_id", constraint="fk"):
+    """Terse ForeignKeyEdge builder for tests."""
+    return ForeignKeyEdge(constraint=constraint, child=child, parent=parent,
+                          columns=columns)
+
+
+class DependencyGraphTests(SimpleTestCase):
+    """The FK topological sort — pure Python (graphlib), no DB. Engine-agnostic:
+    both engines feed the same build_dependency_graph()."""
+
+    def test_linear_chain_orders_parents_before_children(self):
+        # order_items → orders → customers; "logs" is isolated.
+        tables = ["public.customers", "public.orders",
+                  "public.order_items", "public.logs"]
+        edges = [fk("public.orders", "public.customers"),
+                 fk("public.order_items", "public.orders")]
+        g = build_dependency_graph(tables, edges)
+        self.assertFalse(g.has_cycle)
+        load = g.load_order
+        # Parents come before the tables that reference them (safe insert order).
+        self.assertLess(load.index("public.customers"), load.index("public.orders"))
+        self.assertLess(load.index("public.orders"), load.index("public.order_items"))
+        # TRUNCATE order is the exact reverse.
+        self.assertEqual(g.order, list(reversed(load)))
+        # Isolated tables are still present.
+        self.assertIn("public.logs", load)
+        self.assertEqual(g.node_count, 4)
+
+    def test_cycle_is_detected_and_leaves_no_order(self):
+        tables = ["public.a", "public.b"]
+        edges = [fk("public.a", "public.b"), fk("public.b", "public.a")]
+        g = build_dependency_graph(tables, edges)
+        self.assertTrue(g.has_cycle)
+        self.assertEqual(g.order, [])
+        self.assertEqual(g.load_order, [])
+        # The offending tables are named.
+        self.assertIn("public.a", g.cycle)
+        self.assertIn("public.b", g.cycle)
+
+    def test_self_reference_is_flagged_not_a_cycle(self):
+        tables = ["public.employees"]
+        edges = [fk("public.employees", "public.employees", columns="manager_id")]
+        g = build_dependency_graph(tables, edges)
+        self.assertFalse(g.has_cycle)
+        self.assertEqual(g.self_refs, ["public.employees"])
+        # The table still appears exactly once in the order.
+        self.assertEqual(g.order, ["public.employees"])
+        self.assertTrue(edges[0].self_ref)
+
+    def test_no_edges_orders_all_tables_freely(self):
+        tables = ["public.a", "public.b", "public.c"]
+        g = build_dependency_graph(tables, [])
+        self.assertFalse(g.has_cycle)
+        self.assertEqual(sorted(g.order), sorted(tables))
+        self.assertEqual(g.edge_count, 0)
 
 
 class SessionConnectionReuseTests(SimpleTestCase):
