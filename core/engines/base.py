@@ -467,8 +467,9 @@ class ForeignKeyEdge:
     """One foreign-key relationship: `child` references `parent`. An edge of the
     dependency graph used to order safe TRUNCATE/load and to spot FK cycles.
     A self-referential FK (child == parent) is flagged rather than dropped
-    silently — it doesn't constrain table-level order but does block a plain
-    TRUNCATE, so it's worth surfacing."""
+    silently — it doesn't constrain table-level order (a single-table TRUNCATE
+    or full-table DELETE clears every row at once and satisfies it), but it does
+    constrain row-level deletes, so it's worth surfacing."""
 
     constraint: str
     child: str          # qualified "schema.table" that holds the FK
