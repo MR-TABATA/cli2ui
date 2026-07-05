@@ -1,7 +1,7 @@
 {% load i18n %}<div class="space-y-5">
   <div>
     <h2 class="text-lg font-semibold flex items-center gap-2"><span>🩺</span> {% trans "Health" %}</h2>
-    <p class="text-xs text-zinc-400 mono">{% trans "disk usage · unused indexes · dead rows" %}</p>
+    <p class="text-xs text-zinc-400 mono">{% trans "disk usage · unused / redundant / unindexed-FK · dead rows" %}</p>
   </div>
 
   <!-- Table sizes: \dt+ sorted by total on-disk footprint -->
@@ -86,6 +86,101 @@
       </table>
     {% else %}
       <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No unused indexes — every index has been used. 🎉" %}</p>
+    {% endif %}
+  </section>
+
+  <!-- FK missing index: FK columns that aren't the leading key of any index -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-zinc-400">
+        {% trans "Unindexed foreign keys" %} <span class="mono lowercase text-zinc-500">FK columns with no supporting index</span>
+      </span>
+      {% if supports_fk_index %}
+      <button hx-get="{% url 'query' connection.pk %}?sql={{ fk_index_sql|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML"
+              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
+                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
+      {% endif %}
+    </div>
+    {% if not supports_fk_index %}
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "Not applicable to this engine — InnoDB requires and auto-creates an index on every foreign key's columns, so there's never one missing." %}</p>
+    {% elif fk_missing %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Columns" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "References" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Constraint" %}</th>
+            <th class="px-5 py-2 font-medium w-px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in fk_missing %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono">{{ f.qualified }}</td>
+              <td class="px-5 py-2 mono text-zinc-300">{{ f.columns }}</td>
+              <td class="px-5 py-2 mono text-zinc-400">{{ f.references }}</td>
+              <td class="px-5 py-2 mono text-zinc-500 text-xs">{{ f.constraint }}</td>
+              <td class="px-5 py-2 text-right whitespace-nowrap">
+                <button hx-get="{% url 'table_detail' connection.pk %}?schema={{ f.schema|urlencode }}&table={{ f.table|urlencode }}"
+                        hx-target="#detail" hx-swap="innerHTML"
+                        class="text-xs text-zinc-400 hover:text-zinc-200">{% trans "manage →" %}</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
+        {% blocktrans %}PostgreSQL doesn't auto-index the referencing side of a foreign key, so FK checks, cascade deletes and joins to the parent scan the whole table. A fact, not a rule — index if these paths are hot.{% endblocktrans %}
+      </div>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "Every foreign key has a supporting index. 🎉" %}</p>
+    {% endif %}
+  </section>
+
+  <!-- Redundant indexes: leading-prefix of / identical to another index -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800">
+      <span class="text-xs uppercase tracking-wide text-zinc-400">
+        {% trans "Redundant indexes" %} <span class="mono lowercase text-zinc-500">covered by another index on the same table</span>
+      </span>
+    </div>
+    {% if duplicates %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Redundant index" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Covered by" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Size" %}</th>
+            <th class="px-5 py-2 font-medium w-px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in duplicates %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono text-zinc-400">{{ d.qualified }}</td>
+              <td class="px-5 py-2 mono">
+                {{ d.name }} <span class="text-zinc-500">({{ d.columns }})</span>
+                {% if d.identical %}<span class="ml-1 text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">{% trans "identical" %}</span>{% endif %}
+              </td>
+              <td class="px-5 py-2 mono text-zinc-400">{{ d.covered_by }} <span class="text-zinc-600">({{ d.covered_by_columns }})</span></td>
+              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ d.size|default:"—" }}</td>
+              <td class="px-5 py-2 text-right whitespace-nowrap">
+                <button hx-get="{% url 'table_detail' connection.pk %}?schema={{ d.schema|urlencode }}&table={{ d.table|urlencode }}"
+                        hx-target="#detail" hx-swap="innerHTML"
+                        class="text-xs text-zinc-400 hover:text-zinc-200">{% trans "manage →" %}</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
+        {% blocktrans %}A non-unique index whose columns are a leading prefix of (or identical to) another — the wider index already serves its lookups. Dropping the redundant one is your call.{% endblocktrans %}
+      </div>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No redundant indexes — no index is covered by another. 🎉" %}</p>
     {% endif %}
   </section>
 

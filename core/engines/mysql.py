@@ -41,6 +41,7 @@ from .base import (
     Column,
     ConnectionHeadroom,
     Database,
+    DuplicateIndex,
     Dump,
     Engine,
     EngineError,
@@ -59,6 +60,7 @@ from .base import (
 from .mysql_sql import (
     ACTIVITY_SQL,
     BLOCKING_SQL,
+    DUPLICATE_INDEX_SQL,
     FK_EDGES_SQL,
     LIST_COLUMNS_SQL,
     LIST_DATABASES_SQL,
@@ -221,8 +223,11 @@ class MysqlEngine(Engine):
     # card, and callers gate engine-specific behaviour on it. Lock waits are NOT
     # here — they're implemented (list_blocking) and raise when they can't be
     # determined, never silently report "nothing".
+    # "fk_index" (FK columns missing an index) is not applicable: InnoDB requires
+    # and auto-creates an index on every foreign key's referencing columns, so
+    # this can never report anything — a structural absence, not "unimplemented".
     UNSUPPORTED = frozenset({"vacuum", "bloat", "schemas",
-                             "replication_slots", "db_template"})
+                             "replication_slots", "db_template", "fk_index"})
 
     # When inside session(), the one open connection reused for every probe;
     # otherwise None and each _connect() dials its own. Mirrors PostgresEngine.
@@ -818,6 +823,21 @@ class MysqlEngine(Engine):
 
     def bloat_estimates(self, limit: int = 20):
         return []   # "bloat" not applicable — no MySQL pg_stats-style estimate
+
+    def fk_missing_indexes(self):
+        return []   # "fk_index" not applicable — InnoDB auto-indexes FK columns
+
+    def duplicate_indexes(self) -> list[DuplicateIndex]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(DUPLICATE_INDEX_SQL, (self.connection.dbname,))
+                return [
+                    DuplicateIndex(schema=row[0], table=row[1], name=row[2],
+                                   columns=row[3] or "", covered_by=row[4],
+                                   covered_by_columns=row[5] or "",
+                                   identical=bool(row[6]), size=None)
+                    for row in cur.fetchall()
+                ]
 
     # --- foreign-key dependency graph ------------------------------------
 

@@ -131,8 +131,11 @@ table detail in the main pane).
   with the holder, plus one-click cancel / kill of the blocker
 - ✅ Replication: readiness check (`wal_level` / `max_wal_senders`) + WAL position,
   connected standbys (`pg_stat_replication`), and slot create / drop
-- ✅ Health: bloat estimate — wasted table space from a stats-only query
-  (no scan), next to the dead-rows / vacuum card
+- ✅ Health: table sizes, unused indexes, **unindexed foreign keys** (FK columns
+  that back no index — Postgres doesn't auto-create one), **redundant indexes**
+  (a non-unique index that's a leading prefix of, or identical to, another),
+  dead-rows / vacuum, and a stats-only bloat estimate — read-only catalog facts,
+  no advice
 - ✅ Dependencies: the foreign-key graph topologically sorted (`graphlib`) into a
   safe TRUNCATE/DELETE order and its reverse (the load order), with foreign-key
   cycles detected and named — read-only, nothing is truncated (PostgreSQL & MySQL)

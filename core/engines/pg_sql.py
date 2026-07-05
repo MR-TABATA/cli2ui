@@ -269,6 +269,84 @@ WHERE con.contype = 'f'
 ORDER BY child, con.conname;
 """
 
+# Health — foreign keys with no supporting index on the referencing side.
+# Postgres does not auto-create one (unlike MySQL/InnoDB), so FK checks / cascade
+# deletes / joins to the parent seq-scan. Flagged when the FK columns (con.conkey,
+# in order) are not the leading key columns of ANY index on the child table. The
+# leading slice is taken from indkey (an int2vector) via its text form to dodge
+# 0-based vector indexing; `@>` over equal-length arrays = set equality, and the
+# indnkeyatts guard keeps INCLUDE (non-key) columns out of the comparison.
+FK_MISSING_INDEX_SQL = """
+SELECT ns.nspname AS schema,
+       cl.relname AS table,
+       con.conname AS constraint,
+       (SELECT string_agg(att.attname, ', ' ORDER BY u.ord)
+          FROM unnest(con.conkey) WITH ORDINALITY AS u(attnum, ord)
+          JOIN pg_catalog.pg_attribute att
+            ON att.attrelid = con.conrelid AND att.attnum = u.attnum) AS columns,
+       fns.nspname || '.' || fcl.relname AS refs
+FROM pg_catalog.pg_constraint con
+JOIN pg_catalog.pg_class cl      ON cl.oid = con.conrelid
+JOIN pg_catalog.pg_namespace ns  ON ns.oid = cl.relnamespace
+JOIN pg_catalog.pg_class fcl     ON fcl.oid = con.confrelid
+JOIN pg_catalog.pg_namespace fns ON fns.oid = fcl.relnamespace
+WHERE con.contype = 'f'
+  AND ns.nspname NOT IN ('pg_catalog', 'information_schema')
+  AND NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_index idx
+    WHERE idx.indrelid = con.conrelid
+      AND cardinality(con.conkey) <= idx.indnkeyatts
+      AND (string_to_array(idx.indkey::text, ' ')::int2[])[1:cardinality(con.conkey)]
+          @> con.conkey
+  )
+ORDER BY 1, 2, 3;
+"""
+
+# Health — redundant indexes: a non-unique index whose leading key columns are a
+# prefix of (or identical to) another index on the same table + access method.
+# Partial (indpred) and expression (indexprs) indexes are excluded — their keycol
+# list would misrepresent them. keycols is the leading key columns as attnums
+# (indkey text form, sliced to indnkeyatts); the prefix test is exact and ordered.
+# A unique index is never reported as the redundant one (it enforces uniqueness);
+# for an exact-duplicate pair the indexrelid tie-break lists it once.
+DUPLICATE_INDEX_SQL = """
+WITH idx AS (
+  SELECT i.indexrelid, i.indrelid, i.indisunique,
+         n.nspname AS sch, c.relname AS tbl, ic.relname AS name,
+         am.amname AS method,
+         (string_to_array(i.indkey::text, ' ')::int2[])[1:i.indnkeyatts] AS keycols,
+         (SELECT string_agg(att.attname, ', ' ORDER BY k.ord)
+            FROM unnest((string_to_array(i.indkey::text, ' ')::int2[])[1:i.indnkeyatts])
+                 WITH ORDINALITY AS k(attnum, ord)
+            JOIN pg_catalog.pg_attribute att
+              ON att.attrelid = i.indrelid AND att.attnum = k.attnum) AS colnames,
+         pg_relation_size(i.indexrelid) AS bytes
+  FROM pg_catalog.pg_index i
+  JOIN pg_catalog.pg_class c   ON c.oid = i.indrelid
+  JOIN pg_catalog.pg_class ic  ON ic.oid = i.indexrelid
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  JOIN pg_catalog.pg_am am      ON am.oid = ic.relam
+  WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+    AND i.indpred IS NULL
+    AND i.indexprs IS NULL
+)
+SELECT a.sch, a.tbl,
+       a.name AS redundant, a.colnames AS cols,
+       b.name AS covered_by, b.colnames AS covered_by_cols,
+       (cardinality(a.keycols) = cardinality(b.keycols)) AS identical,
+       pg_size_pretty(a.bytes) AS size
+FROM idx a
+JOIN idx b
+  ON a.indrelid = b.indrelid
+ AND a.indexrelid <> b.indexrelid
+ AND a.method = b.method
+ AND NOT a.indisunique
+ AND b.keycols[1:cardinality(a.keycols)] = a.keycols
+ AND (cardinality(a.keycols) < cardinality(b.keycols)
+      OR a.indexrelid < b.indexrelid)
+ORDER BY 1, 2, 3;
+"""
+
 # Health — dead tuples + last (auto)vacuum/analyze per table. GREATEST ignores
 # NULLs, so it yields the most recent of the manual/auto pair (or NULL if both).
 VACUUM_STATS_SQL = """

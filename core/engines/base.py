@@ -424,6 +424,45 @@ class BloatEstimate:
 
 
 @dataclass
+class FKMissingIndex:
+    """A foreign key whose referencing (child) columns are not the leading columns
+    of any index. PostgreSQL does not auto-create one, so FK validation, cascade
+    deletes, and joins back to the parent fall back to a sequential scan. A
+    catalog fact (the FK columns aren't any index's leading key), not advice."""
+
+    schema: str
+    table: str
+    constraint: str
+    columns: str          # the FK (child) columns, comma-joined
+    references: str       # parent qualified name, for context
+
+    @property
+    def qualified(self) -> str:
+        return f"{self.schema}.{self.table}"
+
+
+@dataclass
+class DuplicateIndex:
+    """A non-unique index whose key columns are a leading prefix of (or identical
+    to) another index on the same table — so the wider index already serves its
+    lookups and it is redundant. A catalog fact; whether to drop it is the user's
+    call (this never advises)."""
+
+    schema: str
+    table: str
+    name: str                 # the redundant index
+    columns: str              # its key columns
+    covered_by: str           # the wider/identical index that already covers it
+    covered_by_columns: str
+    identical: bool           # True = exactly the same columns (a pure duplicate)
+    size: str | None          # pretty on-disk size of the redundant index, if known
+
+    @property
+    def qualified(self) -> str:
+        return f"{self.schema}.{self.table}"
+
+
+@dataclass
 class ForeignKeyEdge:
     """One foreign-key relationship: `child` references `parent`. An edge of the
     dependency graph used to order safe TRUNCATE/load and to spot FK cycles.
@@ -767,6 +806,18 @@ class Engine:
 
     def bloat_estimates(self, limit: int = 20) -> list[BloatEstimate]:
         """Estimated table bloat from pg_stats (no table scan). Approximate."""
+        raise NotImplementedError
+
+    def fk_missing_indexes(self) -> list[FKMissingIndex]:
+        """Foreign keys whose referencing columns have no supporting index — the
+        FK columns aren't the leading key of any index on the child table. A
+        catalog fact. (Some engines auto-index FK columns and declare this
+        UNSUPPORTED, e.g. MySQL/InnoDB.)"""
+        raise NotImplementedError
+
+    def duplicate_indexes(self) -> list[DuplicateIndex]:
+        """Non-unique indexes made redundant by another index on the same table
+        (identical columns, or a leading prefix of a wider one). A catalog fact."""
         raise NotImplementedError
 
     # --- foreign-key dependency graph --------------------------------------

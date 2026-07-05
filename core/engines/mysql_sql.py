@@ -46,6 +46,37 @@ GROUP BY kcu.CONSTRAINT_NAME, kcu.TABLE_SCHEMA, kcu.TABLE_NAME,
 ORDER BY child, kcu.CONSTRAINT_NAME;
 """
 
+# Health — redundant indexes within one database: a non-unique index whose
+# ordered columns are a leading prefix of (or identical to) another index on the
+# same table. Each index's columns are folded into a comma-terminated string
+# (trailing ',' makes the prefix test boundary-safe: "a," is a prefix of "a,b,"
+# but not of "ab,"); the prefix test is LEFT(...) equality, so column names can
+# contain LIKE wildcards without escaping. Non-unique only (a unique index isn't
+# redundant), BTREE only, and the length/name tie-break lists an exact-duplicate
+# pair once. (FK-missing-index has no MySQL card: InnoDB auto-indexes FK columns.)
+DUPLICATE_INDEX_SQL = """
+WITH idx AS (
+  SELECT TABLE_SCHEMA AS sch, TABLE_NAME AS tbl, INDEX_NAME AS name,
+         MAX(NON_UNIQUE) AS non_unique,
+         CONCAT(GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR ','), ',') AS cols
+  FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA = %s AND INDEX_TYPE = 'BTREE'
+  GROUP BY TABLE_SCHEMA, TABLE_NAME, INDEX_NAME
+)
+SELECT a.sch, a.tbl,
+       a.name AS redundant, TRIM(TRAILING ',' FROM a.cols) AS cols,
+       b.name AS covered_by, TRIM(TRAILING ',' FROM b.cols) AS covered_by_cols,
+       (a.cols = b.cols) AS identical
+FROM idx a
+JOIN idx b
+  ON a.sch = b.sch AND a.tbl = b.tbl AND a.name <> b.name
+ AND a.non_unique = 1
+ AND LEFT(b.cols, CHAR_LENGTH(a.cols)) = a.cols
+ AND (CHAR_LENGTH(a.cols) < CHAR_LENGTH(b.cols)
+      OR (a.cols = b.cols AND a.name < b.name))
+ORDER BY a.tbl, a.name;
+"""
+
 # The Web equivalent of `DESCRIBE table`: column name, full type, nullability,
 # default, comment, and generated-column info. COLUMN_TYPE carries the precise
 # type ("varchar(255)", "int unsigned"), richer than DATA_TYPE alone. EXTRA holds

@@ -20,9 +20,11 @@ from .base import (
     Column,
     ConnectionHeadroom,
     Database,
+    DuplicateIndex,
     Dump,
     Engine,
     EngineError,
+    FKMissingIndex,
     ForeignKeyEdge,
     Index,
     LockWait,
@@ -49,7 +51,9 @@ from .pg_sql import (
     ACTIVITY_SQL,
     BLOAT_SQL,
     BLOCKING_SQL,
+    DUPLICATE_INDEX_SQL,
     FK_EDGES_SQL,
+    FK_MISSING_INDEX_SQL,
     HEADROOM_SQL,
     LIST_COLUMNS_SQL,
     LIST_DATABASES_SQL,
@@ -1126,6 +1130,28 @@ class PostgresEngine(Engine):
                 return [
                     BloatEstimate(schema=row[0], name=row[1], table_bytes=row[2],
                                   wasted_bytes=row[3], bloat_ratio=float(row[4]))
+                    for row in cur.fetchall()
+                ]
+
+    def fk_missing_indexes(self) -> list[FKMissingIndex]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(FK_MISSING_INDEX_SQL)
+                return [
+                    FKMissingIndex(schema=row[0], table=row[1], constraint=row[2],
+                                   columns=row[3] or "", references=row[4])
+                    for row in cur.fetchall()
+                ]
+
+    def duplicate_indexes(self) -> list[DuplicateIndex]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(DUPLICATE_INDEX_SQL)
+                return [
+                    DuplicateIndex(schema=row[0], table=row[1], name=row[2],
+                                   columns=row[3] or "", covered_by=row[4],
+                                   covered_by_columns=row[5] or "",
+                                   identical=row[6], size=row[7])
                     for row in cur.fetchall()
                 ]
 

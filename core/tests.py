@@ -19,8 +19,8 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.engines import EngineError, get_engine
 from core.engines.base import (
-    Activity, Column, ConnectionHeadroom, ForeignKeyEdge, Index, PlanNode,
-    Setting, Table, build_dependency_graph,
+    Activity, Column, ConnectionHeadroom, DuplicateIndex, FKMissingIndex,
+    ForeignKeyEdge, Index, PlanNode, Setting, Table, build_dependency_graph,
 )
 from core.engines.postgres import (
     INDEX_METHODS,
@@ -315,6 +315,29 @@ class DependencyGraphTests(SimpleTestCase):
         self.assertFalse(g.has_cycle)
         self.assertEqual(sorted(g.order), sorted(tables))
         self.assertEqual(g.edge_count, 0)
+
+
+class IndexHealthTests(SimpleTestCase):
+    """FK-missing / redundant-index detection. The SQL correctness is exercised
+    against a live PostgreSQL in the integration checks; here we lock in the
+    engine-capability contract and the display helpers (no DB)."""
+
+    def test_mysql_declares_fk_index_not_applicable(self):
+        # InnoDB auto-indexes FK columns, so "FK missing index" is a structural
+        # absence (UNSUPPORTED), never a false-empty. duplicate_index is NOT in
+        # the set — MySQL can have redundant indexes, so it must be answered.
+        from core.engines.mysql import MysqlEngine
+        self.assertIn("fk_index", MysqlEngine.UNSUPPORTED)
+        self.assertNotIn("duplicate_index", MysqlEngine.UNSUPPORTED)
+
+    def test_qualified_names(self):
+        f = FKMissingIndex(schema="public", table="orders", constraint="fk",
+                           columns="customer_id", references="public.customers")
+        self.assertEqual(f.qualified, "public.orders")
+        d = DuplicateIndex(schema="s", table="t", name="t_a", columns="a",
+                           covered_by="t_ab", covered_by_columns="a, b",
+                           identical=False, size="8192 bytes")
+        self.assertEqual(d.qualified, "s.t")
 
 
 class SessionConnectionReuseTests(SimpleTestCase):

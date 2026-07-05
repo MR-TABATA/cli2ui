@@ -288,13 +288,32 @@ def dependencies(request, pk):
     )
 
 
+FK_MISSING_INDEX_SHOW_SQL = (
+    "SELECT con.conrelid::regclass AS table, con.conname AS constraint,\n"
+    "       pg_get_constraintdef(con.oid) AS definition\n"
+    "FROM pg_constraint con\n"
+    "WHERE con.contype = 'f'\n"
+    "  AND NOT EXISTS (\n"
+    "    SELECT 1 FROM pg_index idx\n"
+    "    WHERE idx.indrelid = con.conrelid\n"
+    "      AND cardinality(con.conkey) <= idx.indnkeyatts\n"
+    "      AND (string_to_array(idx.indkey::text, ' ')::int2[])"
+    "[1:cardinality(con.conkey)] @> con.conkey\n"
+    "  )\n"
+    "ORDER BY 1, 2;"
+)
+
+
 def health(request, pk):
-    """Health panel: table sizes, unused indexes, dead-tuple/vacuum, bloat."""
+    """Health panel: table sizes, unused/redundant indexes, FK indexes,
+    dead-tuple/vacuum, bloat."""
     connection = get_object_or_404(Connection, pk=pk)
     try:
         engine = get_engine(connection)
         sizes = engine.table_sizes()
         unused = engine.unused_indexes()
+        fk_missing = engine.fk_missing_indexes() if engine.supports("fk_index") else []
+        duplicates = engine.duplicate_indexes()
         vacuum = engine.vacuum_stats()
         bloat = engine.bloat_estimates()
     except EngineError as exc:
@@ -307,14 +326,19 @@ def health(request, pk):
             "sizes": sizes,
             "max_bytes": max((s.total_bytes for s in sizes), default=0),
             "unused": unused,
+            "fk_missing": fk_missing,
+            "duplicates": duplicates,
             "vacuum": vacuum,
             "bloat": bloat,
-            # Some engines have no vacuum/bloat concept (e.g. MySQL/InnoDB): the
+            # Some engines have no vacuum/bloat concept (e.g. MySQL/InnoDB), and
+            # MySQL auto-indexes FK columns so "FK missing index" can't apply: the
             # panel shows a "not applicable here" note instead of an empty card.
             "supports_vacuum": engine.supports("vacuum"),
             "supports_bloat": engine.supports("bloat"),
+            "supports_fk_index": engine.supports("fk_index"),
             "sizes_sql": SIZES_SHOW_SQL,
             "unused_sql": UNUSED_SHOW_SQL,
+            "fk_index_sql": FK_MISSING_INDEX_SHOW_SQL,
             "vacuum_sql": VACUUM_SHOW_SQL,
             "bloat_sql": BLOAT_SHOW_SQL,
         },

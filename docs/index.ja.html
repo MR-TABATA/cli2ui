@@ -240,8 +240,8 @@
         <p class="mt-2 text-sm text-zinc-400 leading-relaxed">準備状況チェック（<span class="mono">wal_level</span> / <span class="mono">max_wal_senders</span>）+ WAL 位置、接続中のスタンバイ、スロットの作成 / 削除。</p>
       </div>
       <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">ヘルス · bloat 推定</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">統計ベース（スキャンなし）のクエリでテーブルの無駄領域を推定。dead-rows / vacuum カードの隣に表示。</p>
+        <h3 class="font-medium text-zinc-100">ヘルス · インデックス / bloat の事実</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">テーブルサイズ・未使用インデックス・インデックスのない外部キー・冗長（重複 / 先頭一致）インデックス・dead-rows / vacuum・統計ベースの bloat 推定。すべて read-only の catalog 事実で、助言はしません。</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">依存関係</h3>

@@ -17,6 +17,17 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Added
+
+- **Health: unindexed foreign keys & redundant indexes** — two new read-only,
+  catalog-fact cards on the Health panel. "Unindexed foreign keys" flags FK
+  columns that aren't the leading key of any index (PostgreSQL doesn't auto-create
+  one, so FK checks / cascade deletes / joins to the parent seq-scan; MySQL/InnoDB
+  auto-indexes FK columns, so the card shows "not applicable"). "Redundant
+  indexes" flags a non-unique index whose columns are a leading prefix of, or
+  identical to, another index on the same table. Neither advises — they only
+  surface the fact. PostgreSQL and MySQL.
+
 ## [1.1.0] - 2026-07-04
 
 ### Added
