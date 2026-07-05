@@ -17,6 +17,8 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-05
+
 ### Added
 
 - **Health: unindexed foreign keys & redundant indexes** — two new read-only,
@@ -143,7 +145,8 @@ reserved for multi-DB support).
 - Internationalisation (English / Japanese).
 - Workspace overview dashboard and unified UI (design system).
 
-[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/MR-TABATA/cli2ui/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/MR-TABATA/cli2ui/compare/v0.8.0...v0.9.0
