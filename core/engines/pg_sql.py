@@ -276,6 +276,14 @@ ORDER BY child, con.conname;
 # leading slice is taken from indkey (an int2vector) via its text form to dodge
 # 0-based vector indexing; `@>` over equal-length arrays = set equality, and the
 # indnkeyatts guard keeps INCLUDE (non-key) columns out of the comparison.
+# Only an index the planner can use for the FK's own lookup counts. A partial
+# index (indpred) never qualifies: the referential-integrity probe that fires on
+# a parent delete/update looks the child rows up by key alone, carrying no
+# predicate, so the planner can never prove the index applies — the common
+# soft-delete index `(fk_col) WHERE deleted_at IS NULL` leaves the FK
+# seq-scanning. An index left invalid by a failed CREATE INDEX CONCURRENTLY is
+# ignored by the planner outright. Counting either would report an FK as indexed
+# while it still seq-scans.
 FK_MISSING_INDEX_SQL = """
 SELECT ns.nspname AS schema,
        cl.relname AS table,
@@ -295,6 +303,8 @@ WHERE con.contype = 'f'
   AND NOT EXISTS (
     SELECT 1 FROM pg_catalog.pg_index idx
     WHERE idx.indrelid = con.conrelid
+      AND idx.indpred IS NULL
+      AND idx.indisvalid
       AND cardinality(con.conkey) <= idx.indnkeyatts
       AND (string_to_array(idx.indkey::text, ' ')::int2[])[1:cardinality(con.conkey)]
           @> con.conkey

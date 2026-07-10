@@ -1307,6 +1307,57 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
         """Create a throwaway table for write tests; caller drops it in finally."""
         self.engine.run_query(ddl, read_only=False)
 
+    def test_fk_missing_index_discounts_partial_and_invalid_indexes(self):
+        # An index only counts if the planner can use it for the FK's own lookup.
+        # The RI probe on a parent delete finds child rows by key alone, so a
+        # partial index (the soft-delete `WHERE deleted_at IS NULL` shape) can
+        # never be proved to apply; an index left invalid by a failed CREATE
+        # INDEX CONCURRENTLY is ignored outright. Either one silently hid a
+        # seq-scanning FK behind an "indexed" verdict.
+        self._scratch_table("CREATE TABLE _cli2ui_fk_parent (id int PRIMARY KEY)")
+        try:
+            self.engine.run_query(
+                "INSERT INTO _cli2ui_fk_parent VALUES (1)", read_only=False)
+            self._scratch_table(
+                "CREATE TABLE _cli2ui_fk_partial ("
+                " parent_id int REFERENCES _cli2ui_fk_parent(id),"
+                " deleted_at timestamptz)")
+            self.engine.run_query(
+                "CREATE INDEX ON _cli2ui_fk_partial (parent_id)"
+                " WHERE deleted_at IS NULL", read_only=False)
+            self._scratch_table(
+                "CREATE TABLE _cli2ui_fk_invalid ("
+                " parent_id int REFERENCES _cli2ui_fk_parent(id))")
+            self.engine.run_query(
+                "INSERT INTO _cli2ui_fk_invalid VALUES (1), (1)", read_only=False)
+            # A control that must NOT be reported: a plain, valid, usable index.
+            self._scratch_table(
+                "CREATE TABLE _cli2ui_fk_ok ("
+                " parent_id int REFERENCES _cli2ui_fk_parent(id))")
+            self.engine.run_query(
+                "CREATE INDEX ON _cli2ui_fk_ok (parent_id)", read_only=False)
+
+            # CONCURRENTLY cannot run inside a transaction, and the duplicate
+            # keys make it fail — which is exactly how a real invalid index is
+            # born. psycopg2 raises; the leftover index stays indisvalid = false.
+            with self.engine._connect() as conn:
+                conn.autocommit = True
+                with conn.cursor() as cur:
+                    with self.assertRaises(psycopg2.Error):
+                        cur.execute("CREATE UNIQUE INDEX CONCURRENTLY"
+                                    " _cli2ui_fk_invalid_idx"
+                                    " ON _cli2ui_fk_invalid (parent_id)")
+
+            reported = {f.table for f in self.engine.fk_missing_indexes()}
+            self.assertIn("_cli2ui_fk_partial", reported)
+            self.assertIn("_cli2ui_fk_invalid", reported)
+            self.assertNotIn("_cli2ui_fk_ok", reported)
+        finally:
+            for t in ("_cli2ui_fk_partial", "_cli2ui_fk_invalid",
+                      "_cli2ui_fk_ok", "_cli2ui_fk_parent"):
+                self.engine.run_query(f"DROP TABLE IF EXISTS {t} CASCADE",
+                                      read_only=False)
+
     def test_import_csv_appends_rows_matched_by_header(self):
         self._scratch_table("CREATE TABLE _cli2ui_imp (id int, label text)")
         try:

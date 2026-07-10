@@ -132,7 +132,8 @@ table detail in the main pane).
 - ✅ Replication: readiness check (`wal_level` / `max_wal_senders`) + WAL position,
   connected standbys (`pg_stat_replication`), and slot create / drop
 - ✅ Health: table sizes, unused indexes, **unindexed foreign keys** (FK columns
-  that back no index — Postgres doesn't auto-create one), **redundant indexes**
+  with no index the planner can use for them — Postgres doesn't auto-create one,
+  and a partial or invalid index doesn't count), **redundant indexes**
   (a non-unique index that's a leading prefix of, or identical to, another),
   dead-rows / vacuum, and a stats-only bloat estimate — read-only catalog facts,
   no advice
