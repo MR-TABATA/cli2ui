@@ -140,6 +140,10 @@ table detail in the main pane).
 - ✅ Dependencies: the foreign-key graph topologically sorted (`graphlib`) into a
   safe TRUNCATE/DELETE order and its reverse (the load order), with foreign-key
   cycles detected and named — read-only, nothing is truncated (PostgreSQL & MySQL)
+- ✅ Extensions: what's installed in this database and what the server could
+  install (the Web equivalent of `\dx` unioned with `pg_available_extensions`),
+  with an update-available badge when an installed version lags the server's
+  default — read-only; `CREATE EXTENSION` stays in the SQL runner
 - ✅ Command history: SQL run through the runner, logged to the management DB —
   status, row count, timing, and one-click re-open
 - ✅ Backup / restore: automatic table snapshots (`pg_dump` custom format) before

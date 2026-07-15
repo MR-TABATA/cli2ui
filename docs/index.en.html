@@ -248,6 +248,10 @@
         <p class="mt-2 text-sm text-zinc-400 leading-relaxed">The foreign-key graph, topologically sorted into a safe <span class="mono">TRUNCATE</span> / load order — with FK cycles detected and named. Read-only; nothing is truncated.</p>
       </div>
       <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">Extensions</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">What's installed in this database and what the server could install (<span class="mono">\dx</span> + <span class="mono">pg_available_extensions</span>), with an update-available badge. Read-only; <span class="mono">CREATE EXTENSION</span> stays in the SQL runner.</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">Objects browser</h3>
         <p class="mt-2 text-sm text-zinc-400 leading-relaxed">List databases, schemas and roles (<span class="mono">\l \dn \du</span>), plus create / rename / alter / drop (and DB clone via <span class="mono">TEMPLATE</span>) behind confirm gates — and a <span class="mono">postgresql.conf</span> editor with reload-vs-restart badges.</p>
       </div>

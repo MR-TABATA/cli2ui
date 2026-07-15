@@ -248,6 +248,10 @@
         <p class="mt-2 text-sm text-zinc-400 leading-relaxed">外部キーのグラフをトポロジカルソートし、安全な <span class="mono">TRUNCATE</span> / load 順を提示。外部キーの循環も検知して名指しします。リードオンリー — 実際に truncate はしません。</p>
       </div>
       <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">拡張機能</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">このデータベースに導入済みの拡張と、サーバーが導入可能な拡張を一覧（<span class="mono">\dx</span> ＋ <span class="mono">pg_available_extensions</span>）。更新可能バッジ付き。リードオンリー — <span class="mono">CREATE EXTENSION</span> は SQL ランナーで。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">オブジェクトブラウザ</h3>
         <p class="mt-2 text-sm text-zinc-400 leading-relaxed">データベース・スキーマ・ロール（<span class="mono">\l \dn \du</span>）の一覧に加え、作成 / リネーム / 変更 / 削除（DB の <span class="mono">TEMPLATE</span> クローンも）を確認ゲート付きで。reload / restart バッジ付きの <span class="mono">postgresql.conf</span> エディタも。</p>
       </div>
