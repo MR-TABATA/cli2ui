@@ -90,6 +90,23 @@ WHERE r.rolname !~ '^pg_'
 ORDER BY r.rolname;
 """
 
+# The Web equivalent of `\dx`: extensions installed in this database, unioned
+# with the ones the server has packaged and could install. pg_available_extensions
+# already carries installed_version (NULL when not installed) and a one-line
+# comment; the LEFT JOIN to pg_extension/pg_namespace adds the schema an installed
+# one lives in. Installed extensions sort first (installed_version IS NULL → last).
+EXTENSIONS_SQL = """
+SELECT ae.name,
+       ae.installed_version,
+       ae.default_version,
+       n.nspname AS schema,
+       ae.comment
+FROM pg_available_extensions ae
+LEFT JOIN pg_extension e ON e.extname = ae.name
+LEFT JOIN pg_namespace n ON n.oid = e.extnamespace
+ORDER BY (ae.installed_version IS NULL), ae.name;
+"""
+
 # The Web equivalent of querying pg_stat_activity: client sessions, what they're
 # running, how long, and whether they're blocked. Includes our own connection
 # (flagged is_self) so the list is never mysteriously empty; skips internal

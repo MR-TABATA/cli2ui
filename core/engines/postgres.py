@@ -24,6 +24,7 @@ from .base import (
     Dump,
     Engine,
     EngineError,
+    Extension,
     FKMissingIndex,
     ForeignKeyEdge,
     Index,
@@ -52,6 +53,7 @@ from .pg_sql import (
     BLOAT_SQL,
     BLOCKING_SQL,
     DUPLICATE_INDEX_SQL,
+    EXTENSIONS_SQL,
     FK_EDGES_SQL,
     FK_MISSING_INDEX_SQL,
     HEADROOM_SQL,
@@ -707,6 +709,16 @@ class PostgresEngine(Engine):
             with conn.cursor() as cur:
                 cur.execute(LIST_ROLES_SQL)
                 return [_role(row) for row in cur.fetchall()]
+
+    def list_extensions(self) -> list[Extension]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(EXTENSIONS_SQL)
+                return [
+                    Extension(name=row[0], installed_version=row[1],
+                              default_version=row[2], schema=row[3], comment=row[4])
+                    for row in cur.fetchall()
+                ]
 
     # --- catalog mutations -----------------------------------------------
 

@@ -288,6 +288,40 @@ def dependencies(request, pk):
     )
 
 
+# Readable version of EXTENSIONS_SQL for the panel's "open in SQL" link.
+EXTENSIONS_SHOW_SQL = (
+    "SELECT ae.name, ae.installed_version, ae.default_version,\n"
+    "       n.nspname AS schema, ae.comment\n"
+    "FROM pg_available_extensions ae\n"
+    "LEFT JOIN pg_extension e ON e.extname = ae.name\n"
+    "LEFT JOIN pg_namespace n ON n.oid = e.extnamespace\n"
+    "ORDER BY (ae.installed_version IS NULL), ae.name;"
+)
+
+
+def extensions(request, pk):
+    """Extensions panel: what's installed in this database (\\dx) and what the
+    server could install. Read-only — it only reads the catalog."""
+    connection = get_object_or_404(Connection, pk=pk)
+    engine = get_engine(connection)
+    if not engine.supports("extensions"):
+        return render(request, "partials/extensions.html",
+                      {"connection": connection, "supported": False,
+                       "installed": [], "available": []})
+    try:
+        exts = engine.list_extensions()
+    except EngineError as exc:
+        return render(request, "partials/error.html", {"message": str(exc)})
+    return render(
+        request,
+        "partials/extensions.html",
+        {"connection": connection, "supported": True,
+         "installed": [e for e in exts if e.installed],
+         "available": [e for e in exts if not e.installed],
+         "extensions_sql": EXTENSIONS_SHOW_SQL},
+    )
+
+
 FK_MISSING_INDEX_SHOW_SQL = (
     "SELECT con.conrelid::regclass AS table, con.conname AS constraint,\n"
     "       pg_get_constraintdef(con.oid) AS definition\n"

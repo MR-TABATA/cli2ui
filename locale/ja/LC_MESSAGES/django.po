@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-04 23:33-0500\n"
+"POT-Creation-Date: 2026-07-15 07:27-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,29 +22,29 @@ msgstr ""
 msgid "Unsupported database kind: %(kind)s"
 msgstr "未対応のデータベース種別: %(kind)s"
 
-#: core/engines/mysql.py:379 core/engines/mysql.py:786
-#: core/engines/mysql.py:792 core/engines/postgres.py:336
-#: core/engines/postgres.py:965
+#: core/engines/mysql.py:383 core/engines/mysql.py:790
+#: core/engines/mysql.py:796 core/engines/postgres.py:338
+#: core/engines/postgres.py:977
 #, python-format
 msgid "No such column: %(name)s"
 msgstr "存在しない列: %(name)s"
 
-#: core/engines/mysql.py:381 core/engines/postgres.py:338
+#: core/engines/mysql.py:385 core/engines/postgres.py:340
 #, python-format
 msgid "Unknown filter operator: %(op)s"
 msgstr "不明なフィルタ演算子: %(op)s"
 
-#: core/engines/mysql.py:426 core/engines/mysql.py:431
-#: core/engines/postgres.py:388
+#: core/engines/mysql.py:430 core/engines/mysql.py:435
+#: core/engines/postgres.py:390
 msgid "The CSV file is empty."
 msgstr "CSV ファイルが空です。"
 
-#: core/engines/mysql.py:436 core/engines/postgres.py:395
+#: core/engines/mysql.py:440 core/engines/postgres.py:397
 #, python-format
 msgid "CSV header has columns not in %(table)s: %(cols)s"
 msgstr "%(table)s に無い列が CSV ヘッダにあります: %(cols)s"
 
-#: core/engines/mysql.py:595
+#: core/engines/mysql.py:599
 msgid ""
 "Can't check for lock waits: the MySQL performance_schema is disabled on this "
 "server, so blocking can't be detected. Enable it (performance_schema=ON) to "
@@ -54,7 +54,7 @@ msgstr ""
 "効なため、ブロッキングを検出できません。このパネルを使うには有効化してくださ"
 "い (performance_schema=ON)。"
 
-#: core/engines/mysql.py:605
+#: core/engines/mysql.py:609
 msgid ""
 "Can't check for lock waits: this needs MySQL 8.0+ "
 "(performance_schema.data_lock_waits is unavailable here)."
@@ -62,7 +62,7 @@ msgstr ""
 "ロック待ちを確認できません: これには MySQL 8.0 以降が必要です "
 "(performance_schema.data_lock_waits がここでは利用できません)。"
 
-#: core/engines/mysql.py:640
+#: core/engines/mysql.py:644
 msgid ""
 "MySQL can't create a database from a template (no TEMPLATE/CREATE DATABASE … "
 "LIKE). Create it empty, then load a dump."
@@ -70,7 +70,7 @@ msgstr ""
 "MySQL はテンプレートからデータベースを作成できません (TEMPLATE/CREATE "
 "DATABASE … LIKE は非対応)。空で作成してからダンプを読み込んでください。"
 
-#: core/engines/mysql.py:653
+#: core/engines/mysql.py:657
 msgid ""
 "Can't drop the database this connection is using — connect to another "
 "database first."
@@ -78,7 +78,7 @@ msgstr ""
 "この接続が使用中のデータベースは削除できません — 先に別のデータベースに接続し"
 "てください。"
 
-#: core/engines/mysql.py:659
+#: core/engines/mysql.py:663
 msgid ""
 "MySQL doesn't support renaming a database. Create the new one and move the "
 "tables (RENAME TABLE), or dump and reload."
@@ -86,40 +86,40 @@ msgstr ""
 "MySQL はデータベースのリネームに対応していません。新しいデータベースを作成し"
 "てテーブルを移動する (RENAME TABLE) か、ダンプして再読み込みしてください。"
 
-#: core/engines/mysql.py:674 core/engines/postgres.py:142
+#: core/engines/mysql.py:678 core/engines/postgres.py:144
 #, python-format
 msgid "Unsupported index method: %(method)s"
 msgstr "未対応のインデックス方式: %(method)s"
 
-#: core/engines/mysql.py:676 core/engines/postgres.py:144
+#: core/engines/mysql.py:680 core/engines/postgres.py:146
 #: core/views/tables.py:142
 msgid "Select at least one column to index."
 msgstr "インデックス対象の列を1つ以上選んでください。"
 
-#: core/engines/mysql.py:683 core/engines/postgres.py:864
+#: core/engines/mysql.py:687 core/engines/postgres.py:876
 #: planner_lab/whatif.py:115
 #, python-format
 msgid "No such column(s): %(cols)s"
 msgstr "存在しない列: %(cols)s"
 
-#: core/engines/mysql.py:696
+#: core/engines/mysql.py:700
 msgid "Dropping an index needs the table it's on."
 msgstr "インデックスの削除には、対象のテーブルが必要です。"
 
-#: core/engines/mysql.py:719 core/engines/mysql.py:748
+#: core/engines/mysql.py:723 core/engines/mysql.py:752
 #, python-format
 msgid "Unsupported column type: %(t)s. Pick one of the listed types."
 msgstr "未対応の列型です: %(t)s。一覧の型から選んでください。"
 
-#: core/engines/mysql.py:886
+#: core/engines/mysql.py:890
 msgid "mysqldump timed out."
 msgstr "mysqldump がタイムアウトしました。"
 
-#: core/engines/mysql.py:930 core/engines/postgres.py:1071
+#: core/engines/mysql.py:934 core/engines/postgres.py:1083
 msgid "restore timed out."
 msgstr "リストアがタイムアウトしました。"
 
-#: core/engines/mysql.py:1019
+#: core/engines/mysql.py:1023
 msgid ""
 "MySQL has no replication slots — it streams the binary log directly, so "
 "there's nothing to create."
@@ -127,23 +127,23 @@ msgstr ""
 "MySQL にレプリケーションスロットはありません — バイナリログを直接ストリーミン"
 "グするため、作成するものはありません。"
 
-#: core/engines/mysql.py:1023
+#: core/engines/mysql.py:1027
 msgid "MySQL has no replication slots — nothing to drop."
 msgstr ""
 "MySQL にレプリケーションスロットはありません — 削除するものはありません。"
 
-#: core/engines/mysql.py:1113 core/engines/mysql.py:1118
-#: core/engines/mysql.py:1128 core/engines/postgres.py:1230
+#: core/engines/mysql.py:1117 core/engines/mysql.py:1122
+#: core/engines/mysql.py:1132 core/engines/postgres.py:1242
 #, python-format
 msgid "Unknown setting: %(name)s"
 msgstr "不明な設定: %(name)s"
 
-#: core/engines/postgres.py:989
+#: core/engines/postgres.py:1001
 #, python-format
 msgid "Unknown dump format: %(fmt)s"
 msgstr "不明なダンプ形式: %(fmt)s"
 
-#: core/engines/postgres.py:1007
+#: core/engines/postgres.py:1019
 msgid "pg_dump timed out."
 msgstr "pg_dump がタイムアウトしました。"
 
@@ -434,7 +434,8 @@ msgstr "種別"
 
 #: templates/index.html:17 templates/partials/detail.html:69
 #: templates/partials/detail.html:129 templates/partials/detail.html:313
-#: templates/partials/detail.html:406 templates/partials/objects.html:34
+#: templates/partials/detail.html:406 templates/partials/extensions.html:28
+#: templates/partials/extensions.html:64 templates/partials/objects.html:34
 #: templates/partials/objects.html:95 templates/partials/objects.html:184
 #: templates/partials/objects.html:252 templates/partials/objects.html:263
 #: templates/partials/objects.html:279 templates/partials/objects.html:300
@@ -569,11 +570,11 @@ msgstr[0] "%(n)s DB"
 msgstr[1] "%(n)s DB"
 
 #: templates/partials/_bento.html:87 templates/partials/backups.html:3
-#: templates/workspace.html:66
+#: templates/workspace.html:68
 msgid "Backups"
 msgstr "バックアップ"
 
-#: templates/partials/_bento.html:93 templates/workspace.html:68
+#: templates/partials/_bento.html:93 templates/workspace.html:70
 msgid "Config"
 msgstr "設定"
 
@@ -703,10 +704,10 @@ msgid "The query behind this view"
 msgstr "このビューの元クエリ"
 
 #: templates/partials/activity.html:124 templates/partials/dependencies.html:42
-#: templates/partials/health.html:16 templates/partials/health.html:58
-#: templates/partials/health.html:102 templates/partials/health.html:196
-#: templates/partials/health.html:244 templates/partials/locks.html:81
-#: templates/partials/replication.html:124
+#: templates/partials/extensions.html:22 templates/partials/health.html:16
+#: templates/partials/health.html:58 templates/partials/health.html:102
+#: templates/partials/health.html:196 templates/partials/health.html:244
+#: templates/partials/locks.html:81 templates/partials/replication.html:124
 #: templates/partials/replication.html:163
 msgid "open in SQL →"
 msgstr "SQL で開く →"
@@ -1196,7 +1197,7 @@ msgstr "インデックス名"
 msgid "built CONCURRENTLY"
 msgstr "CONCURRENTLY で作成"
 
-#: templates/partials/error.html:2 templates/workspace.html:104
+#: templates/partials/error.html:2 templates/workspace.html:106
 msgid "Could not connect"
 msgstr "接続できませんでした"
 
@@ -1220,6 +1221,65 @@ msgstr "スナップショット名（例: before index）"
 #: templates/partials/explain_result.html:24
 msgid "Save snapshot"
 msgstr "スナップショットを保存"
+
+#: templates/partials/extensions.html:3 templates/workspace.html:66
+msgid "Extensions"
+msgstr "拡張機能"
+
+#: templates/partials/extensions.html:4
+msgid "\\\\dx · installed in this database · available to install"
+msgstr "\\\\dx · このDBに導入済み · 導入可能なもの"
+
+#: templates/partials/extensions.html:9
+msgid ""
+"Not applicable to this engine — extensions are a PostgreSQL concept (CREATE "
+"EXTENSION / \\\\dx); MySQL has no equivalent."
+msgstr ""
+"このエンジンには該当しません — 拡張機能は PostgreSQL の概念（CREATE EXTENSION "
+"/ \\\\dx）で、MySQL に相当するものはありません。"
+
+#: templates/partials/extensions.html:17
+msgid "Installed"
+msgstr "導入済み"
+
+#: templates/partials/extensions.html:29 templates/partials/extensions.html:65
+msgid "Version"
+msgstr "バージョン"
+
+#: templates/partials/extensions.html:30
+msgid "Schema"
+msgstr "スキーマ"
+
+#: templates/partials/extensions.html:31 templates/partials/extensions.html:66
+msgid "Description"
+msgstr "説明"
+
+#: templates/partials/extensions.html:40
+#, python-format
+msgid "update → %(v)s"
+msgstr "更新 → %(v)s"
+
+#: templates/partials/extensions.html:49
+msgid "No extensions installed in this database."
+msgstr "このデータベースに導入済みの拡張機能はありません。"
+
+#: templates/partials/extensions.html:57
+msgid "Available"
+msgstr "導入可能"
+
+#: templates/partials/extensions.html:80
+msgid ""
+"These are packaged on the server but not created in this database. "
+"Installing one (<span class=\"mono\">CREATE EXTENSION</span>) is a "
+"privileged write — run it yourself in the SQL runner. A fact, not a rule."
+msgstr ""
+"これらはサーバーに同梱されていますが、このデータベースには作成されていません。"
+"導入（<span class=\"mono\">CREATE EXTENSION</span>）は権限を要する書き込みです — "
+"SQL ランナーでご自身で実行してください。ルールではなく事実の提示です。"
+
+#: templates/partials/extensions.html:83
+msgid "Every available extension is already installed. 🎉"
+msgstr "導入可能な拡張機能はすべて導入済みです。🎉"
 
 #: templates/partials/filter_result.html:3
 msgid "Filter error"
@@ -1298,8 +1358,8 @@ msgid ""
 "Not applicable to this engine — InnoDB requires and auto-creates an index on "
 "every foreign key's columns, so there's never one missing."
 msgstr ""
-"このエンジンには該当しません — InnoDB は外部キーの列に必ずインデックスを自動作成"
-"するため、欠けることがありません。"
+"このエンジンには該当しません — InnoDB は外部キーの列に必ずインデックスを自動"
+"作成するため、欠けることがありません。"
 
 #: templates/partials/health.html:113
 msgid "References"
@@ -1311,9 +1371,9 @@ msgid ""
 "checks, cascade deletes and joins to the parent scan the whole table. A "
 "fact, not a rule — index if these paths are hot."
 msgstr ""
-"PostgreSQL は外部キーの参照側に自動でインデックスを張らないので、FK チェック・"
-"カスケード削除・親への結合はテーブル全体をスキャンします。ルールでなく事実 — "
-"これらの経路が高頻度ならインデックスを。"
+"PostgreSQL は外部キーの参照側に自動でインデックスを張らないので、FK チェッ"
+"ク・カスケード削除・親への結合はテーブル全体をスキャンします。ルールでなく事"
+"実 — これらの経路が高頻度ならインデックスを。"
 
 #: templates/partials/health.html:138
 msgid "Every foreign key has a supporting index. 🎉"
@@ -1341,12 +1401,14 @@ msgid ""
 "another — the wider index already serves its lookups. Dropping the redundant "
 "one is your call."
 msgstr ""
-"非ユニークなインデックスで、その列が別のインデックスの先頭の一部（または完全一致）"
-"になっているもの — 広い方が既にその検索を賄います。冗長な方を削除するかは任意です。"
+"非ユニークなインデックスで、その列が別のインデックスの先頭の一部（または完全"
+"一致）になっているもの — 広い方が既にその検索を賄います。冗長な方を削除するか"
+"は任意です。"
 
 #: templates/partials/health.html:183
 msgid "No redundant indexes — no index is covered by another. 🎉"
-msgstr "冗長なインデックスなし — どのインデックスも他にカバーされていません。🎉"
+msgstr ""
+"冗長なインデックスなし — どのインデックスも他にカバーされていません。🎉"
 
 #: templates/partials/health.html:191
 msgid "Dead rows"
@@ -2380,14 +2442,14 @@ msgstr ""
 msgid "overview"
 msgstr "概要"
 
-#: templates/workspace.html:73
+#: templates/workspace.html:75
 msgid "— hover for the section menu"
 msgstr "— ホバーでセクションメニュー"
 
-#: templates/workspace.html:98
+#: templates/workspace.html:100
 msgid "+ New connection"
 msgstr "+ 新しい接続"
 
-#: templates/workspace.html:106
+#: templates/workspace.html:108
 msgid "back to connections"
 msgstr "接続一覧に戻る"

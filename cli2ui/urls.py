@@ -49,6 +49,7 @@ urlpatterns = [
     path("c/<int:pk>/replication/slots/drop", views.slot_drop, name="slot_drop"),
     path("c/<int:pk>/health", views.health, name="health"),
     path("c/<int:pk>/dependencies", views.dependencies, name="dependencies"),
+    path("c/<int:pk>/extensions", views.extensions, name="extensions"),
     path("c/<int:pk>/objects", views.objects, name="objects"),
     path("c/<int:pk>/databases/create", views.database_create, name="database_create"),
     path("c/<int:pk>/databases/drop", views.database_drop, name="database_drop"),

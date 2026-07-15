@@ -226,8 +226,12 @@ class MysqlEngine(Engine):
     # "fk_index" (FK columns missing an index) is not applicable: InnoDB requires
     # and auto-creates an index on every foreign key's referencing columns, so
     # this can never report anything — a structural absence, not "unimplemented".
+    # "extensions" (PostgreSQL's CREATE EXTENSION packaging, via \dx /
+    # pg_available_extensions) has no MySQL equivalent — plugins/components are a
+    # different, server-level concept — so the panel shows "not applicable here".
     UNSUPPORTED = frozenset({"vacuum", "bloat", "schemas",
-                             "replication_slots", "db_template", "fk_index"})
+                             "replication_slots", "db_template", "fk_index",
+                             "extensions"})
 
     # When inside session(), the one open connection reused for every probe;
     # otherwise None and each _connect() dials its own. Mirrors PostgresEngine.

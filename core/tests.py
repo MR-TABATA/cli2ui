@@ -19,8 +19,9 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.engines import EngineError, get_engine
 from core.engines.base import (
-    Activity, Column, ConnectionHeadroom, DuplicateIndex, FKMissingIndex,
-    ForeignKeyEdge, Index, PlanNode, Setting, Table, build_dependency_graph,
+    Activity, Column, ConnectionHeadroom, DuplicateIndex, Extension,
+    FKMissingIndex, ForeignKeyEdge, Index, PlanNode, Setting, Table,
+    build_dependency_graph,
 )
 from core.engines.postgres import (
     INDEX_METHODS,
@@ -315,6 +316,25 @@ class DependencyGraphTests(SimpleTestCase):
         self.assertFalse(g.has_cycle)
         self.assertEqual(sorted(g.order), sorted(tables))
         self.assertEqual(g.edge_count, 0)
+
+
+class ExtensionTests(SimpleTestCase):
+    """The Extension dataclass properties — pure logic, no DB."""
+
+    def test_installed_flag_tracks_installed_version(self):
+        loaded = Extension("hstore", "1.8", "1.8", "public", "data type for k/v")
+        avail = Extension("postgis", None, "3.4", None, "spatial types")
+        self.assertTrue(loaded.installed)
+        self.assertFalse(avail.installed)
+
+    def test_update_available_only_when_versions_differ(self):
+        stale = Extension("hstore", "1.7", "1.8", "public", None)
+        current = Extension("hstore", "1.8", "1.8", "public", None)
+        avail = Extension("postgis", None, "3.4", None, None)
+        self.assertTrue(stale.update_available)
+        self.assertFalse(current.update_available)
+        # An uninstalled extension is never "update available".
+        self.assertFalse(avail.update_available)
 
 
 class IndexHealthTests(SimpleTestCase):

@@ -463,6 +463,32 @@ class DuplicateIndex:
 
 
 @dataclass
+class Extension:
+    """One PostgreSQL extension, installed or merely available to install. The
+    Web equivalent of `\\dx` joined with `pg_available_extensions` — a read-only
+    catalog fact answering "what's loaded in this database, and what could be?".
+    `installed_version` is None when the extension is available but not created."""
+
+    name: str
+    installed_version: str | None   # None = available on the server but not installed
+    default_version: str | None     # the version a fresh CREATE/ALTER would install
+    schema: str | None              # namespace it lives in, when installed
+    comment: str | None             # one-line description (pg_available_extensions)
+
+    @property
+    def installed(self) -> bool:
+        return self.installed_version is not None
+
+    @property
+    def update_available(self) -> bool:
+        """Installed at an older version than the server now offers — an
+        `ALTER EXTENSION … UPDATE` would move it forward. A fact, not advice."""
+        return (self.installed_version is not None
+                and self.default_version is not None
+                and self.installed_version != self.default_version)
+
+
+@dataclass
 class ForeignKeyEdge:
     """One foreign-key relationship: `child` references `parent`. An edge of the
     dependency graph used to order safe TRUNCATE/load and to spot FK cycles.
@@ -706,6 +732,13 @@ class Engine:
 
     def list_roles(self) -> list[Role]:
         """Login/group roles. The Web equivalent of `\\du`."""
+        raise NotImplementedError
+
+    def list_extensions(self) -> list["Extension"]:
+        """Extensions installed in the current database, plus those available to
+        install. The Web equivalent of `\\dx` unioned with
+        `pg_available_extensions`. Read-only. Engines with no extension concept
+        declare "extensions" UNSUPPORTED rather than returning a false empty."""
         raise NotImplementedError
 
     # --- catalog mutations (CREATE / DROP) ---------------------------------

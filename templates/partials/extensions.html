@@ -1,0 +1,88 @@
+{% load i18n %}<div class="space-y-5">
+  <div>
+    <h2 class="text-lg font-semibold flex items-center gap-2"><span>🧩</span> {% trans "Extensions" %}</h2>
+    <p class="text-xs text-zinc-400 mono">{% trans "\\dx · installed in this database · available to install" %}</p>
+  </div>
+
+  {% if not supported %}
+    <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl px-5 py-8">
+      <p class="text-center text-zinc-400 text-sm">{% trans "Not applicable to this engine — extensions are a PostgreSQL concept (CREATE EXTENSION / \\dx); MySQL has no equivalent." %}</p>
+    </section>
+  {% else %}
+
+  <!-- Installed: \dx — what's actually loaded in this database -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-zinc-400">
+        {% trans "Installed" %} <span class="mono lowercase text-zinc-500">loaded in this database</span>
+      </span>
+      <button hx-get="{% url 'query' connection.pk %}?sql={{ extensions_sql|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML"
+              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
+                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
+    </div>
+    {% if installed %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">{% trans "Name" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Version" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Schema" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Description" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in installed %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono">{{ e.name }}</td>
+              <td class="px-5 py-2 mono text-zinc-300 tabular-nums">
+                {{ e.installed_version }}
+                {% if e.update_available %}<span class="ml-1 text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">{% blocktrans with v=e.default_version %}update → {{ v }}{% endblocktrans %}</span>{% endif %}
+              </td>
+              <td class="px-5 py-2 mono text-zinc-400">{{ e.schema|default:"—" }}</td>
+              <td class="px-5 py-2 text-zinc-400">{{ e.comment|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No extensions installed in this database." %}</p>
+    {% endif %}
+  </section>
+
+  <!-- Available: packaged on the server, not yet created here -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800">
+      <span class="text-xs uppercase tracking-wide text-zinc-400">
+        {% trans "Available" %} <span class="mono lowercase text-zinc-500">packaged on the server · not installed here</span>
+      </span>
+    </div>
+    {% if available %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">{% trans "Name" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Version" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Description" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in available %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono text-zinc-300">{{ e.name }}</td>
+              <td class="px-5 py-2 mono text-zinc-500 tabular-nums">{{ e.default_version|default:"—" }}</td>
+              <td class="px-5 py-2 text-zinc-400">{{ e.comment|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
+        {% blocktrans %}These are packaged on the server but not created in this database. Installing one (<span class="mono">CREATE EXTENSION</span>) is a privileged write — run it yourself in the SQL runner. A fact, not a rule.{% endblocktrans %}
+      </div>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "Every available extension is already installed. 🎉" %}</p>
+    {% endif %}
+  </section>
+
+  {% endif %}
+</div>
