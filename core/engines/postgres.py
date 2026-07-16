@@ -4,6 +4,7 @@ import csv
 import io
 import json
 import os
+import re
 import subprocess  # nosec B404 — used only to run pg_dump with a fixed argv, no shell
 import threading
 import time
@@ -28,6 +29,8 @@ from .base import (
     FKMissingIndex,
     ForeignKeyEdge,
     Index,
+    JsonbKey,
+    JsonbShape,
     LockWait,
     PlanNode,
     Preview,
@@ -160,6 +163,81 @@ def build_create_index_sql(schema, table, columns, *, method="btree",
     return sql.SQL(" ").join(parts)
 
 
+def _json_type(v) -> str:
+    """The jsonb_typeof label for an already-parsed Python value. bool is checked
+    before int/float because in Python `True` is also an `int`."""
+    if isinstance(v, dict):
+        return "object"
+    if isinstance(v, list):
+        return "array"
+    if isinstance(v, bool):
+        return "boolean"
+    if isinstance(v, (int, float)):
+        return "number"
+    if v is None:
+        return "null"   # the jsonb literal 'null', not SQL NULL (that's filtered out)
+    return "string"
+
+
+def _json_depth(v) -> int:
+    """Deepest container nesting in a parsed JSON value: 0 for a bare scalar, 1
+    for a flat object/array, 2 for one level of nested container, and so on.
+    Iterative (an explicit stack) so a pathologically deep document can't blow
+    Python's recursion limit."""
+    max_d = 0
+    stack = [(v, 1)]
+    while stack:
+        cur, d = stack.pop()
+        if isinstance(cur, dict):
+            if d > max_d:
+                max_d = d
+            for x in cur.values():
+                if isinstance(x, (dict, list)):
+                    stack.append((x, d + 1))
+        elif isinstance(cur, list):
+            if d > max_d:
+                max_d = d
+            for x in cur:
+                if isinstance(x, (dict, list)):
+                    stack.append((x, d + 1))
+    return max_d
+
+
+def _summarise_json(docs) -> tuple[dict, list, int]:
+    """Reduce a sample of parsed JSON documents to (root_types, keys, max_depth).
+    Pure Python over already-parsed values, so it's unit-testable without a DB.
+    Only object roots contribute top-level keys; each key records how many sampled
+    objects carried it and the distinct value types it took."""
+    root_types: dict[str, int] = {}
+    key_count: dict[str, int] = {}
+    key_types: dict[str, set] = {}
+    max_depth = 0
+    for doc in docs:
+        root_types[_json_type(doc)] = root_types.get(_json_type(doc), 0) + 1
+        d = _json_depth(doc)
+        if d > max_depth:
+            max_depth = d
+        if isinstance(doc, dict):
+            for k, val in doc.items():
+                key_count[k] = key_count.get(k, 0) + 1
+                key_types.setdefault(k, set()).add(_json_type(val))
+    keys = [JsonbKey(name=k, count=key_count[k], types=sorted(key_types[k]))
+            for k in key_count]
+    # Most common keys first; name breaks ties for a stable order.
+    keys.sort(key=lambda jk: (-jk.count, jk.name))
+    return root_types, keys, max_depth
+
+
+def _gin_indexes_for(indexes, column: str) -> list[str]:
+    """Names of the GIN indexes whose column list references `column` — a plain
+    `gin(col)`, an operator-class `gin(col jsonb_path_ops)`, or an expression
+    `gin((col -> 'k'))` all mention the column as a whole word. A best-effort
+    catalog fact for the shape panel."""
+    pat = re.compile(r"\b" + re.escape(column) + r"\b")
+    return [ix.name for ix in indexes
+            if ix.method == "gin" and pat.search(ix.columns_text)]
+
+
 class PostgresEngine(Engine):
     # When inside session(), the one open connection for the default database;
     # otherwise None and every _connect() dials its own.
@@ -270,6 +348,42 @@ class PostgresEngine(Engine):
                 cur.execute(TABLE_COMMENT_SQL, (schema, table))
                 row = cur.fetchone()
                 return row[0] if row else None
+
+    def jsonb_shape(self, schema: str, table: str, column: str, *,
+                    sample: int = 500, timeout_ms: int = 15000) -> JsonbShape:
+        # Validate the column exists and is actually JSON — the name is an
+        # identifier (can't be bound), so check it against the real table before
+        # composing it into the query rather than trust the request.
+        cols = {c.name: c for c in self.list_columns(schema, table)}
+        col = cols.get(column)
+        if col is None:
+            raise EngineError(_("No such column: %(name)s") % {"name": column})
+        if col.type not in ("jsonb", "json"):
+            raise EngineError(
+                _("%(name)s is not a JSON column.") % {"name": column})
+        query = sql.SQL(
+            "SELECT {col} FROM {sch}.{tbl} WHERE {col} IS NOT NULL LIMIT %s"
+        ).format(col=sql.Identifier(column),
+                 sch=sql.Identifier(schema), tbl=sql.Identifier(table))
+        with self._connect() as conn:
+            conn.autocommit = False
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SET TRANSACTION READ ONLY")
+                    cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
+                    cur.execute(query, (sample,))
+                    # psycopg2 parses jsonb/json into Python objects for us; guard
+                    # the case where an adapter left it as text.
+                    docs = [json.loads(r[0]) if isinstance(r[0], str) else r[0]
+                            for r in cur.fetchall()]
+            except psycopg2.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+            conn.rollback()  # read-only: never persist, even the SET statements
+        root_types, keys, max_depth = _summarise_json(docs)
+        gin = _gin_indexes_for(self.list_indexes(schema, table), column)
+        return JsonbShape(column=column, sampled=len(docs), root_types=root_types,
+                          keys=keys, max_depth=max_depth, gin_indexes=gin)
 
     def preview_rows(self, schema: str, table: str, limit: int = 50) -> Preview:
         # Identifiers come from the schema, but compose them safely anyway so a

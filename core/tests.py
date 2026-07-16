@@ -20,16 +20,20 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from core.engines import EngineError, get_engine
 from core.engines.base import (
     Activity, Column, ConnectionHeadroom, DuplicateIndex, Extension,
-    FKMissingIndex, ForeignKeyEdge, Index, PlanNode, Setting, Table,
-    build_dependency_graph,
+    FKMissingIndex, ForeignKeyEdge, Index, JsonbKey, JsonbShape, PlanNode,
+    Setting, Table, build_dependency_graph,
 )
 from core.engines.postgres import (
     INDEX_METHODS,
     PostgresEngine,
     _clean,
+    _gin_indexes_for,
+    _json_depth,
+    _json_type,
     _parse_plan,
     _role,
     _setting,
+    _summarise_json,
     _tool_error,
     build_create_index_sql,
 )
@@ -358,6 +362,135 @@ class IndexHealthTests(SimpleTestCase):
                            covered_by="t_ab", covered_by_columns="a, b",
                            identical=False, size="8192 bytes")
         self.assertEqual(d.qualified, "s.t")
+
+
+class JsonbShapeTests(SimpleTestCase):
+    """The JSON/JSONB shape summariser — pure Python over parsed values, so it's
+    fully testable without a DB. The sampling SQL itself is exercised against a
+    live PostgreSQL by hand (see project notes); here we lock in the reduction."""
+
+    def test_json_type_labels_match_jsonb_typeof(self):
+        self.assertEqual(_json_type({}), "object")
+        self.assertEqual(_json_type([]), "array")
+        # bool must win over int — True is an int in Python.
+        self.assertEqual(_json_type(True), "boolean")
+        self.assertEqual(_json_type(3), "number")
+        self.assertEqual(_json_type(3.5), "number")
+        self.assertEqual(_json_type("x"), "string")
+        self.assertEqual(_json_type(None), "null")
+
+    def test_depth_counts_container_levels(self):
+        self.assertEqual(_json_depth("scalar"), 0)   # a bare scalar nests nothing
+        self.assertEqual(_json_depth(42), 0)
+        self.assertEqual(_json_depth({}), 1)
+        self.assertEqual(_json_depth([]), 1)
+        self.assertEqual(_json_depth({"a": 1}), 1)
+        self.assertEqual(_json_depth({"a": {"b": 1}}), 2)
+        self.assertEqual(_json_depth([[1]]), 2)
+        self.assertEqual(_json_depth({"a": [{"b": [1]}]}), 4)
+
+    def test_summarise_collects_root_types_keys_and_depth(self):
+        docs = [{"id": 1, "tags": ["a"]}, {"id": 2}, [1, 2], "scalar", None]
+        root_types, keys, max_depth = _summarise_json(docs)
+        self.assertEqual(root_types,
+                         {"object": 2, "array": 1, "string": 1, "null": 1})
+        # Most common key first; each records presence count + value types.
+        self.assertEqual([(k.name, k.count) for k in keys],
+                         [("id", 2), ("tags", 1)])
+        self.assertEqual(keys[0].types, ["number"])
+        self.assertEqual(keys[1].types, ["array"])
+        self.assertEqual(max_depth, 2)  # {"tags": ["a"]} is two container levels
+
+    def test_summarise_merges_value_types_across_rows(self):
+        docs = [{"v": 1}, {"v": "two"}, {"v": None}]
+        _, keys, _ = _summarise_json(docs)
+        self.assertEqual(keys[0].name, "v")
+        self.assertEqual(keys[0].count, 3)
+        self.assertEqual(keys[0].types, ["null", "number", "string"])
+
+    def test_gin_indexes_match_column_as_whole_word(self):
+        def idx(name, method, defn):
+            return Index(name=name, method=method, unique=False, primary=False,
+                         definition=defn, size=None)
+        indexes = [
+            idx("gin_data", "gin", "CREATE INDEX gin_data ON t USING gin (data)"),
+            idx("gin_ops", "gin", "CREATE INDEX gin_ops ON t USING gin (data jsonb_path_ops)"),
+            idx("btree_data", "btree", "CREATE INDEX btree_data ON t USING btree (data)"),
+            idx("gin_other", "gin", "CREATE INDEX gin_other ON t USING gin (payload)"),
+        ]
+        # Only GIN indexes that reference `data` — btree excluded, and "payload"
+        # is not a whole-word match for the column "load".
+        self.assertEqual(_gin_indexes_for(indexes, "data"), ["gin_data", "gin_ops"])
+        self.assertEqual(_gin_indexes_for(indexes, "load"), [])
+
+    def test_shape_properties(self):
+        obj = JsonbShape(column="c", sampled=2, root_types={"object": 2},
+                         keys=[JsonbKey("id", 2, ["number"])], max_depth=1,
+                         gin_indexes=["g"])
+        self.assertTrue(obj.is_object)
+        self.assertTrue(obj.has_gin)
+        arr = JsonbShape(column="c", sampled=1, root_types={"array": 1},
+                         keys=[], max_depth=1, gin_indexes=[])
+        self.assertFalse(arr.is_object)
+        self.assertFalse(arr.has_gin)
+
+    def test_mysql_declares_jsonb_shape_not_applicable(self):
+        from core.engines.mysql import MysqlEngine
+        self.assertIn("jsonb_shape", MysqlEngine.UNSUPPORTED)
+
+    def test_engine_rejects_non_json_and_unknown_columns(self):
+        conn = Connection(kind="postgres", host="h", port=5432,
+                          dbname="d", user="u", password="p")
+        engine = PostgresEngine(conn)
+        cols = [Column(name="x", type="integer", nullable=True, default=None)]
+        # Validation happens before any connection is opened.
+        with unittest.mock.patch.object(engine, "list_columns", return_value=cols):
+            with self.assertRaises(EngineError):
+                engine.jsonb_shape("public", "t", "x")        # not JSON
+            with self.assertRaises(EngineError):
+                engine.jsonb_shape("public", "t", "missing")  # no such column
+
+
+class JsonbShapeViewTests(TestCase):
+    """The jsonb_shape view renders the partial end-to-end from a stub engine —
+    no live DB — covering the object, unsupported, and empty-sample branches."""
+
+    def setUp(self):
+        self.conn = Connection.objects.create(kind="postgres", dbname="d", user="u")
+        from django.urls import reverse
+        self.url = reverse("jsonb_shape", args=[self.conn.pk])
+
+    def _get(self, engine):
+        with unittest.mock.patch("core.views.tables.get_engine", return_value=engine):
+            return self.client.get(
+                self.url, {"schema": "public", "table": "t", "column": "data"})
+
+    def test_renders_keys_depth_and_gin(self):
+        shape = JsonbShape(
+            column="data", sampled=3, root_types={"object": 3},
+            keys=[JsonbKey("id", 3, ["number"]), JsonbKey("tags", 2, ["array"])],
+            max_depth=2, gin_indexes=["gin_data"])
+        engine = SimpleNamespace(supports=lambda f: True,
+                                 jsonb_shape=lambda *a, **k: shape)
+        resp = self._get(engine)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "3 rows sampled")
+        self.assertContains(resp, "tags")
+        self.assertContains(resp, "gin_data")
+
+    def test_unsupported_engine_renders_not_applicable(self):
+        engine = SimpleNamespace(supports=lambda f: False)
+        resp = self._get(engine)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Not applicable")
+
+    def test_empty_sample_renders_message(self):
+        shape = JsonbShape(column="data", sampled=0, root_types={}, keys=[],
+                           max_depth=0, gin_indexes=[])
+        engine = SimpleNamespace(supports=lambda f: True,
+                                 jsonb_shape=lambda *a, **k: shape)
+        resp = self._get(engine)
+        self.assertContains(resp, "No non-null values")
 
 
 class SessionConnectionReuseTests(SimpleTestCase):

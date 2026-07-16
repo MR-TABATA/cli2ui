@@ -52,6 +52,44 @@ class Column:
 
 
 @dataclass
+class JsonbKey:
+    """One top-level key seen in a sampled JSON/JSONB column: how many of the
+    sampled object rows carried it, and the JSON type(s) its value took."""
+
+    name: str
+    count: int           # sampled object rows whose root had this key
+    types: list[str]     # distinct jsonb_typeof values seen: object, array, string, …
+
+
+@dataclass
+class JsonbShape:
+    """The observed shape of a JSON/JSONB column, read from a bounded, read-only
+    sample of its non-null rows. A fact-finding aid — the top-level keys, how deep
+    values nest, the mix of root types, and whether a GIN index backs the column —
+    never a schema recommendation. Because it samples rather than scanning every
+    row, it describes what was seen in the sample, not a guarantee about the whole
+    table. A jsonb literal `'null'` is a real value (unlike SQL NULL, which is
+    excluded), so `null` can legitimately appear among the root types."""
+
+    column: str
+    sampled: int                 # non-null rows examined
+    root_types: dict[str, int]   # jsonb_typeof of each root value → count
+    keys: list[JsonbKey]         # top-level keys of object roots, most common first
+    max_depth: int               # deepest container nesting seen (0 = only scalars)
+    gin_indexes: list[str]       # names of GIN indexes covering this column, if any
+
+    @property
+    def is_object(self) -> bool:
+        """Whether any sampled root was a JSON object — i.e. the keys table
+        carries meaning (arrays/scalars have no top-level keys)."""
+        return self.root_types.get("object", 0) > 0
+
+    @property
+    def has_gin(self) -> bool:
+        return bool(self.gin_indexes)
+
+
+@dataclass
 class Preview:
     columns: list[str]
     rows: list[tuple]
@@ -606,6 +644,15 @@ class Engine:
     def table_comment(self, schema: str, table: str) -> str | None:
         """The table's own COMMENT, if any — the description psql shows at the
         foot of `\\d+ table`. None when the table has no comment."""
+        raise NotImplementedError
+
+    def jsonb_shape(self, schema: str, table: str, column: str, *,
+                    sample: int = 500, timeout_ms: int = 15000) -> "JsonbShape":
+        """Sample a JSON/JSONB column (read-only) and report its observed shape:
+        top-level keys, root-type mix, nesting depth, and any GIN index backing
+        it. A fact-finding aid, not schema advice. Engines with no JSON shape
+        concept declare "jsonb_shape" UNSUPPORTED rather than returning a false
+        empty; the caller checks supports() first."""
         raise NotImplementedError
 
     def preview_rows(self, schema: str, table: str, limit: int = 50) -> Preview:

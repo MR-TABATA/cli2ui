@@ -12,6 +12,7 @@ urlpatterns = [
     path("c/<int:pk>/", views.workspace, name="workspace"),
     path("c/<int:pk>/overview", views.overview, name="overview"),
     path("c/<int:pk>/table", views.table_detail, name="table_detail"),
+    path("c/<int:pk>/table/jsonb-shape", views.jsonb_shape, name="jsonb_shape"),
     path("c/<int:pk>/table/rename", views.table_rename, name="table_rename"),
     path("c/<int:pk>/table/truncate", views.table_truncate, name="table_truncate"),
     path("c/<int:pk>/table/drop", views.table_drop, name="table_drop"),

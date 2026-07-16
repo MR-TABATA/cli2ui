@@ -91,6 +91,12 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
               </td>
               <td class="px-5 py-2 text-right whitespace-nowrap align-top">
                 <div class="flex items-center gap-3 justify-end">
+                  {% if jsonb_shape_supported and col.type == 'jsonb' or jsonb_shape_supported and col.type == 'json' %}
+                    <button type="button" class="text-xs text-indigo-300/80 hover:text-indigo-200"
+                            hx-get="{% url 'jsonb_shape' connection.pk %}?schema={{ schema|urlencode }}&amp;table={{ table|urlencode }}&amp;column={{ col.name|urlencode }}"
+                            hx-target="#jsonb-shape" hx-swap="innerHTML"
+                            hx-indicator="#jsonb-shape-spin">{% trans "shape" %}</button>
+                  {% endif %}
                   <button type="button" class="text-xs text-zinc-400 hover:text-zinc-100"
                           @click="ctx = { column: '{{ col.name|escapejs }}', type: '{{ col.type|escapejs }}', nullable: {{ col.nullable|yesno:'true,false' }}, default: '{{ col.default|default:''|escapejs }}' }; drawer = 'col-edit'">{% trans "edit" %}</button>
                   <form hx-post="{% url 'column_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
@@ -107,6 +113,9 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
         </tbody>
       </table>
     </div>
+    <!-- JSON/JSONB shape inspector loads here (per-column, on demand). -->
+    <div id="jsonb-shape-spin" class="htmx-indicator text-xs text-zinc-500 px-1">{% trans "Sampling…" %}</div>
+    <div id="jsonb-shape"></div>
   </section>
 
   <!-- Indexes tab -->

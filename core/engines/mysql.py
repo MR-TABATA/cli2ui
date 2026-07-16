@@ -231,7 +231,7 @@ class MysqlEngine(Engine):
     # different, server-level concept — so the panel shows "not applicable here".
     UNSUPPORTED = frozenset({"vacuum", "bloat", "schemas",
                              "replication_slots", "db_template", "fk_index",
-                             "extensions"})
+                             "extensions", "jsonb_shape"})
 
     # When inside session(), the one open connection reused for every probe;
     # otherwise None and each _connect() dials its own. Mirrors PostgresEngine.

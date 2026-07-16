@@ -19,6 +19,27 @@ def table_detail(request, pk):
     return _render_detail(request, connection, schema, table)
 
 
+def jsonb_shape(request, pk):
+    """Sample one JSON/JSONB column and render its observed shape (top-level
+    keys, root types, nesting depth, GIN backing) as an htmx partial. Read-only;
+    on an engine without the concept it renders a "not applicable" state."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.GET.get("schema", "")
+    table = request.GET.get("table", "")
+    column = request.GET.get("column", "")
+    ctx = {"connection": connection, "schema": schema, "table": table,
+           "column": column}
+    try:
+        engine = get_engine(connection)
+        if not engine.supports("jsonb_shape"):
+            return render(request, "partials/jsonb_shape.html",
+                          {**ctx, "unsupported": True})
+        ctx["shape"] = engine.jsonb_shape(schema, table, column)
+    except EngineError as exc:
+        return render(request, "partials/error.html", {"message": str(exc)})
+    return render(request, "partials/jsonb_shape.html", ctx)
+
+
 def _render_detail(request, connection, schema, table, error=None, notice=None):
     """Render the table-detail panel: columns, indexes and a row preview.
 
@@ -50,6 +71,9 @@ def _render_detail(request, connection, schema, table, error=None, notice=None):
             "table_comment": comment,
             "columns": columns,
             "indexes": indexes,
+            # Whether this engine can sample JSON columns for their shape — gates
+            # the per-column "shape" affordance (PostgreSQL only for now).
+            "jsonb_shape_supported": engine.supports("jsonb_shape"),
             "index_methods": INDEX_METHODS,
             "column_types": COLUMN_TYPES,
             "preview_columns": preview.columns,
