@@ -17,6 +17,33 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Added
+
+- **Extensions panel** — a read-only catalog view of what's installed in this
+  database and what the server could install (the Web equivalent of `\dx`
+  unioned with `pg_available_extensions`), with an update-available badge when
+  an installed version lags the server's default. `CREATE EXTENSION` stays in
+  the SQL runner. MySQL shows "not applicable" (plugins/components are a
+  different, server-level concept).
+- **JSON shape on `json`/`jsonb` columns** — an on-demand "shape" view in the
+  table detail's Columns tab: sample up to 500 non-null values (read-only,
+  statement-timeout capped) and show the observed top-level keys with value
+  types and occurrence counts, root type mix, nesting depth, and whether a GIN
+  index covers the column. Describes the rows examined, not every row — a fact,
+  not a rule. PostgreSQL; MySQL shows "not applicable".
+- **Opt-in Airlines demo database** — `seed/demo/fetch.sh` downloads the
+  Postgres Pro "Airlines" dataset (~60MB; never committed) and
+  `docker compose --profile demo up -d airlines` serves it on port 5434, loaded
+  once into a named volume. Realistic volume (65k flights, 593k bookings, 829k
+  tickets, `jsonb` columns) for the health, activity, and sampling features.
+
+### Fixed
+
+- **Health: unindexed foreign keys** no longer counts a partial index (its
+  predicate can't be proven for the FK's own lookup) or an invalid index (left
+  behind by a failed `CREATE INDEX CONCURRENTLY`) as covering a foreign key —
+  both previously produced a false "indexed" verdict.
+
 ## [1.2.0] - 2026-07-05
 
 ### Added

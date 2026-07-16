@@ -114,13 +114,15 @@ copy-paste compose file and the exact connection details.
 
 ## Status
 
-v1.0.0 — a multi-DB (PostgreSQL & MySQL) ops console. `docker compose up` →
+v1.2.0 — a multi-DB (PostgreSQL & MySQL) ops console. `docker compose up` →
 connect → browse your tables in a DB-client layout (table list in the sidebar,
 table detail in the main pane).
 
 - ✅ PostgreSQL: connect + list tables (estimated row counts)
 - ✅ Table detail: column definitions with column & table comments and
-  generated-column expressions (`\d+ table`),
+  generated-column expressions (`\d+ table`), an on-demand **JSON shape** view
+  on `json`/`jsonb` columns (sampled top-level keys, value types, nesting depth,
+  GIN coverage — describes the rows examined, not every row),
   a row preview, and a **filter builder** — stack column / operator / value rows
   (ANDed) into a read-only `SELECT … WHERE`, no SQL typing
 - ✅ SQL runner: read-only ad-hoc queries by default (`SET TRANSACTION READ ONLY`

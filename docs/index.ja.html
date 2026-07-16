@@ -183,7 +183,7 @@
           <div class="overflow-hidden rounded-xl border border-zinc-800 shadow-2xl shadow-black/40">
             <img src="screenshots/table-detail.png" alt="cli2ui テーブル詳細 — 列・型・デフォルト" loading="lazy" class="w-full block">
           </div>
-          <figcaption class="mt-3 text-sm text-zinc-400">テーブル詳細 —— 列（列・テーブルの COMMENT・生成列の式付き）・インデックス・行プレビュー・フィルタビルダー・CSV インポート/エクスポート、ワンクリックでバックアップやリネーム。</figcaption>
+          <figcaption class="mt-3 text-sm text-zinc-400">テーブル詳細 —— 列（列・テーブルの COMMENT・生成列の式・<span class="mono">jsonb</span> 列のオンデマンド JSON 構造サンプリング付き）・インデックス・行プレビュー・フィルタビルダー・CSV インポート/エクスポート、ワンクリックでバックアップやリネーム。</figcaption>
         </figure>
         <figure>
           <div class="overflow-hidden rounded-xl border border-zinc-800 shadow-2xl shadow-black/40">
@@ -297,7 +297,7 @@
   <section id="quickstart" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
     <div class="card p-8 sm:p-10">
       <h2 class="text-2xl font-semibold tracking-tight">1コマンドで起動</h2>
-      <p class="mt-2 text-zinc-400 max-w-xl">接続フォームは同梱のサンプル DB を指す状態で初期入力済み。<span class="text-emerald-300">Connect</span> を押せば、もうテーブルを眺めています。</p>
+      <p class="mt-2 text-zinc-400 max-w-xl">接続フォームは同梱のサンプル DB を指す状態で初期入力済み。<span class="text-emerald-300">Connect</span> を押せば、もうテーブルを眺めています。リアルなデータ量が欲しければ、opt-in の Airlines デモ DB（チケット83万行超・<span class="mono">jsonb</span> 列つき）もコマンド2つで — 詳しくは README へ。</p>
 
       <div class="mt-6 rounded-lg border border-zinc-800 bg-black/40 p-4 font-mono text-sm">
         <div class="prompt text-zinc-100">docker compose up</div>
