@@ -7,6 +7,10 @@ db.sqlite3
 .venv/
 venv/
 .playwright-mcp/
+# Demo database dump — fetched on demand by seed/demo/fetch.sh, never committed.
+/seed/demo/*.sql
+/seed/demo/*.zip
+/seed/demo/.extract/
 /*.png
 *.code-workspace
 

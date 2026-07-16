@@ -46,6 +46,24 @@ password) and connect.
 > (any free port works) — and open that port instead. Only the number on the
 > left changes; the app keeps listening on 8000 *inside* the container.
 
+### Want more realistic data?
+
+The bundled `shop` database is deliberately tiny. For something with real
+volume — enough rows for the health checks, activity views, and jsonb tooling
+to have something to chew on — there's an opt-in second database: the
+[Postgres Pro "Airlines" demo dataset](https://postgrespro.com/education/demodb)
+(flights and bookings, ~250MB restored, jsonb columns included).
+
+```bash
+seed/demo/fetch.sh                            # downloads the dump (~60MB, not committed)
+docker compose --profile demo up -d airlines  # first boot loads it — takes a few minutes
+```
+
+Then connect with host `airlines`, database `demo`, user `demo`, password `demo`
+(port `5434` if connecting from your host machine). The loaded data persists in
+a named volume, so the slow load only happens once. `fetch.sh` also accepts
+`small` or `big` if you want a different dataset size.
+
 ## Connecting to a database in another container
 
 cli2ui runs in its own container, so "localhost" in the connection form means

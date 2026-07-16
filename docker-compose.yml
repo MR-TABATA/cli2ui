@@ -34,3 +34,41 @@ services:
       interval: 3s
       timeout: 3s
       retries: 10
+
+  # Optional, bigger demo database: the Postgres Pro "Airlines" dataset
+  # (bookings/flights, ~250MB restored, jsonb columns and real data volume —
+  # good for exercising features the tiny shop db can't, like the jsonb shape
+  # viewer). Opt-in because the dump must be downloaded first:
+  #
+  #   seed/demo/fetch.sh                           # ~60MB download
+  #   docker compose --profile demo up -d airlines # first boot loads for a few minutes
+  #
+  # Connect with host=airlines (or localhost:5434 from the host), db=demo,
+  # user=demo, password=demo. The loaded data lives in a named volume, so the
+  # multi-minute load happens once, not on every `up`.
+  airlines:
+    image: postgres:16
+    profiles: ["demo"]
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: demo
+    volumes:
+      - ./seed/demo/load-demo.sh:/docker-entrypoint-initdb.d/10-load-demo.sh:ro
+      - ./seed/demo:/seed:ro
+      - airlines-data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"  # 5433 is taken by sampledb
+    healthcheck:
+      # -h localhost forces TCP: the temporary server that runs while the init
+      # scripts load the dump listens on the unix socket only, so a socket
+      # check would report healthy minutes before the data is actually there.
+      test: ["CMD-SHELL", "pg_isready -h localhost -U demo -d demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      # Generous grace period: the first boot restores the whole dump before
+      # the server starts accepting TCP connections.
+      start_period: 600s
+
+volumes:
+  airlines-data:
