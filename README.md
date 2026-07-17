@@ -16,7 +16,10 @@ SELECT pg_terminate_backend(pid)            →  one "kill this process" button
 
 Built for **app developers and solo developers** — not DBAs. The pitch is
 *"you're looking at your tables 3 minutes after deciding to"* — no install
-marathon, no connection-wizard maze, no digging through nested trees.
+marathon, no connection-wizard maze, no digging through nested trees. And no
+"now go find a demo database" homework, either: a sample database is bundled
+and pre-wired into the connection form, with a realistic
+[Airlines dataset](#want-more-realistic-data) one opt-in away.
 
 The UI ships in **English and Japanese** — a header toggle switches between
 them, and it auto-detects your browser's language on first visit.
