@@ -242,7 +242,7 @@
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">Health · index &amp; bloat facts</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Table sizes, unused indexes, unindexed foreign keys, redundant (duplicate / prefix) indexes, dead rows / vacuum, and a stats-only bloat estimate — read-only catalog facts, no advice.</p>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Table sizes, unused indexes, unindexed foreign keys, redundant (duplicate / prefix) indexes, orphan rows (<span class="mono">NOT VALID</span> FKs &amp; constraint-less <span class="mono">*_id</span> columns, counted read-only on demand), dead rows / vacuum, and a stats-only bloat estimate — read-only catalog facts, no advice.</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">Dependencies</h3>

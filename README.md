@@ -158,6 +158,9 @@ table detail in the main pane).
   with no index the planner can use for them — Postgres doesn't auto-create one,
   and a partial or invalid index doesn't count), **redundant indexes**
   (a non-unique index that's a leading prefix of, or identical to, another),
+  **orphan rows** (foreign keys left `NOT VALID`, plus `*_id` columns with no FK
+  that name-match a table's primary key — each with an on-demand, read-only
+  anti-join count that never validates or changes anything),
   dead-rows / vacuum, and a stats-only bloat estimate — read-only catalog facts,
   no advice
 - ✅ Dependencies: the foreign-key graph topologically sorted (`graphlib`) into a

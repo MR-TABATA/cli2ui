@@ -374,6 +374,139 @@ JOIN idx b
 ORDER BY 1, 2, 3;
 """
 
+# Integrity — foreign keys added NOT VALID and never validated. `convalidated`
+# is false only for such constraints (a plain FK is validated on creation), so
+# these are exactly the FKs whose pre-existing rows were never checked against
+# the parent: the one place a *declared* FK can still hide orphan rows. Child and
+# parent column lists come from conkey/confkey in ordinal order.
+NOT_VALID_FK_SQL = """
+SELECT con.conname,
+       ns.nspname AS schema,
+       cl.relname AS table,
+       (SELECT string_agg(att.attname, ', ' ORDER BY u.ord)
+          FROM unnest(con.conkey) WITH ORDINALITY AS u(attnum, ord)
+          JOIN pg_catalog.pg_attribute att
+            ON att.attrelid = con.conrelid AND att.attnum = u.attnum) AS child_cols,
+       fns.nspname || '.' || fcl.relname AS parent,
+       (SELECT string_agg(att.attname, ', ' ORDER BY u.ord)
+          FROM unnest(con.confkey) WITH ORDINALITY AS u(attnum, ord)
+          JOIN pg_catalog.pg_attribute att
+            ON att.attrelid = con.confrelid AND att.attnum = u.attnum) AS parent_cols
+FROM pg_catalog.pg_constraint con
+JOIN pg_catalog.pg_class cl      ON cl.oid = con.conrelid
+JOIN pg_catalog.pg_namespace ns  ON ns.oid = cl.relnamespace
+JOIN pg_catalog.pg_class fcl     ON fcl.oid = con.confrelid
+JOIN pg_catalog.pg_namespace fns ON fns.oid = fcl.relnamespace
+WHERE con.contype = 'f'
+  AND NOT con.convalidated
+  AND ns.nspname NOT IN ('pg_catalog', 'information_schema')
+ORDER BY 2, 3, 1;
+"""
+
+# Integrity — columns named `<base>_id` with NO foreign key, whose values look
+# like they should reference a table. A naming-based guess, kept deliberately
+# conservative so it never becomes design advice:
+#   • the column is `%_id` (a bare `id` — the table's own PK convention — can't
+#     match, it has no leading `<base>`);
+#   • it is not already part of any FK (those are declared, not inferred);
+#   • a table named exactly `<base>` or `<base>s` exists with a single-column
+#     primary key of the *same* type (atttypid);
+#   • that match is unique (HAVING count(*) = 1) — if `<base>` and `<base>s` both
+#     qualify, or two schemas do, we don't guess.
+# `left(col, -3)` drops the trailing `_id`. min() over a one-row group returns
+# that single parent. The parent name/schema/column are what an orphan count
+# re-derives; nothing here scans table data.
+INFERRED_FK_SQL = """
+WITH child_col AS (
+  SELECT ns.nspname AS sch, cl.relname AS tbl, att.attname AS col,
+         att.atttypid AS typ
+  FROM pg_catalog.pg_attribute att
+  JOIN pg_catalog.pg_class cl      ON cl.oid = att.attrelid AND cl.relkind = 'r'
+  JOIN pg_catalog.pg_namespace ns  ON ns.oid = cl.relnamespace
+  WHERE att.attnum > 0 AND NOT att.attisdropped
+    AND att.attname LIKE '%\\_id'
+    AND ns.nspname NOT IN ('pg_catalog', 'information_schema')
+    AND NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_constraint c
+      WHERE c.conrelid = cl.oid AND c.contype = 'f'
+        AND att.attnum = ANY (c.conkey))
+),
+pk AS (
+  SELECT n.nspname AS sch, cl.relname AS tbl, a.attname AS col, a.atttypid AS typ
+  FROM pg_catalog.pg_constraint c
+  JOIN pg_catalog.pg_class cl      ON cl.oid = c.conrelid AND cl.relkind = 'r'
+  JOIN pg_catalog.pg_namespace n   ON n.oid = cl.relnamespace
+  JOIN pg_catalog.pg_attribute a   ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+  WHERE c.contype = 'p' AND cardinality(c.conkey) = 1
+)
+SELECT cc.sch, cc.tbl, cc.col,
+       min(pk.sch || '.' || pk.tbl) AS parent,
+       min(pk.col) AS parent_col
+FROM child_col cc
+JOIN pk ON pk.typ = cc.typ
+       AND pk.tbl IN (left(cc.col, -3), left(cc.col, -3) || 's')
+GROUP BY cc.sch, cc.tbl, cc.col
+HAVING count(*) = 1
+ORDER BY 1, 2, 3;
+"""
+
+# Re-derive one NOT VALID FK's parent + column lists by name (schema, table,
+# conname). Returns parent schema/table and the ordered child/parent column
+# arrays the orphan anti-join composes. Parametrised — never trusts a caller's
+# idea of the parent.
+FK_RESOLVE_SQL = """
+SELECT fns.nspname AS parent_schema,
+       fcl.relname AS parent_table,
+       (SELECT array_agg(att.attname ORDER BY u.ord)
+          FROM unnest(con.conkey) WITH ORDINALITY AS u(attnum, ord)
+          JOIN pg_catalog.pg_attribute att
+            ON att.attrelid = con.conrelid AND att.attnum = u.attnum) AS child_cols,
+       (SELECT array_agg(att.attname ORDER BY u.ord)
+          FROM unnest(con.confkey) WITH ORDINALITY AS u(attnum, ord)
+          JOIN pg_catalog.pg_attribute att
+            ON att.attrelid = con.confrelid AND att.attnum = u.attnum) AS parent_cols
+FROM pg_catalog.pg_constraint con
+JOIN pg_catalog.pg_class cl      ON cl.oid = con.conrelid
+JOIN pg_catalog.pg_namespace ns  ON ns.oid = cl.relnamespace
+JOIN pg_catalog.pg_class fcl     ON fcl.oid = con.confrelid
+JOIN pg_catalog.pg_namespace fns ON fns.oid = fcl.relnamespace
+WHERE con.contype = 'f' AND NOT con.convalidated
+  AND ns.nspname = %s AND cl.relname = %s AND con.conname = %s;
+"""
+
+# Re-derive one inferred relationship by (schema, table, column), applying the
+# same unique-match rule as INFERRED_FK_SQL. Returns the parent schema, table and
+# PK column; no row when the column isn't an unambiguous inferred reference.
+INFERRED_RESOLVE_SQL = """
+WITH child_col AS (
+  SELECT att.atttypid AS typ, att.attname AS col
+  FROM pg_catalog.pg_attribute att
+  JOIN pg_catalog.pg_class cl      ON cl.oid = att.attrelid AND cl.relkind = 'r'
+  JOIN pg_catalog.pg_namespace ns  ON ns.oid = cl.relnamespace
+  WHERE ns.nspname = %s AND cl.relname = %s AND att.attname = %s
+    AND att.attnum > 0 AND NOT att.attisdropped
+    AND att.attname LIKE '%%\\_id'
+    AND NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_constraint c
+      WHERE c.conrelid = cl.oid AND c.contype = 'f'
+        AND att.attnum = ANY (c.conkey))
+),
+pk AS (
+  SELECT n.nspname AS sch, cl.relname AS tbl, a.attname AS col, a.atttypid AS typ
+  FROM pg_catalog.pg_constraint c
+  JOIN pg_catalog.pg_class cl      ON cl.oid = c.conrelid AND cl.relkind = 'r'
+  JOIN pg_catalog.pg_namespace n   ON n.oid = cl.relnamespace
+  JOIN pg_catalog.pg_attribute a   ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+  WHERE c.contype = 'p' AND cardinality(c.conkey) = 1
+)
+SELECT min(pk.sch) AS parent_schema, min(pk.tbl) AS parent_table,
+       min(pk.col) AS parent_col
+FROM child_col cc
+JOIN pk ON pk.typ = cc.typ
+       AND pk.tbl IN (left(cc.col, -3), left(cc.col, -3) || 's')
+HAVING count(*) = 1;
+"""
+
 # Health — dead tuples + last (auto)vacuum/analyze per table. GREATEST ignores
 # NULLs, so it yields the most recent of the manual/auto pair (or NULL if both).
 VACUUM_STATS_SQL = """

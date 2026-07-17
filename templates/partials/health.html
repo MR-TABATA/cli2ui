@@ -1,7 +1,7 @@
 {% load i18n %}<div class="space-y-5">
   <div>
     <h2 class="text-lg font-semibold flex items-center gap-2"><span>🩺</span> {% trans "Health" %}</h2>
-    <p class="text-xs text-zinc-400 mono">{% trans "disk usage · unused / redundant / unindexed-FK · dead rows" %}</p>
+    <p class="text-xs text-zinc-400 mono">{% trans "disk usage · unused / redundant / unindexed-FK · orphan rows · dead rows" %}</p>
   </div>
 
   <!-- Table sizes: \dt+ sorted by total on-disk footprint -->
@@ -181,6 +181,62 @@
       </div>
     {% else %}
       <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No redundant indexes — no index is covered by another. 🎉" %}</p>
+    {% endif %}
+  </section>
+
+  <!-- Unenforced references: NOT VALID FKs + inferred *_id columns; where
+       orphan rows can hide. Each row offers an on-demand read-only orphan count. -->
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800">
+      <span class="text-xs uppercase tracking-wide text-zinc-400">
+        {% trans "Unenforced references" %} <span class="mono lowercase text-zinc-500">NOT VALID FKs · *_id columns with no FK</span>
+      </span>
+    </div>
+    {% if not supports_orphans %}
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "Not applicable to this engine — InnoDB has no NOT VALID clause, so a declared foreign key is always enforced and can't carry orphan rows." %}</p>
+    {% elif orphan_candidates %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Columns" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "References" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Kind" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Orphan rows" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orphan_candidates %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono">{{ o.qualified }}</td>
+              <td class="px-5 py-2 mono text-zinc-300">{{ o.columns }}</td>
+              <td class="px-5 py-2 mono text-zinc-400">{{ o.references }} <span class="text-zinc-600">({{ o.ref_columns }})</span></td>
+              <td class="px-5 py-2">
+                {% if o.inferred %}
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400" title="{% trans 'No FK constraint — inferred from the column name' %}">{% trans "inferred" %}</span>
+                {% else %}
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300" title="{{ o.constraint }}">{% trans "NOT VALID" %}</span>
+                {% endif %}
+              </td>
+              <td class="px-5 py-2 text-right whitespace-nowrap">
+                <button hx-get="{% url 'orphan_count' connection.pk %}?schema={{ o.schema|urlencode }}&table={{ o.table|urlencode }}{% if o.inferred %}&column={{ o.columns|urlencode }}{% else %}&constraint={{ o.constraint|urlencode }}{% endif %}"
+                        hx-target="#orphan-{{ forloop.counter }}" hx-swap="innerHTML"
+                        hx-indicator="#orphan-spin-{{ forloop.counter }}"
+                        class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1 hover:border-zinc-600 transition">
+                  {% trans "count orphans →" %}
+                  <span id="orphan-spin-{{ forloop.counter }}" class="htmx-indicator">…</span>
+                </button>
+              </td>
+            </tr>
+            <tr><td colspan="5" class="px-5"><span id="orphan-{{ forloop.counter }}"></span></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
+        {% blocktrans %}A validated foreign key can't have orphans, so only unvalidated FKs and constraint-less <span class="mono">*_id</span> columns appear. Counting scans the table read-only — it never validates or changes anything. A fact, not a rule.{% endblocktrans %}
+      </div>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No unvalidated FKs, and every *_id column that names a table is backed by one. 🎉" %}</p>
     {% endif %}
   </section>
 

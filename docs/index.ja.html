@@ -242,7 +242,7 @@
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">ヘルス · インデックス / bloat の事実</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">テーブルサイズ・未使用インデックス・インデックスのない外部キー・冗長（重複 / 先頭一致）インデックス・dead-rows / vacuum・統計ベースの bloat 推定。すべて read-only の catalog 事実で、助言はしません。</p>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">テーブルサイズ・未使用インデックス・インデックスのない外部キー・冗長（重複 / 先頭一致）インデックス・孤児行（<span class="mono">NOT VALID</span> な FK と制約のない <span class="mono">*_id</span> 列を、オンデマンドで read-only カウント）・dead-rows / vacuum・統計ベースの bloat 推定。すべて read-only の catalog 事実で、助言はしません。</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">依存関係</h3>

@@ -20,7 +20,8 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from core.engines import EngineError, get_engine
 from core.engines.base import (
     Activity, Column, ConnectionHeadroom, DuplicateIndex, Extension,
-    FKMissingIndex, ForeignKeyEdge, Index, JsonbKey, JsonbShape, PlanNode,
+    FKMissingIndex, ForeignKeyEdge, Index, JsonbKey, JsonbShape,
+    OrphanCandidate, OrphanCount, PlanNode,
     Setting, Table, build_dependency_graph,
 )
 from core.engines.postgres import (
@@ -491,6 +492,94 @@ class JsonbShapeViewTests(TestCase):
                                  jsonb_shape=lambda *a, **k: shape)
         resp = self._get(engine)
         self.assertContains(resp, "No non-null values")
+
+
+class OrphanRowTests(SimpleTestCase):
+    """Orphan-candidate surfacing + the on-demand count. The catalog/anti-join SQL
+    is exercised against a live PostgreSQL by hand (see project notes); here we
+    lock in the capability contract and the dataclass helpers (no DB)."""
+
+    def test_mysql_declares_orphans_not_applicable(self):
+        # InnoDB has no NOT VALID clause — a declared FK is always enforced, so a
+        # *declared* FK can't carry orphans. A structural absence (UNSUPPORTED),
+        # never a false-empty.
+        from core.engines.mysql import MysqlEngine
+        self.assertIn("orphans", MysqlEngine.UNSUPPORTED)
+
+    def test_postgres_supports_orphans(self):
+        conn = Connection(kind="postgres", host="h", port=5432,
+                          dbname="d", user="u", password="p")
+        self.assertTrue(PostgresEngine(conn).supports("orphans"))
+
+    def test_candidate_helpers(self):
+        unvalidated = OrphanCandidate(
+            kind="unvalidated", schema="public", table="orders",
+            columns="customer_id", references="public.customers",
+            ref_columns="id", constraint="orders_customer_fk")
+        self.assertEqual(unvalidated.qualified, "public.orders")
+        self.assertFalse(unvalidated.inferred)
+        inferred = OrphanCandidate(
+            kind="inferred", schema="public", table="orders",
+            columns="shipper_id", references="public.shippers",
+            ref_columns="id", constraint=None)
+        self.assertTrue(inferred.inferred)
+        self.assertIsNone(inferred.constraint)
+
+    def test_count_clean_property(self):
+        self.assertTrue(OrphanCount(orphans=0, checked=100).clean)
+        self.assertFalse(OrphanCount(orphans=3, checked=100).clean)
+
+    def test_count_requires_a_relationship(self):
+        conn = Connection(kind="postgres", host="h", port=5432,
+                          dbname="d", user="u", password="p")
+        engine = PostgresEngine(conn)
+        # Neither constraint nor column → nothing to check, and it must fail before
+        # opening any connection.
+        with self.assertRaises(EngineError):
+            engine.orphan_count("public", "orders")
+
+
+class OrphanCountViewTests(TestCase):
+    """The orphan_count view renders the inline partial end-to-end from a stub
+    engine — no live DB — over the clean, orphaned, unsupported and error paths."""
+
+    def setUp(self):
+        self.conn = Connection.objects.create(kind="postgres", dbname="d", user="u")
+        from django.urls import reverse
+        self.url = reverse("orphan_count", args=[self.conn.pk])
+
+    def _get(self, engine, params):
+        with unittest.mock.patch("core.views.ops.get_engine", return_value=engine):
+            return self.client.get(self.url, {"schema": "public", "table": "orders",
+                                              **params})
+
+    def test_orphans_found_renders_count(self):
+        engine = SimpleNamespace(
+            supports=lambda f: True,
+            orphan_count=lambda *a, **k: OrphanCount(orphans=7, checked=1000))
+        resp = self._get(engine, {"constraint": "orders_customer_fk"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "7")
+        self.assertContains(resp, "orphan rows")
+
+    def test_clean_renders_no_orphans(self):
+        engine = SimpleNamespace(
+            supports=lambda f: True,
+            orphan_count=lambda *a, **k: OrphanCount(orphans=0, checked=50))
+        resp = self._get(engine, {"column": "shipper_id"})
+        self.assertContains(resp, "No orphan rows")
+
+    def test_unsupported_engine_renders_not_applicable(self):
+        engine = SimpleNamespace(supports=lambda f: False)
+        resp = self._get(engine, {"constraint": "x"})
+        self.assertContains(resp, "Not applicable")
+
+    def test_engine_error_renders_inline(self):
+        def boom(*a, **k):
+            raise EngineError("this reference no longer resolves")
+        engine = SimpleNamespace(supports=lambda f: True, orphan_count=boom)
+        resp = self._get(engine, {"constraint": "gone"})
+        self.assertContains(resp, "no longer resolves")
 
 
 class SessionConnectionReuseTests(SimpleTestCase):

@@ -19,6 +19,15 @@ Versioning convention for this project:
 
 ### Added
 
+- **Health: orphan rows (unenforced references)** — a new card surfacing the two
+  places a referenced row can go missing: foreign keys left `NOT VALID` (their
+  pre-existing rows were never checked) and `<base>_id` columns with no foreign
+  key that name-match a table's single-column primary key. A validated FK can't
+  have orphans, so it's never listed. Each row offers an on-demand "count
+  orphans" that runs a read-only `LEFT JOIN` anti-join under a statement timeout
+  — it counts, it never validates or changes anything. A fact, not a rule.
+  PostgreSQL; MySQL shows "not applicable" (InnoDB has no `NOT VALID` clause, so
+  a declared FK is always enforced).
 - **Extensions panel** — a read-only catalog view of what's installed in this
   database and what the server could install (the Web equivalent of `\dx`
   unioned with `pg_available_extensions`), with an update-available badge when

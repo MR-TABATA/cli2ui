@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-15 23:38-0500\n"
+"POT-Creation-Date: 2026-07-17 06:43-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,29 +22,29 @@ msgstr ""
 msgid "Unsupported database kind: %(kind)s"
 msgstr "未対応のデータベース種別: %(kind)s"
 
-#: core/engines/mysql.py:383 core/engines/mysql.py:790
-#: core/engines/mysql.py:796 core/engines/postgres.py:360
-#: core/engines/postgres.py:452 core/engines/postgres.py:1091
+#: core/engines/mysql.py:388 core/engines/mysql.py:795
+#: core/engines/mysql.py:801 core/engines/postgres.py:366
+#: core/engines/postgres.py:458 core/engines/postgres.py:1097
 #, python-format
 msgid "No such column: %(name)s"
 msgstr "存在しない列: %(name)s"
 
-#: core/engines/mysql.py:385 core/engines/postgres.py:454
+#: core/engines/mysql.py:390 core/engines/postgres.py:460
 #, python-format
 msgid "Unknown filter operator: %(op)s"
 msgstr "不明なフィルタ演算子: %(op)s"
 
-#: core/engines/mysql.py:430 core/engines/mysql.py:435
-#: core/engines/postgres.py:504
+#: core/engines/mysql.py:435 core/engines/mysql.py:440
+#: core/engines/postgres.py:510
 msgid "The CSV file is empty."
 msgstr "CSV ファイルが空です。"
 
-#: core/engines/mysql.py:440 core/engines/postgres.py:511
+#: core/engines/mysql.py:445 core/engines/postgres.py:517
 #, python-format
 msgid "CSV header has columns not in %(table)s: %(cols)s"
 msgstr "%(table)s に無い列が CSV ヘッダにあります: %(cols)s"
 
-#: core/engines/mysql.py:599
+#: core/engines/mysql.py:604
 msgid ""
 "Can't check for lock waits: the MySQL performance_schema is disabled on this "
 "server, so blocking can't be detected. Enable it (performance_schema=ON) to "
@@ -54,7 +54,7 @@ msgstr ""
 "効なため、ブロッキングを検出できません。このパネルを使うには有効化してくださ"
 "い (performance_schema=ON)。"
 
-#: core/engines/mysql.py:609
+#: core/engines/mysql.py:614
 msgid ""
 "Can't check for lock waits: this needs MySQL 8.0+ "
 "(performance_schema.data_lock_waits is unavailable here)."
@@ -62,7 +62,7 @@ msgstr ""
 "ロック待ちを確認できません: これには MySQL 8.0 以降が必要です "
 "(performance_schema.data_lock_waits がここでは利用できません)。"
 
-#: core/engines/mysql.py:644
+#: core/engines/mysql.py:649
 msgid ""
 "MySQL can't create a database from a template (no TEMPLATE/CREATE DATABASE … "
 "LIKE). Create it empty, then load a dump."
@@ -70,7 +70,7 @@ msgstr ""
 "MySQL はテンプレートからデータベースを作成できません (TEMPLATE/CREATE "
 "DATABASE … LIKE は非対応)。空で作成してからダンプを読み込んでください。"
 
-#: core/engines/mysql.py:657
+#: core/engines/mysql.py:662
 msgid ""
 "Can't drop the database this connection is using — connect to another "
 "database first."
@@ -78,7 +78,7 @@ msgstr ""
 "この接続が使用中のデータベースは削除できません — 先に別のデータベースに接続し"
 "てください。"
 
-#: core/engines/mysql.py:663
+#: core/engines/mysql.py:668
 msgid ""
 "MySQL doesn't support renaming a database. Create the new one and move the "
 "tables (RENAME TABLE), or dump and reload."
@@ -86,40 +86,44 @@ msgstr ""
 "MySQL はデータベースのリネームに対応していません。新しいデータベースを作成し"
 "てテーブルを移動する (RENAME TABLE) か、ダンプして再読み込みしてください。"
 
-#: core/engines/mysql.py:678 core/engines/postgres.py:147
+#: core/engines/mysql.py:683 core/engines/postgres.py:153
 #, python-format
 msgid "Unsupported index method: %(method)s"
 msgstr "未対応のインデックス方式: %(method)s"
 
-#: core/engines/mysql.py:680 core/engines/postgres.py:149
+#: core/engines/mysql.py:685 core/engines/postgres.py:155
 #: core/views/tables.py:166
 msgid "Select at least one column to index."
 msgstr "インデックス対象の列を1つ以上選んでください。"
 
-#: core/engines/mysql.py:687 core/engines/postgres.py:990
+#: core/engines/mysql.py:692 core/engines/postgres.py:996
 #: planner_lab/whatif.py:115
 #, python-format
 msgid "No such column(s): %(cols)s"
 msgstr "存在しない列: %(cols)s"
 
-#: core/engines/mysql.py:700
+#: core/engines/mysql.py:705
 msgid "Dropping an index needs the table it's on."
 msgstr "インデックスの削除には、対象のテーブルが必要です。"
 
-#: core/engines/mysql.py:723 core/engines/mysql.py:752
+#: core/engines/mysql.py:728 core/engines/mysql.py:757
 #, python-format
 msgid "Unsupported column type: %(t)s. Pick one of the listed types."
 msgstr "未対応の列型です: %(t)s。一覧の型から選んでください。"
 
-#: core/engines/mysql.py:890
+#: core/engines/mysql.py:843
+msgid "Orphan-row checks are a PostgreSQL feature here."
+msgstr "孤児行チェックはここでは PostgreSQL の機能です。"
+
+#: core/engines/mysql.py:901
 msgid "mysqldump timed out."
 msgstr "mysqldump がタイムアウトしました。"
 
-#: core/engines/mysql.py:934 core/engines/postgres.py:1197
+#: core/engines/mysql.py:945 core/engines/postgres.py:1203
 msgid "restore timed out."
 msgstr "リストアがタイムアウトしました。"
 
-#: core/engines/mysql.py:1023
+#: core/engines/mysql.py:1034
 msgid ""
 "MySQL has no replication slots — it streams the binary log directly, so "
 "there's nothing to create."
@@ -127,30 +131,42 @@ msgstr ""
 "MySQL にレプリケーションスロットはありません — バイナリログを直接ストリーミン"
 "グするため、作成するものはありません。"
 
-#: core/engines/mysql.py:1027
+#: core/engines/mysql.py:1038
 msgid "MySQL has no replication slots — nothing to drop."
 msgstr ""
 "MySQL にレプリケーションスロットはありません — 削除するものはありません。"
 
-#: core/engines/mysql.py:1117 core/engines/mysql.py:1122
-#: core/engines/mysql.py:1132 core/engines/postgres.py:1356
+#: core/engines/mysql.py:1128 core/engines/mysql.py:1133
+#: core/engines/mysql.py:1143 core/engines/postgres.py:1447
 #, python-format
 msgid "Unknown setting: %(name)s"
 msgstr "不明な設定: %(name)s"
 
-#: core/engines/postgres.py:363
+#: core/engines/postgres.py:369
 #, python-format
 msgid "%(name)s is not a JSON column."
 msgstr "%(name)s は JSON 列ではありません。"
 
-#: core/engines/postgres.py:1115
+#: core/engines/postgres.py:1121
 #, python-format
 msgid "Unknown dump format: %(fmt)s"
 msgstr "不明なダンプ形式: %(fmt)s"
 
-#: core/engines/postgres.py:1133
+#: core/engines/postgres.py:1139
 msgid "pg_dump timed out."
 msgstr "pg_dump がタイムアウトしました。"
+
+#: core/engines/postgres.py:1324
+msgid "No relationship to check was given."
+msgstr "チェックする関係が指定されていません。"
+
+#: core/engines/postgres.py:1337
+msgid ""
+"This reference no longer resolves to a single parent — it may have changed "
+"since the panel loaded."
+msgstr ""
+"この参照はもう単一の親に解決できません — パネルを開いてから変わった可能性があ"
+"ります。"
 
 #: core/views/_shared.py:27
 #, python-format
@@ -283,7 +299,8 @@ msgstr "プレビュー · 取り消し可能"
 #: planner_lab/templates/partials/index_lab.html:16
 #: templates/partials/health.html:22 templates/partials/health.html:24
 #: templates/partials/health.html:111 templates/partials/health.html:153
-#: templates/partials/health.html:204 templates/partials/health.html:252
+#: templates/partials/health.html:201 templates/partials/health.html:260
+#: templates/partials/health.html:308
 msgid "Table"
 msgstr "テーブル"
 
@@ -711,7 +728,7 @@ msgstr "このビューの元クエリ"
 #: templates/partials/activity.html:124 templates/partials/dependencies.html:42
 #: templates/partials/extensions.html:22 templates/partials/health.html:16
 #: templates/partials/health.html:58 templates/partials/health.html:102
-#: templates/partials/health.html:196 templates/partials/health.html:244
+#: templates/partials/health.html:252 templates/partials/health.html:300
 #: templates/partials/locks.html:81 templates/partials/replication.html:124
 #: templates/partials/replication.html:163
 msgid "open in SQL →"
@@ -741,7 +758,7 @@ msgstr "元DB"
 
 #: templates/partials/backups.html:17 templates/partials/detail.html:141
 #: templates/partials/health.html:67 templates/partials/health.html:156
-#: templates/partials/health.html:253 templates/partials/objects.html:37
+#: templates/partials/health.html:309 templates/partials/objects.html:37
 msgid "Size"
 msgstr "サイズ"
 
@@ -749,8 +766,8 @@ msgstr "サイズ"
 msgid "When"
 msgstr "取得時刻"
 
-#: templates/partials/backups.html:29 templates/partials/health.html:224
-#: templates/partials/health.html:225 templates/partials/history.html:35
+#: templates/partials/backups.html:29 templates/partials/health.html:280
+#: templates/partials/health.html:281 templates/partials/history.html:35
 #, python-format
 msgid "%(t)s ago"
 msgstr "%(t)s前"
@@ -869,6 +886,7 @@ msgstr "親（参照される側）"
 
 #: templates/partials/dependencies.html:88 templates/partials/detail.html:53
 #: templates/partials/detail.html:139 templates/partials/health.html:112
+#: templates/partials/health.html:202
 msgid "Columns"
 msgstr "列"
 
@@ -1323,8 +1341,9 @@ msgid "No rows match these filters."
 msgstr "条件に一致する行はありません。"
 
 #: templates/partials/health.html:4
-msgid "disk usage · unused / redundant / unindexed-FK · dead rows"
-msgstr "ディスク使用量 · 未使用 / 冗長 / 未index FK · 不要行"
+msgid ""
+"disk usage · unused / redundant / unindexed-FK · orphan rows · dead rows"
+msgstr "ディスク使用量 · 未使用 / 冗長 / 未index FK · 孤児行 · 不要行"
 
 #: templates/partials/health.html:11
 msgid "Table sizes"
@@ -1375,7 +1394,7 @@ msgstr ""
 "このエンジンには該当しません — InnoDB は外部キーの列に必ずインデックスを自動"
 "作成するため、欠けることがありません。"
 
-#: templates/partials/health.html:113
+#: templates/partials/health.html:113 templates/partials/health.html:203
 msgid "References"
 msgstr "参照先"
 
@@ -1424,11 +1443,67 @@ msgid "No redundant indexes — no index is covered by another. 🎉"
 msgstr ""
 "冗長なインデックスなし — どのインデックスも他にカバーされていません。🎉"
 
-#: templates/partials/health.html:191
+#: templates/partials/health.html:192
+msgid "Unenforced references"
+msgstr "強制されない参照"
+
+#: templates/partials/health.html:196
+msgid ""
+"Not applicable to this engine — InnoDB has no NOT VALID clause, so a "
+"declared foreign key is always enforced and can't carry orphan rows."
+msgstr ""
+"このエンジンには該当しません — InnoDB には NOT VALID 句がなく、宣言された外部"
+"キーは常に強制されるため、孤児行を抱えることがありません。"
+
+#: templates/partials/health.html:204
+msgid "Kind"
+msgstr "種別"
+
+#: templates/partials/health.html:205
+msgid "Orphan rows"
+msgstr "孤児行"
+
+#: templates/partials/health.html:216
+msgid "No FK constraint — inferred from the column name"
+msgstr "FK 制約なし — 列名から推定"
+
+#: templates/partials/health.html:216
+msgid "inferred"
+msgstr "推定"
+
+#: templates/partials/health.html:218
+msgid "NOT VALID"
+msgstr "NOT VALID"
+
+#: templates/partials/health.html:226
+msgid "count orphans →"
+msgstr "孤児行を数える →"
+
+#: templates/partials/health.html:236
+msgid ""
+"A validated foreign key can't have orphans, so only unvalidated FKs and "
+"constraint-less <span class=\"mono\">*_id</span> columns appear. Counting "
+"scans the table read-only — it never validates or changes anything. A fact, "
+"not a rule."
+msgstr ""
+"検証済みの外部キーは孤児行を持てないので、ここには未検証（NOT VALID）の FK "
+"と、制約のない <span class=\"mono\">*_id</span> 列だけが並びます。カウントは"
+"読み取り専用でテーブルを走査するだけ — 検証も変更も一切しません。ルールでなく"
+"事実の提示です。"
+
+#: templates/partials/health.html:239
+msgid ""
+"No unvalidated FKs, and every *_id column that names a table is backed by "
+"one. 🎉"
+msgstr ""
+"未検証の FK はなく、テーブル名に一致する *_id 列にはすべて外部キーがありま"
+"す。🎉"
+
+#: templates/partials/health.html:247
 msgid "Dead rows"
 msgstr "不要行"
 
-#: templates/partials/health.html:199
+#: templates/partials/health.html:255
 msgid ""
 "Not applicable to this engine — InnoDB has no vacuum or dead-tuple model, so "
 "there's nothing to report here."
@@ -1436,40 +1511,40 @@ msgstr ""
 "このエンジンには該当しません — InnoDB には vacuum やデッドタプルの概念がない"
 "ため、ここに表示するものはありません。"
 
-#: templates/partials/health.html:205
+#: templates/partials/health.html:261
 msgid "Live"
 msgstr "有効"
 
-#: templates/partials/health.html:206
+#: templates/partials/health.html:262
 msgid "Dead"
 msgstr "不要"
 
-#: templates/partials/health.html:207
+#: templates/partials/health.html:263
 #, python-format
 msgid "Dead %%"
 msgstr "不要 %%"
 
-#: templates/partials/health.html:208
+#: templates/partials/health.html:264
 msgid "Last vacuum"
 msgstr "最終 vacuum"
 
-#: templates/partials/health.html:209
+#: templates/partials/health.html:265
 msgid "Last analyze"
 msgstr "最終 analyze"
 
-#: templates/partials/health.html:224 templates/partials/health.html:225
+#: templates/partials/health.html:280 templates/partials/health.html:281
 msgid "never"
 msgstr "なし"
 
-#: templates/partials/health.html:231
+#: templates/partials/health.html:287
 msgid "No table statistics yet."
 msgstr "テーブル統計がまだありません。"
 
-#: templates/partials/health.html:239
+#: templates/partials/health.html:295
 msgid "Bloat estimate"
 msgstr "Bloat 推定"
 
-#: templates/partials/health.html:247
+#: templates/partials/health.html:303
 msgid ""
 "Not applicable to this engine — there's no MySQL/InnoDB equivalent of the "
 "pg_stats bloat estimate."
@@ -1477,20 +1552,20 @@ msgstr ""
 "このエンジンには該当しません — MySQL/InnoDB には pg_stats のブロート推定に相"
 "当するものがありません。"
 
-#: templates/partials/health.html:254
+#: templates/partials/health.html:310
 msgid "Wasted (est.)"
 msgstr "無駄（推定）"
 
-#: templates/partials/health.html:255
+#: templates/partials/health.html:311
 #, python-format
 msgid "Wasted %%"
 msgstr "無駄 %%"
 
-#: templates/partials/health.html:256
+#: templates/partials/health.html:312
 msgid "Bloat ×"
 msgstr "Bloat ×"
 
-#: templates/partials/health.html:277
+#: templates/partials/health.html:333
 msgid ""
 "An estimate from planner statistics — run <span class=\"mono\">VACUUM FULL</"
 "span> or\n"
@@ -1501,7 +1576,7 @@ msgstr ""
 "FULL</span> または <span class=\"mono\">pg_repack</span> を実行。正確さには最"
 "近の <span class=\"mono\">ANALYZE</span> が必要です。"
 
-#: templates/partials/health.html:281
+#: templates/partials/health.html:337
 msgid "No bloat to estimate (or stats not collected yet)."
 msgstr "推定する bloat がありません（または統計が未収集です）。"
 
@@ -1622,7 +1697,9 @@ msgstr "トップレベルキーを持たないオブジェクトルート（空
 
 #: templates/partials/jsonb_shape.html:61
 msgid "No object roots in the sample, so there are no top-level keys to show."
-msgstr "サンプル内にオブジェクトルートがないため、表示するトップレベルキーはありません。"
+msgstr ""
+"サンプル内にオブジェクトルートがないため、表示するトップレベルキーはありませ"
+"ん。"
 
 #: templates/partials/jsonb_shape.html:65
 msgid ""
@@ -1882,6 +1959,34 @@ msgstr "+ ロールを作成"
 #: templates/partials/objects.html:310
 msgid "New password"
 msgstr "新しいパスワード"
+
+#: templates/partials/orphan_count.html:6
+msgid "Not applicable to this engine."
+msgstr "このエンジンには該当しません。"
+
+#: templates/partials/orphan_count.html:10
+msgid "No orphan rows"
+msgstr "孤児行なし"
+
+#: templates/partials/orphan_count.html:11
+#, python-format
+msgid "%(n)s row checked"
+msgid_plural "%(n)s rows checked"
+msgstr[0] "%(n)s 行を確認"
+msgstr[1] "%(n)s 行を確認"
+
+#: templates/partials/orphan_count.html:14
+msgid "orphan row"
+msgid_plural "orphan rows"
+msgstr[0] "件の孤児行"
+msgstr[1] "件の孤児行"
+
+#: templates/partials/orphan_count.html:15
+#, python-format
+msgid "of %(n)s row with a non-null reference"
+msgid_plural "of %(n)s rows with a non-null reference"
+msgstr[0] "非 NULL の参照を持つ %(n)s 行中"
+msgstr[1] "非 NULL の参照を持つ %(n)s 行中"
 
 #: templates/partials/plan_diff_rows.html:26
 #, python-format

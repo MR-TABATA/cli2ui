@@ -501,6 +501,59 @@ class DuplicateIndex:
 
 
 @dataclass
+class OrphanCandidate:
+    """A referential relationship whose child rows might not resolve to a parent
+    — a place orphan rows can hide, worth an on-demand count. Two kinds:
+
+    - "unvalidated": a real foreign key added `NOT VALID` and never validated, so
+      the rows that existed when it was added were never checked
+      (pg_constraint.convalidated = false). The relationship is declared; only its
+      back-catalogue is unverified.
+    - "inferred": a column named `<base>_id` with *no* foreign key at all, whose
+      values look like they should reference a table called `<base>`/`<base>s`
+      (that table has a single-column primary key of the same type). A guess from
+      naming, not a declared relationship — flagged as inferred so it is never
+      mistaken for one.
+
+    A validated foreign key can't have orphans by construction, so it is never a
+    candidate. Read-only and factual: this says where orphans *could* exist, never
+    that you should add or validate a constraint."""
+
+    kind: str                 # "unvalidated" | "inferred"
+    schema: str
+    table: str
+    columns: str              # child column(s), comma-joined
+    references: str           # parent qualified "schema.table"
+    ref_columns: str          # parent column(s), comma-joined
+    constraint: str | None    # FK name when kind == "unvalidated"; None if inferred
+
+    @property
+    def qualified(self) -> str:
+        return f"{self.schema}.{self.table}"
+
+    @property
+    def inferred(self) -> bool:
+        return self.kind == "inferred"
+
+
+@dataclass
+class OrphanCount:
+    """The result of an on-demand orphan check: how many child rows hold a
+    non-null reference that matches no parent row. Computed read-only with a
+    LEFT JOIN anti-join — the same shape PostgreSQL's own `VALIDATE CONSTRAINT`
+    uses — without validating or changing anything. `checked` is the denominator:
+    child rows whose reference columns are all non-null (a NULL reference is not
+    an orphan under MATCH SIMPLE, so it isn't counted either way)."""
+
+    orphans: int              # child rows whose non-null reference has no parent
+    checked: int              # child rows with a non-null reference (denominator)
+
+    @property
+    def clean(self) -> bool:
+        return self.orphans == 0
+
+
+@dataclass
 class Extension:
     """One PostgreSQL extension, installed or merely available to install. The
     Web equivalent of `\\dx` joined with `pg_available_extensions` — a read-only
@@ -899,6 +952,26 @@ class Engine:
     def duplicate_indexes(self) -> list[DuplicateIndex]:
         """Non-unique indexes made redundant by another index on the same table
         (identical columns, or a leading prefix of a wider one). A catalog fact."""
+        raise NotImplementedError
+
+    def orphan_candidates(self) -> list[OrphanCandidate]:
+        """Referential relationships where orphan rows could exist: foreign keys
+        left `NOT VALID`, plus `<base>_id` columns with no foreign key that name-
+        match a table's single-column primary key. Catalog-only — no table data is
+        scanned. A fact, not advice. (Engines without a NOT VALID concept and no
+        need for the inference declare "orphans" UNSUPPORTED.)"""
+        raise NotImplementedError
+
+    def orphan_count(self, schema: str, table: str, *,
+                     constraint: str | None = None,
+                     column: str | None = None) -> OrphanCount:
+        """Count child rows whose non-null reference resolves to no parent row.
+        On-demand and read-only: a LEFT JOIN anti-join under a statement timeout;
+        nothing is validated or written. Identify the relationship by `constraint`
+        (a NOT VALID FK, re-read from the catalog) or by `column` (an inferred
+        `<base>_id`, whose parent is re-derived by the same rule) — the parent is
+        never taken from the caller, so the check can't be pointed at an arbitrary
+        table."""
         raise NotImplementedError
 
     # --- foreign-key dependency graph --------------------------------------

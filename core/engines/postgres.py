@@ -32,6 +32,8 @@ from .base import (
     JsonbKey,
     JsonbShape,
     LockWait,
+    OrphanCandidate,
+    OrphanCount,
     PlanNode,
     Preview,
     QueryResult,
@@ -59,13 +61,17 @@ from .pg_sql import (
     EXTENSIONS_SQL,
     FK_EDGES_SQL,
     FK_MISSING_INDEX_SQL,
+    FK_RESOLVE_SQL,
     HEADROOM_SQL,
+    INFERRED_FK_SQL,
+    INFERRED_RESOLVE_SQL,
     LIST_COLUMNS_SQL,
     LIST_DATABASES_SQL,
     LIST_INDEXES_SQL,
     LIST_ROLES_SQL,
     LIST_SCHEMAS_SQL,
     LIST_TABLES_SQL,
+    NOT_VALID_FK_SQL,
     REPLICATION_STATUS_SQL,
     SETTINGS_SELECT,
     SLOTS_SQL,
@@ -1280,6 +1286,91 @@ class PostgresEngine(Engine):
                                    identical=row[6], size=row[7])
                     for row in cur.fetchall()
                 ]
+
+    # --- referential integrity (orphan rows) -----------------------------
+
+    def orphan_candidates(self) -> list[OrphanCandidate]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(NOT_VALID_FK_SQL)
+                out = [
+                    OrphanCandidate(
+                        kind="unvalidated", schema=row[1], table=row[2],
+                        columns=row[3] or "", references=row[4],
+                        ref_columns=row[5] or "", constraint=row[0])
+                    for row in cur.fetchall()
+                ]
+                cur.execute(INFERRED_FK_SQL)
+                out += [
+                    OrphanCandidate(
+                        kind="inferred", schema=row[0], table=row[1],
+                        columns=row[2], references=row[3],
+                        ref_columns=row[4], constraint=None)
+                    for row in cur.fetchall()
+                ]
+        return out
+
+    def orphan_count(self, schema: str, table: str, *,
+                     constraint: str | None = None,
+                     column: str | None = None,
+                     timeout_ms: int = 15000) -> OrphanCount:
+        # Re-derive the parent + column lists from the catalog rather than trust
+        # the caller: the request only names *which* relationship to check.
+        if constraint is not None:
+            resolve, params = FK_RESOLVE_SQL, (schema, table, constraint)
+        elif column is not None:
+            resolve, params = INFERRED_RESOLVE_SQL, (schema, table, column)
+        else:
+            raise EngineError(_("No relationship to check was given."))
+
+        with self._connect() as conn:
+            conn.autocommit = False
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SET TRANSACTION READ ONLY")
+                    cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
+                    cur.execute(resolve, params)
+                    row = cur.fetchone()
+                    if row is None or row[0] is None:
+                        conn.rollback()
+                        raise EngineError(_(
+                            "This reference no longer resolves to a single "
+                            "parent — it may have changed since the panel loaded."))
+                    if constraint is not None:
+                        pschema, ptable, child_cols, parent_cols = row
+                    else:
+                        pschema, ptable, pcol = row
+                        child_cols, parent_cols = [column], [pcol]
+
+                    # child ch LEFT JOIN parent pa ON ch.c = pa.r ... — a row is an
+                    # orphan when every child ref column is non-null (a NULL ref is
+                    # satisfied under MATCH SIMPLE) yet no parent row matched. The
+                    # first parent column is non-null on any match, so its being
+                    # NULL after the join means "unmatched".
+                    join = sql.SQL(" AND ").join(
+                        sql.SQL("ch.{} = pa.{}").format(
+                            sql.Identifier(c), sql.Identifier(r))
+                        for c, r in zip(child_cols, parent_cols))
+                    nonnull = sql.SQL(" AND ").join(
+                        sql.SQL("ch.{} IS NOT NULL").format(sql.Identifier(c))
+                        for c in child_cols)
+                    query = sql.SQL(
+                        "SELECT count(*) FILTER (WHERE pa.{first} IS NULL) AS orphans, "
+                        "       count(*) AS checked "
+                        "FROM {child} ch LEFT JOIN {parent} pa ON {join} "
+                        "WHERE {nonnull}"
+                    ).format(
+                        first=sql.Identifier(parent_cols[0]),
+                        child=sql.Identifier(schema, table),
+                        parent=sql.Identifier(pschema, ptable),
+                        join=join, nonnull=nonnull)
+                    cur.execute(query)
+                    orphans, checked = cur.fetchone()
+            except psycopg2.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+            conn.rollback()  # read-only: never persist, even the SET statements
+        return OrphanCount(orphans=orphans, checked=checked)
 
     # --- foreign-key dependency graph ------------------------------------
 

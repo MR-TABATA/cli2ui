@@ -348,6 +348,7 @@ def health(request, pk):
         unused = engine.unused_indexes()
         fk_missing = engine.fk_missing_indexes() if engine.supports("fk_index") else []
         duplicates = engine.duplicate_indexes()
+        orphans = engine.orphan_candidates() if engine.supports("orphans") else []
         vacuum = engine.vacuum_stats()
         bloat = engine.bloat_estimates()
     except EngineError as exc:
@@ -362,6 +363,7 @@ def health(request, pk):
             "unused": unused,
             "fk_missing": fk_missing,
             "duplicates": duplicates,
+            "orphan_candidates": orphans,
             "vacuum": vacuum,
             "bloat": bloat,
             # Some engines have no vacuum/bloat concept (e.g. MySQL/InnoDB), and
@@ -370,6 +372,7 @@ def health(request, pk):
             "supports_vacuum": engine.supports("vacuum"),
             "supports_bloat": engine.supports("bloat"),
             "supports_fk_index": engine.supports("fk_index"),
+            "supports_orphans": engine.supports("orphans"),
             "sizes_sql": SIZES_SHOW_SQL,
             "unused_sql": UNUSED_SHOW_SQL,
             "fk_index_sql": FK_MISSING_INDEX_SHOW_SQL,
@@ -377,3 +380,28 @@ def health(request, pk):
             "bloat_sql": BLOAT_SHOW_SQL,
         },
     )
+
+
+def orphan_count(request, pk):
+    """On-demand orphan count for one referential relationship, rendered as a
+    small inline partial back into the Health card. Read-only: it runs a LEFT JOIN
+    anti-join under a statement timeout, never validating or writing. The request
+    names *which* relationship (a NOT VALID FK by `constraint`, or an inferred
+    `<base>_id` by `column`); the engine re-derives the parent itself."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.GET.get("schema", "")
+    table = request.GET.get("table", "")
+    constraint = request.GET.get("constraint") or None
+    column = request.GET.get("column") or None
+    ctx = {"connection": connection, "schema": schema, "table": table}
+    try:
+        engine = get_engine(connection)
+        if not engine.supports("orphans"):
+            return render(request, "partials/orphan_count.html",
+                          {**ctx, "unsupported": True})
+        ctx["result"] = engine.orphan_count(
+            schema, table, constraint=constraint, column=column)
+    except EngineError as exc:
+        return render(request, "partials/orphan_count.html",
+                      {**ctx, "error": str(exc)})
+    return render(request, "partials/orphan_count.html", ctx)

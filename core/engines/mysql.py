@@ -229,9 +229,14 @@ class MysqlEngine(Engine):
     # "extensions" (PostgreSQL's CREATE EXTENSION packaging, via \dx /
     # pg_available_extensions) has no MySQL equivalent — plugins/components are a
     # different, server-level concept — so the panel shows "not applicable here".
+    # "orphans" (NOT VALID FKs + inferred-reference orphan checks) is not
+    # applicable: MySQL/InnoDB has no NOT VALID clause — a foreign key is enforced
+    # from creation, so a *declared* FK can never carry orphans. (Inference over
+    # constraint-less `*_id` columns is a possible future MySQL extension; the
+    # first cut is PostgreSQL-only, so the whole card shows "not applicable here".)
     UNSUPPORTED = frozenset({"vacuum", "bloat", "schemas",
                              "replication_slots", "db_template", "fk_index",
-                             "extensions", "jsonb_shape"})
+                             "extensions", "jsonb_shape", "orphans"})
 
     # When inside session(), the one open connection reused for every probe;
     # otherwise None and each _connect() dials its own. Mirrors PostgresEngine.
@@ -830,6 +835,12 @@ class MysqlEngine(Engine):
 
     def fk_missing_indexes(self):
         return []   # "fk_index" not applicable — InnoDB auto-indexes FK columns
+
+    def orphan_candidates(self):
+        return []   # "orphans" not applicable — no NOT VALID FK concept in InnoDB
+
+    def orphan_count(self, schema, table, *, constraint=None, column=None):
+        raise EngineError(_("Orphan-row checks are a PostgreSQL feature here."))
 
     def duplicate_indexes(self) -> list[DuplicateIndex]:
         with self._connect() as conn:
