@@ -150,8 +150,10 @@ table detail in the main pane).
   confirm gates in a side drawer
 - ✅ `postgresql.conf` editor: read/edit parameters via `pg_settings` +
   `ALTER SYSTEM SET` + `pg_reload_conf()`, with reload-vs-restart badges
-- ✅ Locks: sessions blocked on a lock (`pg_locks` + `pg_blocking_pids`) paired
-  with the holder, plus one-click cancel / kill of the blocker
+- ✅ Locks: the wait-for chain folded into a tree — the **head blocker** at the
+  top (cancel / kill it to free the whole chain beneath) with the blocked
+  sessions nested under it (`pg_locks` + `pg_blocking_pids`), blocking cycles
+  detected and flagged, one-click cancel / kill on any session
 - ✅ Replication: readiness check (`wal_level` / `max_wal_senders`) + WAL position,
   connected standbys (`pg_stat_replication`), and slot create / drop
 - ✅ Health: table sizes, unused indexes, **unindexed foreign keys** (FK columns

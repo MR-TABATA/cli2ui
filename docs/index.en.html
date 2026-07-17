@@ -230,7 +230,7 @@
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">Locks</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Sessions blocked on a lock paired with the holder (<span class="mono">pg_blocking_pids</span>), plus one-click cancel / kill of the blocker.</p>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">The wait-for chain as a tree: the <span class="text-zinc-200">head blocker</span> at the top (cancel / kill it to free everything beneath), blocked sessions nested under it (<span class="mono">pg_blocking_pids</span>), cycles flagged. One-click cancel / kill on any session.</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">Backup / restore</h3>

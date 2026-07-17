@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext as _
 
 from ..engines import EngineError, get_engine
+from ..engines.base import build_block_forest
 from ..models import Connection
 
 
@@ -119,10 +120,15 @@ def _render_locks(request, connection, error=None):
         waits = get_engine(connection).list_blocking()
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
+    # Fold the flat blocked-session list into wait-for trees so the panel leads
+    # with the head blocker (cancel it to free the whole chain) instead of only
+    # the one-level "who's blocking me". Engine-agnostic — same LockWait input.
+    trees = build_block_forest(waits)
     return render(
         request,
         "partials/locks.html",
-        {"connection": connection, "waits": waits,
+        {"connection": connection, "trees": trees,
+         "blocked_total": len(waits),
          "query_sql": BLOCKING_SHOW_SQL, "error": error},
     )
 

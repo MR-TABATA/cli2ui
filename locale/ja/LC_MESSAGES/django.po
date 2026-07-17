@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-17 06:43-0500\n"
+"POT-Creation-Date: 2026-07-17 07:23-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -246,7 +246,7 @@ msgstr "スキーマ名は必須です。"
 msgid "Role name is required."
 msgstr "ロール名は必須です。"
 
-#: core/views/ops.py:156 core/views/ops.py:169
+#: core/views/ops.py:162 core/views/ops.py:175
 msgid "Slot name is required."
 msgstr "スロット名は必須です。"
 
@@ -657,7 +657,7 @@ msgstr "操作"
 msgid "active"
 msgstr "実行中"
 
-#: templates/partials/activity.html:75 templates/partials/locks.html:43
+#: templates/partials/activity.html:75 templates/partials/locks.html:38
 msgid "idle in txn"
 msgstr "トランザクション中アイドル"
 
@@ -674,24 +674,24 @@ msgstr "— cli2ui（このリクエスト）—"
 msgid "this tool"
 msgstr "このツール"
 
-#: templates/partials/activity.html:94 templates/partials/locks.html:53
+#: templates/partials/activity.html:94 templates/partials/locks.html:57
 #, python-format
 msgid "Cancel the running query on PID %(pid)s?"
 msgstr "PID %(pid)s の実行中クエリをキャンセルしますか？"
 
 #: templates/partials/activity.html:95 templates/partials/backups.html:51
-#: templates/partials/locks.html:54
+#: templates/partials/locks.html:58
 msgid "cancel"
 msgstr "キャンセル"
 
-#: templates/partials/activity.html:98 templates/partials/locks.html:57
+#: templates/partials/activity.html:98 templates/partials/locks.html:61
 #, python-format
 msgid "Force-close session PID %(pid)s? Its transaction will be rolled back."
 msgstr ""
 "セッション PID %(pid)s を強制終了しますか？トランザクションはロールバックされ"
 "ます。"
 
-#: templates/partials/activity.html:99 templates/partials/locks.html:58
+#: templates/partials/activity.html:99 templates/partials/locks.html:62
 msgid "kill"
 msgstr "強制終了"
 
@@ -721,7 +721,7 @@ msgstr "クライアントセッションなし"
 msgid "Nothing is connected to this database right now."
 msgstr "現在このデータベースに接続はありません。"
 
-#: templates/partials/activity.html:120 templates/partials/locks.html:77
+#: templates/partials/activity.html:120 templates/partials/locks.html:81
 msgid "The query behind this view"
 msgstr "このビューの元クエリ"
 
@@ -729,7 +729,7 @@ msgstr "このビューの元クエリ"
 #: templates/partials/extensions.html:22 templates/partials/health.html:16
 #: templates/partials/health.html:58 templates/partials/health.html:102
 #: templates/partials/health.html:252 templates/partials/health.html:300
-#: templates/partials/locks.html:81 templates/partials/replication.html:124
+#: templates/partials/locks.html:85 templates/partials/replication.html:124
 #: templates/partials/replication.html:163
 msgid "open in SQL →"
 msgstr "SQL で開く →"
@@ -1713,47 +1713,66 @@ msgstr ""
 msgid "— sessions waiting on a lock and who holds it"
 msgstr "— ロック待ちのセッションと保持者"
 
-#: templates/partials/locks.html:23
+#: templates/partials/locks.html:27
+msgid "head blocker"
+msgstr "大元のブロッカー"
+
+#: templates/partials/locks.html:30
 msgid "blocked"
 msgstr "ブロック中"
 
-#: templates/partials/locks.html:26
+#: templates/partials/locks.html:35
+msgid ""
+"This wait leads back to a session already in the chain — a deadlock-shaped "
+"cycle."
+msgstr ""
+"この待機は、連鎖の中に既にあるセッションへ戻ります — デッドロック状の循環で"
+"す。"
+
+#: templates/partials/locks.html:35
+msgid "cycle"
+msgstr "循環"
+
+#: templates/partials/locks.html:42
 #, python-format
 msgid "waiting %(secs)ss"
 msgstr "%(secs)s秒 待機"
 
-#: templates/partials/locks.html:28
+#: templates/partials/locks.html:45
 msgid "on"
 msgstr "対象"
 
-#: templates/partials/locks.html:35
-msgid "blocked by"
-msgstr "ブロック元"
-
-#: templates/partials/locks.html:66
+#: templates/partials/locks.html:49
 #, python-format
-msgid ""
-"%(n)s blocked session · <span class=\"text-amber-400/80\">cancel</span> "
-"stops the blocker's query, <span class=\"text-red-400/80\">kill</span> drops "
-"its connection — either frees the wait"
-msgid_plural ""
-"%(n)s blocked sessions · <span class=\"text-amber-400/80\">cancel</span> "
-"stops the blocker's query, <span class=\"text-red-400/80\">kill</span> drops "
-"its connection — either frees the wait"
-msgstr[0] ""
-"%(n)s 件のブロックされたセッション · <span class=\"text-"
-"amber-400/80\">cancel</span> はブロッカーのクエリを停止、<span class=\"text-"
-"red-400/80\">kill</span> は接続を切断 — どちらも待機を解放します"
-msgstr[1] ""
-"%(n)s 件のブロックされたセッション · <span class=\"text-"
-"amber-400/80\">cancel</span> はブロッカーのクエリを停止、<span class=\"text-"
-"red-400/80\">kill</span> は接続を切断 — どちらも待機を解放します"
+msgid "blocking %(c)s session"
+msgid_plural "blocking %(c)s sessions"
+msgstr[0] "%(c)s 件をブロック中"
+msgstr[1] "%(c)s 件をブロック中"
 
 #: templates/partials/locks.html:70
+#, python-format
+msgid ""
+"%(n)s blocked session · cancel/kill the <span class=\"text-"
+"amber-400/80\">head blocker</span> at the top of a chain to free everything "
+"beneath it"
+msgid_plural ""
+"%(n)s blocked sessions · cancel/kill the <span class=\"text-"
+"amber-400/80\">head blocker</span> at the top of a chain to free everything "
+"beneath it"
+msgstr[0] ""
+"%(n)s 件のブロックされたセッション · 連鎖の先頭にある <span class=\"text-"
+"amber-400/80\">大元のブロッカー</span> を cancel/kill すれば、その下すべてを解"
+"放できます"
+msgstr[1] ""
+"%(n)s 件のブロックされたセッション · 連鎖の先頭にある <span class=\"text-"
+"amber-400/80\">大元のブロッカー</span> を cancel/kill すれば、その下すべてを解"
+"放できます"
+
+#: templates/partials/locks.html:74
 msgid "No lock waits"
 msgstr "ロック待ちなし"
 
-#: templates/partials/locks.html:71
+#: templates/partials/locks.html:75
 msgid "Nothing is blocked on a lock right now."
 msgstr "現在ロックで待機しているものはありません。"
 
@@ -2644,3 +2663,6 @@ msgstr "+ 新しい接続"
 #: templates/workspace.html:108
 msgid "back to connections"
 msgstr "接続一覧に戻る"
+
+#~ msgid "blocked by"
+#~ msgstr "ブロック元"

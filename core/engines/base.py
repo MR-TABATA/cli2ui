@@ -281,6 +281,119 @@ class LockWait:
 
 
 @dataclass
+class BlockNode:
+    """One session in a wait-for tree. `depth` places it under a head blocker:
+    depth 0 is the head (the session at the root, holding a lock and not itself
+    waiting), depth 1+ are the sessions blocked beneath it, deeper = further down
+    the chain. The wait fields describe what *this* session is stuck on and are
+    None for the head, which isn't waiting on anything. `in_cycle` marks a session
+    caught in a blocking cycle (its wait leads back to one already on the path)."""
+
+    pid: int
+    user: str | None
+    state: str | None
+    query: str
+    depth: int
+    wait_secs: int | None       # how long this session has waited (None = head)
+    lock_mode: str | None       # the lock this session waits for (None = head)
+    object: str | None          # contended object (None = head)
+    in_cycle: bool = False
+
+
+@dataclass
+class BlockTree:
+    """A wait-for tree rooted at one head blocker: the session to cancel/kill to
+    free the most, and the chain of sessions stuck beneath it. `nodes` is the tree
+    flattened in display order (head first, then descendants depth-first), so a
+    template renders it by indenting on `depth`. `has_cycle` means the chain forms
+    a loop (a deadlock-shaped wait), in which case the root is an arbitrary member
+    rather than a true unblocked head. Read-only: it's computed from the lock-wait
+    snapshot, nothing is signalled here."""
+
+    nodes: list[BlockNode]      # head at index 0; descendants follow, by depth
+    has_cycle: bool = False
+
+    @property
+    def head(self) -> BlockNode:
+        return self.nodes[0]
+
+    @property
+    def blocked_count(self) -> int:
+        """Sessions freed if the head releases — everything below depth 0."""
+        return sum(1 for n in self.nodes if n.depth > 0)
+
+
+def build_block_forest(waits: list[LockWait]) -> list[BlockTree]:
+    """Fold the flat lock-wait list into wait-for trees rooted at head blockers.
+
+    Engine-agnostic: both engines already return one LockWait per blocked session
+    with its direct blockers, and every mid-chain session is itself a blocked row,
+    so the flat list holds every edge of the wait-for graph — the head blocker is
+    the one session that blocks others yet appears in no blocked row. We build the
+    reverse edges (blocker → the sessions it blocks) and walk down from each head,
+    guarding against cycles by tracking the pids on the current path. A pure
+    cycle with no unblocked head (A⇄B) is surfaced as its own tree flagged
+    has_cycle so a deadlock-shaped wait is never silently dropped."""
+    blocked = {w.blocked_pid: w for w in waits}
+    info: dict[int, Blocker] = {}       # pid → description (from blocker side)
+    children: dict[int, list[int]] = {}  # blocker pid → pids it blocks
+    for w in waits:
+        for b in w.blockers:
+            children.setdefault(b.pid, []).append(w.blocked_pid)
+            info.setdefault(b.pid, b)
+
+    def node(pid: int, depth: int, in_cycle: bool) -> BlockNode:
+        w = blocked.get(pid)
+        desc = info.get(pid)
+        if w is not None:   # a blocked session — full wait info from its row
+            return BlockNode(
+                pid=pid, user=w.blocked_user,
+                state=desc.state if desc else None,
+                query=w.blocked_query, depth=depth, wait_secs=w.wait_secs,
+                lock_mode=w.lock_mode, object=w.object, in_cycle=in_cycle)
+        # a head blocker — not waiting, so described only from the blocker side
+        return BlockNode(
+            pid=pid, user=desc.user if desc else None,
+            state=desc.state if desc else None,
+            query=desc.query if desc else "", depth=depth,
+            wait_secs=None, lock_mode=None, object=None, in_cycle=in_cycle)
+
+    def walk(pid: int, depth: int, path: frozenset[int]) -> list[BlockNode]:
+        cyc = pid in path
+        out = [node(pid, depth, cyc)]
+        if cyc:
+            return out          # already on this path — stop, don't recurse
+        for child in sorted(children.get(pid, [])):
+            out += walk(child, depth + 1, path | {pid})
+        return out
+
+    trees: list[BlockTree] = []
+    reached: set[int] = set()
+    heads = sorted(p for p in children if p not in blocked)
+    for head in heads:
+        nodes = walk(head, 0, frozenset())
+        reached.update(n.pid for n in nodes)
+        trees.append(BlockTree(nodes=nodes,
+                               has_cycle=any(n.in_cycle for n in nodes)))
+
+    # Any blocked session not reached from a head is in a pure cycle (no unblocked
+    # root); surface each such component starting from its lowest pid.
+    remaining = sorted(p for p in blocked if p not in reached)
+    for start in remaining:
+        if start in reached:
+            continue
+        nodes = walk(start, 0, frozenset())
+        reached.update(n.pid for n in nodes)
+        trees.append(BlockTree(nodes=nodes, has_cycle=True))
+
+    # Highest-leverage first: most sessions freed, then longest-waiting.
+    trees.sort(key=lambda t: (t.blocked_count,
+                              max((n.wait_secs or 0) for n in t.nodes)),
+               reverse=True)
+    return trees
+
+
+@dataclass
 class ReplicationStatus:
     """The server's replication posture: am I a primary or a standby, where is
     my WAL, and am I configured to accept a replica? The settings come straight

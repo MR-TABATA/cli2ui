@@ -230,7 +230,7 @@
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">ロック</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">ロック待ちのセッションを保持側（<span class="mono">pg_blocking_pids</span>）とペアで表示。ブロッカーをワンクリックで cancel / kill。</p>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">待機連鎖をツリー表示：先頭に <span class="text-zinc-200">大元のブロッカー</span>（cancel / kill でその下すべてを解放）、その下に待たされているセッションを入れ子（<span class="mono">pg_blocking_pids</span>）。循環も検出。どのセッションもワンクリックで cancel / kill。</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">バックアップ / リストア</h3>

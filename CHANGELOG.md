@@ -19,6 +19,15 @@ Versioning convention for this project:
 
 ### Added
 
+- **Locks: head-blocker chains** — the Locks panel now folds the wait-for graph
+  into a tree instead of a flat "who's blocking me" list. Each tree is rooted at
+  the *head blocker* — the session holding a lock and waiting on nothing — with
+  the blocked sessions nested beneath it, deeper for each step down the chain, so
+  the highest-leverage action (cancel/kill the head to free everything under it)
+  is at the top, labelled with how many it's blocking. Multi-level chains
+  (A waits on B waits on C) are traced to their root and blocking cycles are
+  detected and flagged. Engine-agnostic — the same folding runs for PostgreSQL
+  and MySQL.
 - **Health: orphan rows (unenforced references)** — a new card surfacing the two
   places a referenced row can go missing: foreign keys left `NOT VALID` (their
   pre-existing rows were never checked) and `<base>_id` columns with no foreign

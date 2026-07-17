@@ -19,10 +19,10 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.engines import EngineError, get_engine
 from core.engines.base import (
-    Activity, Column, ConnectionHeadroom, DuplicateIndex, Extension,
-    FKMissingIndex, ForeignKeyEdge, Index, JsonbKey, JsonbShape,
+    Activity, Blocker, Column, ConnectionHeadroom, DuplicateIndex, Extension,
+    FKMissingIndex, ForeignKeyEdge, Index, JsonbKey, JsonbShape, LockWait,
     OrphanCandidate, OrphanCount, PlanNode,
-    Setting, Table, build_dependency_graph,
+    Setting, Table, build_block_forest, build_dependency_graph,
 )
 from core.engines.postgres import (
     INDEX_METHODS,
@@ -270,6 +270,64 @@ def fk(child, parent, columns="x_id", constraint="fk"):
     """Terse ForeignKeyEdge builder for tests."""
     return ForeignKeyEdge(constraint=constraint, child=child, parent=parent,
                           columns=columns)
+
+
+def _wait(pid, blockers, secs=1, mode="AccessExclusiveLock", obj="orders"):
+    """A LockWait for one blocked session and its direct blockers, for the forest
+    tests. `blockers` is a list of pids holding what `pid` waits on."""
+    return LockWait(
+        blocked_pid=pid, blocked_user="u%d" % pid, blocked_query="q%d" % pid,
+        wait_secs=secs, lock_type="relation", lock_mode=mode, object=obj,
+        blockers=[Blocker(pid=b, user="u%d" % b, state="active", query="q%d" % b)
+                  for b in blockers])
+
+
+class BlockForestTests(SimpleTestCase):
+    """The wait-for forest — pure Python over the flat lock-wait list, no DB.
+    Engine-agnostic: both engines feed the same build_block_forest()."""
+
+    def test_empty_when_nothing_blocked(self):
+        self.assertEqual(build_block_forest([]), [])
+
+    def test_multi_level_chain_roots_at_the_head(self):
+        # 456 waits on 123, 123 waits on 999; 999 holds and waits on nothing.
+        trees = build_block_forest([_wait(456, [123], secs=5),
+                                    _wait(123, [999], secs=10)])
+        self.assertEqual(len(trees), 1)
+        t = trees[0]
+        self.assertFalse(t.has_cycle)
+        self.assertEqual([(n.pid, n.depth) for n in t.nodes],
+                         [(999, 0), (123, 1), (456, 2)])
+        self.assertEqual(t.blocked_count, 2)     # freeing 999 frees both
+        # The head isn't waiting — no wait fields; the chain below carries them.
+        self.assertIsNone(t.head.wait_secs)
+        self.assertIsNone(t.head.lock_mode)
+        self.assertEqual(t.nodes[1].wait_secs, 10)
+        self.assertEqual(t.nodes[2].wait_secs, 5)
+
+    def test_one_head_blocking_several(self):
+        trees = build_block_forest([_wait(1, [100]), _wait(2, [100])])
+        self.assertEqual(len(trees), 1)
+        self.assertEqual(trees[0].head.pid, 100)
+        self.assertEqual(sorted(n.pid for n in trees[0].nodes), [1, 2, 100])
+        self.assertEqual(trees[0].blocked_count, 2)
+
+    def test_pure_cycle_is_surfaced_and_guarded(self):
+        # 1 waits on 2, 2 waits on 1 — no unblocked head. Must not recurse
+        # forever, and must be flagged rather than dropped.
+        trees = build_block_forest([_wait(1, [2]), _wait(2, [1])])
+        self.assertEqual(len(trees), 1)
+        self.assertTrue(trees[0].has_cycle)
+        self.assertTrue(any(n.in_cycle for n in trees[0].nodes))
+        # The repeat that closes the loop is where we stop descending.
+        self.assertTrue(any(n.pid == 1 and n.in_cycle for n in trees[0].nodes))
+
+    def test_trees_sorted_by_leverage(self):
+        # head 100 blocks two sessions, head 200 blocks one → 100 first.
+        trees = build_block_forest([_wait(1, [100]), _wait(2, [100]),
+                                    _wait(3, [200])])
+        self.assertEqual([t.head.pid for t in trees], [100, 200])
+        self.assertEqual([t.blocked_count for t in trees], [2, 1])
 
 
 class DependencyGraphTests(SimpleTestCase):
