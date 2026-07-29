@@ -22,7 +22,7 @@ from core.engines.base import (
     Activity, Blocker, Column, ConnectionHeadroom, DuplicateIndex, Extension,
     FKMissingIndex, ForeignKeyEdge, Index, JsonbKey, JsonbShape, LockWait,
     OrphanCandidate, OrphanCount, PlanNode,
-    Setting, Table, build_block_forest, build_dependency_graph,
+    Setting, Standby, Table, build_block_forest, build_dependency_graph,
 )
 from core.engines.postgres import (
     INDEX_METHODS,
@@ -894,6 +894,17 @@ class DataclassPropertyTests(SimpleTestCase):
             Column("id", "integer", False, None, "the primary key").comment,
             "the primary key",
         )
+
+    def test_standby_replay_lag_human_scales_and_defaults(self):
+        base = dict(pid=1, user="repl", app="s1", client=None, state="streaming",
+                    sync_state="async", sent_lsn="0/30B1998", replay_lsn="0/30B1998",
+                    lag_bytes=0)
+        # None (no sample yet) renders as a placeholder, not a crash.
+        self.assertIsNone(Standby(**base).replay_lag_human)
+        # Sub-second stays in ms; seconds and minutes scale up.
+        self.assertEqual(Standby(replay_lag_s=0.082, **base).replay_lag_human, "82 ms")
+        self.assertEqual(Standby(replay_lag_s=1.4, **base).replay_lag_human, "1.4 s")
+        self.assertEqual(Standby(replay_lag_s=192, **base).replay_lag_human, "3.2 min")
 
     def test_column_generated_defaults_to_none(self):
         # generated/generation_expr are optional and trail comment, so existing

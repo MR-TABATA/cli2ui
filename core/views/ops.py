@@ -137,7 +137,8 @@ def _render_locks(request, connection, error=None):
 STANDBYS_SHOW_SQL = (
     "SELECT pid, usename, application_name, client_addr, state, sync_state,\n"
     "       sent_lsn, replay_lsn,\n"
-    "       pg_wal_lsn_diff(sent_lsn, replay_lsn) AS lag_bytes\n"
+    "       pg_wal_lsn_diff(sent_lsn, replay_lsn) AS lag_bytes,\n"
+    "       write_lag, flush_lag, replay_lag\n"
     "FROM pg_stat_replication ORDER BY pid;"
 )
 

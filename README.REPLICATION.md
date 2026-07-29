@@ -73,7 +73,10 @@ In cli2ui, connect to the **primary**:
 | password | `demo`                 |
 
 Open the **Replication** panel. Within a few seconds the standby appears under
-**Standbys** as `walreceiver / streaming`.
+**Standbys** as `walreceiver / streaming`, with its **Lag** (bytes behind) and
+**Replay lag** (how long a commit takes to become visible there). Replay lag
+stays `—` until Postgres has a round-trip sample; run a few writes on the
+primary and it fills in.
 
 ## Notes
 

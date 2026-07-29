@@ -732,6 +732,8 @@ class PostgresEngine(Engine):
                         pid=row[0], user=row[1], app=row[2], client=row[3],
                         state=row[4], sync_state=row[5], sent_lsn=row[6],
                         replay_lsn=row[7], lag_bytes=row[8],
+                        write_lag_s=row[9], flush_lag_s=row[10],
+                        replay_lag_s=row[11],
                     )
                     for row in cur.fetchall()
                 ]

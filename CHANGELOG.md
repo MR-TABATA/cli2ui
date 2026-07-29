@@ -19,6 +19,16 @@ Versioning convention for this project:
 
 ### Added
 
+- **Replication: replay lag in time, not just bytes** — the Standbys table now
+  shows each replica's `replay_lag` alongside the byte lag: how long a commit on
+  the primary takes to become visible on that standby (`ms` / `s` / `min`). Byte
+  lag tells you *how far* a replica trails; replay lag tells you *how long* —
+  which is the number that matters when you read your own writes from a replica.
+  It's exactly the wait PostgreSQL 19's `WAIT FOR LSN` would incur for a read
+  there. Read from `pg_stat_replication.replay_lag` (also `write_lag` /
+  `flush_lag` in the panel's "open in SQL"); `NULL` until Postgres has a
+  round-trip sample, shown as `—`.
+
 - **Locks: head-blocker chains** — the Locks panel now folds the wait-for graph
   into a tree instead of a flat "who's blocking me" list. Each tree is rooted at
   the *head blocker* — the session holding a lock and waiting on nothing — with

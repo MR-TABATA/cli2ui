@@ -11,6 +11,19 @@ class EngineError(Exception):
     """
 
 
+def _human_seconds(secs: float | None) -> str | None:
+    """A short, readable duration: '820 ms', '1.4 s', '3.2 min'. Sub-second
+    values keep millisecond precision (replication lag is usually tiny).
+    Returns None for None so callers can render a placeholder."""
+    if secs is None:
+        return None
+    if secs < 1:
+        return f"{secs * 1000:.0f} ms"
+    if secs < 60:
+        return f"{secs:.1f} s"
+    return f"{secs / 60:.1f} min"
+
+
 @dataclass
 class Dump:
     """A pg_dump result, ready to hand to the browser as a download."""
@@ -427,6 +440,18 @@ class Standby:
     sent_lsn: str | None
     replay_lsn: str | None
     lag_bytes: int | None       # sent − replayed, in bytes
+    # Time lag, in seconds. replay_lag is the read-your-writes metric: how long
+    # a commit takes to become visible here (how long WAIT FOR LSN would wait).
+    # NULL until Postgres has a round-trip sample, so all three can be None.
+    write_lag_s: float | None = None
+    flush_lag_s: float | None = None
+    replay_lag_s: float | None = None
+
+    @property
+    def replay_lag_human(self) -> str | None:
+        """replay_lag as a compact human string (ms / s / min), or None when
+        Postgres hasn't sampled it yet."""
+        return _human_seconds(self.replay_lag_s)
 
 
 @dataclass

@@ -183,11 +183,18 @@ SELECT current_setting('wal_level'),
 """
 
 # Connected replicas. lag is sent − replayed in bytes (how far the standby
-# trails what the primary has shipped it).
+# trails what the primary has shipped it), plus write/flush/replay_lag as time.
+# replay_lag is the one that matters for read-your-writes: how long a commit
+# here takes to become visible on the standby — i.e. how long WAIT FOR LSN
+# would block a read there. The lag columns are NULL until Postgres has a
+# round-trip sample (an idle or just-attached standby), so they can be absent.
 STANDBYS_SQL = """
 SELECT pid, usename, application_name, client_addr::text, state, sync_state,
        sent_lsn::text, replay_lsn::text,
-       pg_wal_lsn_diff(sent_lsn, replay_lsn)::bigint AS lag_bytes
+       pg_wal_lsn_diff(sent_lsn, replay_lsn)::bigint AS lag_bytes,
+       EXTRACT(EPOCH FROM write_lag)::float8  AS write_lag_s,
+       EXTRACT(EPOCH FROM flush_lag)::float8  AS flush_lag_s,
+       EXTRACT(EPOCH FROM replay_lag)::float8 AS replay_lag_s
 FROM pg_stat_replication
 ORDER BY pid;
 """

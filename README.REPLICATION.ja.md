@@ -74,7 +74,10 @@ cli2ui で **primary** に接続します：
 | password | `demo`                 |
 
 **Replication** パネルを開きます。数秒以内に standby が **Standbys** の下に
-`walreceiver / streaming` として現れます。
+`walreceiver / streaming` として現れます。**Lag**（何バイト遅れているか）と
+**Replay lag**（コミットがそのレプリカで見えるようになるまでの時間）も表示され
+ます。Replay lag は Postgres が往復サンプルを取るまで `—` のままなので、プライ
+マリに数回書き込むと値が入ります。
 
 ## 注意
 

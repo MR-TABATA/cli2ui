@@ -131,7 +131,8 @@
             <th class="px-5 py-2 font-medium">{% trans "Client" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "State" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Sync" %}</th>
-            <th class="px-5 py-2 font-medium text-right">{% trans "Lag" %}</th>
+            <th class="px-5 py-2 font-medium text-right" title="{% trans 'sent − replayed, in bytes' %}">{% trans "Lag" %}</th>
+            <th class="px-5 py-2 font-medium text-right" title="{% trans 'How long a commit takes to become visible on this replica — what WAIT FOR LSN would wait for a read here.' %}">{% trans "Replay lag" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -142,6 +143,7 @@
               <td class="px-5 py-2 mono text-zinc-300">{{ s.state|default:"—" }}</td>
               <td class="px-5 py-2 mono text-zinc-400">{{ s.sync_state|default:"—" }}</td>
               <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{% if s.lag_bytes is not None %}{{ s.lag_bytes }} B{% else %}—{% endif %}</td>
+              <td class="px-5 py-2 mono text-zinc-200 text-right tabular-nums">{{ s.replay_lag_human|default:"—" }}</td>
             </tr>
           {% endfor %}
         </tbody>
