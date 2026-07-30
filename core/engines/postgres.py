@@ -12,6 +12,7 @@ from datetime import datetime
 
 import psycopg2
 from django.utils.translation import gettext as _
+from psycopg2 import errors as pg_errors
 from psycopg2 import sql
 
 from .base import (
@@ -109,6 +110,10 @@ DUMP_FORMATS = {
 # How long a single pg_dump / restore may run before we give up (seconds).
 DUMP_TIMEOUT = 120
 RESTORE_TIMEOUT = 300
+
+# How long a DDL statement may wait for its lock before giving up. Short on
+# purpose — see _execute() for why waiting is the dangerous part.
+DDL_LOCK_TIMEOUT = "2s"
 
 # The parameters people actually reach for — connections, memory, WAL, logging.
 # Shown by default so the editor isn't a wall of 350 obscure GUCs.
@@ -965,7 +970,11 @@ class PostgresEngine(Engine):
 
     def _execute_admin(self, statement) -> None:
         """Run a database-level statement from a maintenance DB. These can't run
-        inside a transaction; _connect is autocommit, so each runs standalone."""
+        inside a transaction; _connect is autocommit, so each runs standalone.
+
+        No lock_timeout, unlike _execute: CREATE / DROP / ALTER DATABASE take no
+        table lock, so they can't build a queue in front of other queries — they
+        just fail outright when someone else is connected."""
         with self._connect(dbname=self._maintenance_dbname()) as conn:
             with conn.cursor() as cur:
                 try:
@@ -997,17 +1006,21 @@ class PostgresEngine(Engine):
         if unknown:
             raise EngineError(_("No such column(s): %(cols)s") % {"cols": ', '.join(unknown)})
         # CONCURRENTLY can't run inside a transaction — fine here, _connect()
-        # is autocommit, so _execute() runs it as a standalone statement.
+        # is autocommit, so _execute() runs it as a standalone statement. No
+        # lock_timeout: the build blocks nobody, and cutting its wait short is
+        # exactly what leaves an invalid index behind (see _execute).
         self._execute(build_create_index_sql(
             schema, table, columns, method=method, unique=unique,
             name=name, concurrently=True,
-        ))
+        ), lock_timeout=None)
 
     def drop_index(self, schema: str, name: str, table: str | None = None) -> None:
         # `table` is unused: Postgres indexes live in a schema, so name+schema is
         # enough. It's in the signature only for parity with MySQL (see base).
+        # lock_timeout=None for the same reason as create_index: an interrupted
+        # concurrent drop can leave the index behind, marked invalid.
         self._execute(sql.SQL("DROP INDEX CONCURRENTLY {}.{}").format(
-            sql.Identifier(schema), sql.Identifier(name)))
+            sql.Identifier(schema), sql.Identifier(name)), lock_timeout=None)
 
     # --- table-level operations ------------------------------------------
 
@@ -1212,14 +1225,47 @@ class PostgresEngine(Engine):
         if proc.returncode != 0:
             raise EngineError(_tool_error(b"".join(err_chunks), "restore failed."))
 
-    def _execute(self, statement) -> None:
-        """Run a composed DDL statement, mapping driver errors to EngineError."""
+    def _execute(self, statement, *,
+                 lock_timeout: str | None = DDL_LOCK_TIMEOUT) -> None:
+        """Run a composed DDL statement, mapping driver errors to EngineError.
+
+        Every ALTER / DROP / TRUNCATE routed through here takes an ACCESS
+        EXCLUSIVE lock, and a DDL statement *waiting* for that lock is the
+        classic self-inflicted outage: it queues behind whatever transaction is
+        already on the table, and then every later statement — plain SELECTs
+        included — queues behind the waiting DDL. One clicked button can stall a
+        whole table until the connection pool runs dry. So we bound the wait: if
+        the lock isn't free within lock_timeout the statement gives up, nothing
+        was changed, and no queue ever forms.
+
+        It bounds the *wait*, not the hold — a statement that rewrites the table
+        (ALTER COLUMN TYPE) still keeps the lock for as long as the rewrite runs.
+
+        Pass lock_timeout=None for CONCURRENTLY index work: it takes a weak lock
+        that blocks nobody, but legitimately waits on other transactions, and
+        timing it out is what leaves behind the invalid index it exists to avoid."""
         with self._connect() as conn:
             with conn.cursor() as cur:
                 try:
+                    if lock_timeout is not None:
+                        cur.execute("SET lock_timeout = %s", [lock_timeout])
                     cur.execute(statement)
+                except pg_errors.LockNotAvailable as exc:
+                    raise EngineError(_(
+                        "Gave up after waiting %(timeout)s for a lock on this "
+                        "object — another transaction is holding it. Nothing was "
+                        "changed. The Locks panel shows who; retry when it clears."
+                    ) % {"timeout": lock_timeout}) from exc
                 except psycopg2.Error as exc:
                     raise EngineError(_clean(exc)) from exc
+                finally:
+                    if lock_timeout is not None:
+                        # SET LOCAL would need a transaction and _connect is
+                        # autocommit, so the setting is session-wide: undo it in
+                        # case this is session()'s held connection, which outlives
+                        # the statement.
+                        with contextlib.suppress(psycopg2.Error):
+                            cur.execute("RESET lock_timeout")
 
     # --- health ----------------------------------------------------------
 

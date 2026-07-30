@@ -34,6 +34,7 @@ from datetime import datetime
 
 import pymysql
 from django.utils.translation import gettext as _
+from pymysql.constants import ER
 
 from .base import (
     Activity,
@@ -115,6 +116,11 @@ _WHATIF_UNSUPPORTED = (
 # How long a single mysqldump / restore may run before we give up (seconds).
 MYSQLDUMP_TIMEOUT = 120
 RESTORE_TIMEOUT = 300
+
+# How long a DDL statement may wait for its metadata lock before giving up
+# (seconds — lock_wait_timeout takes no units and its minimum is 1). MySQL's
+# default is 31536000, a full year of waiting. See _execute() for why that hurts.
+DDL_LOCK_WAIT_TIMEOUT = 2
 
 # The server variables people actually reach for — connections, InnoDB memory,
 # the binlog, logging — shown by default so the editor isn't a wall of ~600 vars.
@@ -1145,15 +1151,40 @@ class MysqlEngine(Engine):
 
     # --- shared DDL runner -----------------------------------------------
 
-    def _execute(self, statement: str, params=None) -> None:
+    def _execute(self, statement: str, params=None, *,
+                 lock_wait: int | None = DDL_LOCK_WAIT_TIMEOUT) -> None:
         """Run a DDL/DML statement (autocommit connection — MySQL DDL commits
-        implicitly anyway), mapping driver errors to EngineError."""
+        implicitly anyway), mapping driver errors to EngineError.
+
+        The wait is bounded for the same reason as the Postgres engine's
+        _execute: MySQL DDL needs an exclusive *metadata* lock, so it queues
+        behind any open transaction on the table — and every later statement,
+        reads included, then queues behind the waiting DDL. Online DDL
+        (ALGORITHM=INPLACE) doesn't save you: the brief exclusive MDL it takes at
+        each end is enough to build the pileup. lock_wait_timeout is the MDL
+        equivalent of Postgres' lock_timeout and it bounds only the wait, not how
+        long the statement then holds the lock."""
         with self._connect() as conn:
             with conn.cursor() as cur:
                 try:
+                    if lock_wait is not None:
+                        cur.execute("SET SESSION lock_wait_timeout = %s", [lock_wait])
                     cur.execute(statement, params)
                 except pymysql.Error as exc:
+                    if exc.args and exc.args[0] == ER.LOCK_WAIT_TIMEOUT:
+                        raise EngineError(_(
+                            "Gave up after waiting %(secs)ss for a lock on this "
+                            "object — another transaction is holding it. Nothing "
+                            "was changed. The Locks panel shows who; retry when it "
+                            "clears.") % {"secs": lock_wait}) from exc
                     raise EngineError(_clean(exc)) from exc
+                finally:
+                    if lock_wait is not None:
+                        # Session-scoped, and _connect() may hand back session()'s
+                        # held connection, which outlives this statement — so put
+                        # the server's own default back.
+                        with contextlib.suppress(pymysql.Error):
+                            cur.execute("SET SESSION lock_wait_timeout = DEFAULT")
 
 
 # --- row → dataclass helpers ---------------------------------------------

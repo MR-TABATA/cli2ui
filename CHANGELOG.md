@@ -65,6 +65,22 @@ Versioning convention for this project:
   once into a named volume. Realistic volume (65k flights, 593k bookings, 829k
   tickets, `jsonb` columns) for the health, activity, and sampling features.
 
+### Changed
+
+- **Structural changes now give up instead of piling up** — every `ALTER` /
+  `DROP` / `TRUNCATE` / rename the UI issues runs with a short `lock_timeout`
+  (2s; `lock_wait_timeout` on MySQL, whose own default is a full year). A DDL
+  statement needs an exclusive lock, so it waits behind any open transaction on
+  the table — and every statement that arrives after it, plain `SELECT`s
+  included, then waits behind the DDL. That is how one clicked button used to be
+  able to stall a whole table until the connection pool ran dry. Now the wait is
+  bounded: the change fails in seconds with a message saying nothing was changed
+  and pointing at the Locks panel, and no queue ever forms. It bounds the *wait*,
+  not the hold — a statement that rewrites the table (`ALTER COLUMN … TYPE`)
+  still holds its lock for as long as the rewrite runs. `CREATE INDEX
+  CONCURRENTLY` / `DROP INDEX CONCURRENTLY` are deliberately exempt: they block
+  nobody, and timing them out is what leaves an invalid index behind.
+
 ### Fixed
 
 - **Health: unindexed foreign keys** no longer counts a partial index (its

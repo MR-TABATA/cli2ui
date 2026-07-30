@@ -174,6 +174,14 @@ table detail in the main pane).
   default — read-only; `CREATE EXTENSION` stays in the SQL runner
 - ✅ Command history: SQL run through the runner, logged to the management DB —
   status, row count, timing, and one-click re-open
+- ✅ Structural changes that give up instead of piling up: every `ALTER` / `DROP` /
+  `TRUNCATE` / rename runs with a short `lock_timeout` (2s; `lock_wait_timeout` on
+  MySQL, whose own default is a year), so a change that can't get its exclusive
+  lock fails in seconds — telling you nothing was changed and where to look —
+  instead of waiting behind an open transaction while every later query, plain
+  `SELECT`s included, queues behind *it*. `CREATE`/`DROP INDEX CONCURRENTLY` are
+  exempt on purpose: they block nobody, and timing them out is what leaves an
+  invalid index behind
 - ✅ Backup / restore: automatic table snapshots (`pg_dump` custom format) before
   every destructive or structural change (drop / truncate / rename / alter), kept
   under a per-connection size budget (oldest pruned automatically — tune with

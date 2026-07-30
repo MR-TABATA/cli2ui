@@ -237,6 +237,10 @@
         <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Automatic table snapshots before every destructive or structural change, plus restore of an uploaded dump — streamed to the client tool, not buffered in memory.</p>
       </div>
       <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">DDL that gives up, not piles up</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Every <span class="mono">ALTER</span> / <span class="mono">DROP</span> / <span class="mono">TRUNCATE</span> / rename runs under a short <span class="mono">lock_timeout</span>, so a change that can't get its exclusive lock fails in two seconds — <span class="text-zinc-200">nothing changed</span> — instead of waiting behind an open transaction while every later query, plain <span class="mono">SELECT</span>s included, queues behind <em>it</em>. Concurrent index builds are exempt on purpose.</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">Replication</h3>
         <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Readiness check (<span class="mono">wal_level</span> / <span class="mono">max_wal_senders</span>) + WAL position, connected standbys, and slot create / drop.</p>
       </div>

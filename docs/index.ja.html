@@ -237,6 +237,10 @@
         <p class="mt-2 text-sm text-zinc-400 leading-relaxed">破壊的・構造的な変更の前に自動でテーブルスナップショット。アップロードしたダンプの復元は、メモリに溜め込まずクライアントツールへストリーミング。</p>
       </div>
       <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">詰まらせない DDL</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed"><span class="mono">ALTER</span> / <span class="mono">DROP</span> / <span class="mono">TRUNCATE</span> / リネームは短い <span class="mono">lock_timeout</span> 付きで実行。排他ロックが取れない変更は 2 秒で諦めて失敗します（<span class="text-zinc-200">変更は行われません</span>）。開いたトランザクションの後ろで待ち続け、その後ろに通常の <span class="mono">SELECT</span> まで含めた全クエリが並ぶ——という事故を防ぎます。並行インデックス構築は意図的に対象外。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">レプリケーション</h3>
         <p class="mt-2 text-sm text-zinc-400 leading-relaxed">準備状況チェック（<span class="mono">wal_level</span> / <span class="mono">max_wal_senders</span>）+ WAL 位置、接続中のスタンバイ、スロットの作成 / 削除。</p>
       </div>

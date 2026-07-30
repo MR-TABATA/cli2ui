@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-17 07:23-0500\n"
+"POT-Creation-Date: 2026-07-30 08:44+0900\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,29 +22,29 @@ msgstr ""
 msgid "Unsupported database kind: %(kind)s"
 msgstr "未対応のデータベース種別: %(kind)s"
 
-#: core/engines/mysql.py:388 core/engines/mysql.py:795
-#: core/engines/mysql.py:801 core/engines/postgres.py:366
-#: core/engines/postgres.py:458 core/engines/postgres.py:1097
+#: core/engines/mysql.py:394 core/engines/mysql.py:801
+#: core/engines/mysql.py:807 core/engines/postgres.py:371
+#: core/engines/postgres.py:463 core/engines/postgres.py:1112
 #, python-format
 msgid "No such column: %(name)s"
 msgstr "存在しない列: %(name)s"
 
-#: core/engines/mysql.py:390 core/engines/postgres.py:460
+#: core/engines/mysql.py:396 core/engines/postgres.py:465
 #, python-format
 msgid "Unknown filter operator: %(op)s"
 msgstr "不明なフィルタ演算子: %(op)s"
 
-#: core/engines/mysql.py:435 core/engines/mysql.py:440
-#: core/engines/postgres.py:510
+#: core/engines/mysql.py:441 core/engines/mysql.py:446
+#: core/engines/postgres.py:515
 msgid "The CSV file is empty."
 msgstr "CSV ファイルが空です。"
 
-#: core/engines/mysql.py:445 core/engines/postgres.py:517
+#: core/engines/mysql.py:451 core/engines/postgres.py:522
 #, python-format
 msgid "CSV header has columns not in %(table)s: %(cols)s"
 msgstr "%(table)s に無い列が CSV ヘッダにあります: %(cols)s"
 
-#: core/engines/mysql.py:604
+#: core/engines/mysql.py:610
 msgid ""
 "Can't check for lock waits: the MySQL performance_schema is disabled on this "
 "server, so blocking can't be detected. Enable it (performance_schema=ON) to "
@@ -54,7 +54,7 @@ msgstr ""
 "効なため、ブロッキングを検出できません。このパネルを使うには有効化してくださ"
 "い (performance_schema=ON)。"
 
-#: core/engines/mysql.py:614
+#: core/engines/mysql.py:620
 msgid ""
 "Can't check for lock waits: this needs MySQL 8.0+ "
 "(performance_schema.data_lock_waits is unavailable here)."
@@ -62,7 +62,7 @@ msgstr ""
 "ロック待ちを確認できません: これには MySQL 8.0 以降が必要です "
 "(performance_schema.data_lock_waits がここでは利用できません)。"
 
-#: core/engines/mysql.py:649
+#: core/engines/mysql.py:655
 msgid ""
 "MySQL can't create a database from a template (no TEMPLATE/CREATE DATABASE … "
 "LIKE). Create it empty, then load a dump."
@@ -70,7 +70,7 @@ msgstr ""
 "MySQL はテンプレートからデータベースを作成できません (TEMPLATE/CREATE "
 "DATABASE … LIKE は非対応)。空で作成してからダンプを読み込んでください。"
 
-#: core/engines/mysql.py:662
+#: core/engines/mysql.py:668
 msgid ""
 "Can't drop the database this connection is using — connect to another "
 "database first."
@@ -78,7 +78,7 @@ msgstr ""
 "この接続が使用中のデータベースは削除できません — 先に別のデータベースに接続し"
 "てください。"
 
-#: core/engines/mysql.py:668
+#: core/engines/mysql.py:674
 msgid ""
 "MySQL doesn't support renaming a database. Create the new one and move the "
 "tables (RENAME TABLE), or dump and reload."
@@ -86,44 +86,44 @@ msgstr ""
 "MySQL はデータベースのリネームに対応していません。新しいデータベースを作成し"
 "てテーブルを移動する (RENAME TABLE) か、ダンプして再読み込みしてください。"
 
-#: core/engines/mysql.py:683 core/engines/postgres.py:153
+#: core/engines/mysql.py:689 core/engines/postgres.py:158
 #, python-format
 msgid "Unsupported index method: %(method)s"
 msgstr "未対応のインデックス方式: %(method)s"
 
-#: core/engines/mysql.py:685 core/engines/postgres.py:155
+#: core/engines/mysql.py:691 core/engines/postgres.py:160
 #: core/views/tables.py:166
 msgid "Select at least one column to index."
 msgstr "インデックス対象の列を1つ以上選んでください。"
 
-#: core/engines/mysql.py:692 core/engines/postgres.py:996
+#: core/engines/mysql.py:698 core/engines/postgres.py:1007
 #: planner_lab/whatif.py:115
 #, python-format
 msgid "No such column(s): %(cols)s"
 msgstr "存在しない列: %(cols)s"
 
-#: core/engines/mysql.py:705
+#: core/engines/mysql.py:711
 msgid "Dropping an index needs the table it's on."
 msgstr "インデックスの削除には、対象のテーブルが必要です。"
 
-#: core/engines/mysql.py:728 core/engines/mysql.py:757
+#: core/engines/mysql.py:734 core/engines/mysql.py:763
 #, python-format
 msgid "Unsupported column type: %(t)s. Pick one of the listed types."
 msgstr "未対応の列型です: %(t)s。一覧の型から選んでください。"
 
-#: core/engines/mysql.py:843
+#: core/engines/mysql.py:849
 msgid "Orphan-row checks are a PostgreSQL feature here."
 msgstr "孤児行チェックはここでは PostgreSQL の機能です。"
 
-#: core/engines/mysql.py:901
+#: core/engines/mysql.py:907
 msgid "mysqldump timed out."
 msgstr "mysqldump がタイムアウトしました。"
 
-#: core/engines/mysql.py:945 core/engines/postgres.py:1203
+#: core/engines/mysql.py:951 core/engines/postgres.py:1218
 msgid "restore timed out."
 msgstr "リストアがタイムアウトしました。"
 
-#: core/engines/mysql.py:1034
+#: core/engines/mysql.py:1040
 msgid ""
 "MySQL has no replication slots — it streams the binary log directly, so "
 "there's nothing to create."
@@ -131,36 +131,58 @@ msgstr ""
 "MySQL にレプリケーションスロットはありません — バイナリログを直接ストリーミン"
 "グするため、作成するものはありません。"
 
-#: core/engines/mysql.py:1038
+#: core/engines/mysql.py:1044
 msgid "MySQL has no replication slots — nothing to drop."
 msgstr ""
 "MySQL にレプリケーションスロットはありません — 削除するものはありません。"
 
-#: core/engines/mysql.py:1128 core/engines/mysql.py:1133
-#: core/engines/mysql.py:1143 core/engines/postgres.py:1447
+#: core/engines/mysql.py:1134 core/engines/mysql.py:1139
+#: core/engines/mysql.py:1149 core/engines/postgres.py:1495
 #, python-format
 msgid "Unknown setting: %(name)s"
 msgstr "不明な設定: %(name)s"
 
-#: core/engines/postgres.py:369
+#: core/engines/mysql.py:1176
+#, python-format
+msgid ""
+"Gave up after waiting %(secs)ss for a lock on this object — another "
+"transaction is holding it. Nothing was changed. The Locks panel shows who; "
+"retry when it clears."
+msgstr ""
+"%(secs)s 秒待ってもこのオブジェクトのロックが取れませんでした — 別のトランザ"
+"クションが保持しています。変更は行われていません。保持者は「ロック」パネルで"
+"確認し、解放されてから再実行してください。"
+
+#: core/engines/postgres.py:374
 #, python-format
 msgid "%(name)s is not a JSON column."
 msgstr "%(name)s は JSON 列ではありません。"
 
-#: core/engines/postgres.py:1121
+#: core/engines/postgres.py:1136
 #, python-format
 msgid "Unknown dump format: %(fmt)s"
 msgstr "不明なダンプ形式: %(fmt)s"
 
-#: core/engines/postgres.py:1139
+#: core/engines/postgres.py:1154
 msgid "pg_dump timed out."
 msgstr "pg_dump がタイムアウトしました。"
 
-#: core/engines/postgres.py:1324
+#: core/engines/postgres.py:1255
+#, python-format
+msgid ""
+"Gave up after waiting %(timeout)s for a lock on this object — another "
+"transaction is holding it. Nothing was changed. The Locks panel shows who; "
+"retry when it clears."
+msgstr ""
+"%(timeout)s 待ってもこのオブジェクトのロックが取れませんでした — 別のトランザ"
+"クションが保持しています。変更は行われていません。保持者は「ロック」パネルで"
+"確認し、解放されてから再実行してください。"
+
+#: core/engines/postgres.py:1372
 msgid "No relationship to check was given."
 msgstr "チェックする関係が指定されていません。"
 
-#: core/engines/postgres.py:1337
+#: core/engines/postgres.py:1385
 msgid ""
 "This reference no longer resolves to a single parent — it may have changed "
 "since the panel loaded."
@@ -246,7 +268,7 @@ msgstr "スキーマ名は必須です。"
 msgid "Role name is required."
 msgstr "ロール名は必須です。"
 
-#: core/views/ops.py:162 core/views/ops.py:175
+#: core/views/ops.py:163 core/views/ops.py:176
 msgid "Slot name is required."
 msgstr "スロット名は必須です。"
 
@@ -450,7 +472,7 @@ msgstr "初期値は同梱のサンプルDBを指しています。"
 
 #: templates/index.html:16 templates/partials/detail.html:70
 #: templates/partials/detail.html:326 templates/partials/detail.html:359
-#: templates/partials/replication.html:170
+#: templates/partials/replication.html:172
 msgid "Type"
 msgstr "種別"
 
@@ -461,7 +483,7 @@ msgstr "種別"
 #: templates/partials/objects.html:95 templates/partials/objects.html:184
 #: templates/partials/objects.html:252 templates/partials/objects.html:263
 #: templates/partials/objects.html:279 templates/partials/objects.html:300
-#: templates/partials/replication.html:169 templates/partials/snapshots.html:33
+#: templates/partials/replication.html:171 templates/partials/snapshots.html:33
 msgid "Name"
 msgstr "名前"
 
@@ -649,11 +671,11 @@ msgstr "実行時間"
 msgid "Query"
 msgstr "クエリ"
 
-#: templates/partials/activity.html:63 templates/partials/replication.html:173
+#: templates/partials/activity.html:63 templates/partials/replication.html:175
 msgid "Actions"
 msgstr "操作"
 
-#: templates/partials/activity.html:73 templates/partials/replication.html:183
+#: templates/partials/activity.html:73 templates/partials/replication.html:185
 msgid "active"
 msgstr "実行中"
 
@@ -730,7 +752,7 @@ msgstr "このビューの元クエリ"
 #: templates/partials/health.html:58 templates/partials/health.html:102
 #: templates/partials/health.html:252 templates/partials/health.html:300
 #: templates/partials/locks.html:85 templates/partials/replication.html:124
-#: templates/partials/replication.html:163
+#: templates/partials/replication.html:165
 msgid "open in SQL →"
 msgstr "SQL で開く →"
 
@@ -1005,7 +1027,7 @@ msgstr ""
 
 #: templates/partials/detail.html:108 templates/partials/detail.html:166
 #: templates/partials/objects.html:69 templates/partials/objects.html:112
-#: templates/partials/objects.html:156 templates/partials/replication.html:196
+#: templates/partials/objects.html:156 templates/partials/replication.html:198
 msgid "drop"
 msgstr "削除"
 
@@ -1761,12 +1783,12 @@ msgid_plural ""
 "beneath it"
 msgstr[0] ""
 "%(n)s 件のブロックされたセッション · 連鎖の先頭にある <span class=\"text-"
-"amber-400/80\">大元のブロッカー</span> を cancel/kill すれば、その下すべてを解"
-"放できます"
+"amber-400/80\">大元のブロッカー</span> を cancel/kill すれば、その下すべてを"
+"解放できます"
 msgstr[1] ""
 "%(n)s 件のブロックされたセッション · 連鎖の先頭にある <span class=\"text-"
-"amber-400/80\">大元のブロッカー</span> を cancel/kill すれば、その下すべてを解"
-"放できます"
+"amber-400/80\">大元のブロッカー</span> を cancel/kill すれば、その下すべてを"
+"解放できます"
 
 #: templates/partials/locks.html:74
 msgid "No lock waits"
@@ -2309,34 +2331,50 @@ msgid "Sync"
 msgstr "同期"
 
 #: templates/partials/replication.html:134
+msgid "sent − replayed, in bytes"
+msgstr "送信済 − 再生済（バイト）"
+
+#: templates/partials/replication.html:134
 msgid "Lag"
 msgstr "遅延"
 
-#: templates/partials/replication.html:150
+#: templates/partials/replication.html:135
+msgid ""
+"How long a commit takes to become visible on this replica — what WAIT FOR "
+"LSN would wait for a read here."
+msgstr ""
+"コミットがこのレプリカで見えるようになるまでの時間 — ここで読む場合に WAIT "
+"FOR LSN が待つことになる長さです。"
+
+#: templates/partials/replication.html:135
+msgid "Replay lag"
+msgstr "再生遅延"
+
+#: templates/partials/replication.html:152
 msgid "No standby connected."
 msgstr "接続中のスタンバイはありません。"
 
-#: templates/partials/replication.html:158
+#: templates/partials/replication.html:160
 msgid "Slots"
 msgstr "スロット"
 
-#: templates/partials/replication.html:171
+#: templates/partials/replication.html:173
 msgid "Active"
 msgstr "アクティブ"
 
-#: templates/partials/replication.html:172
+#: templates/partials/replication.html:174
 msgid "Restart LSN"
 msgstr "Restart LSN"
 
-#: templates/partials/replication.html:185
+#: templates/partials/replication.html:187
 msgid "An inactive slot keeps WAL from being recycled"
 msgstr "非アクティブなスロットは WAL の再利用を妨げます"
 
-#: templates/partials/replication.html:185
+#: templates/partials/replication.html:187
 msgid "inactive · pins WAL"
 msgstr "非アクティブ · WAL を固定"
 
-#: templates/partials/replication.html:195
+#: templates/partials/replication.html:197
 #, python-format
 msgid ""
 "Drop replication slot &quot;%(name)s&quot;? Any standby relying on it will "
@@ -2345,15 +2383,15 @@ msgstr ""
 "レプリケーションスロット &quot;%(name)s&quot; を削除しますか？依存するスタン"
 "バイは壊れます。"
 
-#: templates/partials/replication.html:203
+#: templates/partials/replication.html:205
 msgid "No replication slots."
 msgstr "レプリケーションスロットはありません。"
 
-#: templates/partials/replication.html:213
+#: templates/partials/replication.html:215
 msgid "+ Create physical slot"
 msgstr "+ 物理スロットを作成"
 
-#: templates/partials/replication.html:214
+#: templates/partials/replication.html:216
 msgid "⚠ An unused slot keeps WAL forever — drop it when done."
 msgstr ""
 "⚠ 未使用スロットは WAL を永遠に保持します — 使い終わったら削除してください。"

@@ -16,6 +16,7 @@ from types import SimpleNamespace
 
 import psycopg2
 from django.test import SimpleTestCase, TestCase, override_settings
+from psycopg2 import sql
 
 from core.engines import EngineError, get_engine
 from core.engines.base import (
@@ -25,6 +26,7 @@ from core.engines.base import (
     Setting, Standby, Table, build_block_forest, build_dependency_graph,
 )
 from core.engines.postgres import (
+    DDL_LOCK_TIMEOUT,
     INDEX_METHODS,
     PostgresEngine,
     _clean,
@@ -684,6 +686,87 @@ class SessionConnectionReuseTests(SimpleTestCase):
         self.assertEqual(connect.call_count, 2)
 
 
+class DdlLockTimeoutTests(SimpleTestCase):
+    """The DDL path must bound how long it waits for its lock. A DDL statement
+    queueing for an ACCESS EXCLUSIVE lock parks every later query behind it,
+    reads included, so waiting — not the change itself — is what takes a table
+    down. No live DB: psycopg2.connect is mocked and we assert what the engine
+    sends, and in what order."""
+
+    def _engine(self):
+        return PostgresEngine(Connection(kind="postgres", host="h", port=5432,
+                                         dbname="d", user="u", password="p"))
+
+    @staticmethod
+    def _cursor(connect):
+        cur = unittest.mock.MagicMock()
+        connect.return_value.cursor.return_value.__enter__.return_value = cur
+        return cur
+
+    @staticmethod
+    def _ran(cur):
+        return [c.args[0] for c in cur.execute.call_args_list]
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_ddl_sets_lock_timeout_first_and_clears_it_after(self, connect):
+        cur = self._cursor(connect)
+        self._engine().truncate_table("public", "orders")
+        calls = cur.execute.call_args_list
+        self.assertEqual(calls[0].args[0], "SET lock_timeout = %s")
+        self.assertEqual(calls[0].args[1], [DDL_LOCK_TIMEOUT])
+        # The DDL itself is a composed statement, not a string we build here.
+        self.assertIsInstance(calls[1].args[0], sql.Composed)
+        # Cleared afterwards: _connect() may hand back session()'s held
+        # connection, and the setting would otherwise outlive the statement.
+        self.assertEqual(calls[-1].args[0], "RESET lock_timeout")
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_concurrent_index_build_is_left_unbounded(self, connect):
+        cur = self._cursor(connect)
+        # list_columns runs first (the column allow-list check).
+        cur.fetchall.return_value = [("id", "integer", "NO", None, None, "", None)]
+        self._engine().create_index("public", "orders", ["id"])
+        # CREATE INDEX CONCURRENTLY blocks nobody, so there's no queue to avoid —
+        # and cutting its wait short is what leaves an invalid index behind.
+        self.assertNotIn("SET lock_timeout = %s", self._ran(cur))
+        self.assertNotIn("RESET lock_timeout", self._ran(cur))
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_concurrent_index_drop_is_left_unbounded(self, connect):
+        cur = self._cursor(connect)
+        self._engine().drop_index("public", "orders_id_idx")
+        self.assertNotIn("SET lock_timeout = %s", self._ran(cur))
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_timed_out_lock_explains_that_nothing_changed(self, connect):
+        cur = self._cursor(connect)
+        cur.execute.side_effect = [
+            None,                                   # SET lock_timeout
+            psycopg2.errors.LockNotAvailable("canceling statement due to lock timeout"),
+            None,                                   # RESET lock_timeout
+        ]
+        with self.assertRaises(EngineError) as caught:
+            self._engine().drop_table("public", "orders")
+        msg = str(caught.exception)
+        self.assertIn(DDL_LOCK_TIMEOUT, msg)        # how long it waited
+        self.assertIn("Nothing was changed", msg)   # the reassurance that matters
+        self.assertIn("Locks panel", msg)           # where to look next
+        # Cleared even on the failing path.
+        self.assertEqual(self._ran(cur)[-1], "RESET lock_timeout")
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_other_ddl_errors_still_report_themselves(self, connect):
+        cur = self._cursor(connect)
+        cur.execute.side_effect = [
+            None,                                   # SET lock_timeout
+            psycopg2.ProgrammingError('relation "nope" does not exist'),
+            None,                                   # RESET lock_timeout
+        ]
+        with self.assertRaises(EngineError) as caught:
+            self._engine().drop_table("public", "nope")
+        self.assertIn("does not exist", str(caught.exception))
+
+
 class BackupRetentionTests(TestCase):
     """The per-connection total-size cap on auto-backups: oldest deleted first,
     newest always kept. Management-DB only (SQLite) — no PostgreSQL needed."""
@@ -1171,6 +1254,39 @@ class MysqlConnectionMockTests(SimpleTestCase):
         cur.execute.assert_called_once_with(UNUSED_INDEXES_SQL, ("shop",))
         self.assertEqual(result[0].name, "idx_old")
 
+    # --- DDL: the metadata-lock wait is bounded -------------------------------
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_ddl_bounds_the_metadata_lock_wait_and_restores_the_default(self, connect):
+        from core.engines.mysql import DDL_LOCK_WAIT_TIMEOUT
+        cur = self._cursor(connect)
+        self._engine().truncate_table("shop", "orders")
+        calls = cur.execute.call_args_list
+        # MySQL waits a full year for a metadata lock by default, and every later
+        # statement on the table queues behind the waiting DDL.
+        self.assertEqual(calls[0].args[0], "SET SESSION lock_wait_timeout = %s")
+        self.assertEqual(calls[0].args[1], [DDL_LOCK_WAIT_TIMEOUT])
+        self.assertEqual(calls[1].args[0], "TRUNCATE TABLE `shop`.`orders`")
+        self.assertEqual(calls[-1].args[0],
+                         "SET SESSION lock_wait_timeout = DEFAULT")
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_timed_out_metadata_lock_explains_that_nothing_changed(self, connect):
+        import pymysql
+        from pymysql.constants import ER
+        cur = self._cursor(connect)
+        cur.execute.side_effect = [
+            None,                                   # SET SESSION lock_wait_timeout
+            pymysql.err.OperationalError(ER.LOCK_WAIT_TIMEOUT,
+                                         "Lock wait timeout exceeded"),
+            None,                                   # restore the default
+        ]
+        with self.assertRaises(EngineError) as caught:
+            self._engine().drop_table("shop", "orders")
+        msg = str(caught.exception)
+        self.assertIn("Nothing was changed", msg)
+        self.assertIn("Locks panel", msg)
+
     # --- filter builder / DDL: identifiers quoted, values bound --------------
 
     @unittest.mock.patch("core.engines.mysql.pymysql.connect")
@@ -1617,6 +1733,41 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
     def _scratch_table(self, ddl):
         """Create a throwaway table for write tests; caller drops it in finally."""
         self.engine.run_query(ddl, read_only=False)
+
+    def test_ddl_gives_up_rather_than_queueing_behind_a_lock(self):
+        # The outage this guards against, against a real server: an ALTER TABLE
+        # wants ACCESS EXCLUSIVE, so it waits behind any open transaction that
+        # has touched the table — and every later query, plain SELECTs included,
+        # then waits behind the ALTER. Failing fast is the safe answer.
+        import time
+        self._scratch_table("CREATE TABLE _cli2ui_lock (id int)")
+        try:
+            with self.engine._connect() as blocker:
+                blocker.autocommit = False          # hold the lock, don't commit
+                with blocker.cursor() as cur:
+                    cur.execute("SELECT count(*) FROM _cli2ui_lock")
+                    cur.fetchone()
+                start = time.monotonic()
+                with self.assertRaises(EngineError) as caught:
+                    self.engine.add_column("public", "_cli2ui_lock", "added", "text")
+                waited = time.monotonic() - start
+                # A plain read still goes straight through: no queue ever formed.
+                probe = time.monotonic()
+                self.engine.run_query("SELECT count(*) FROM _cli2ui_lock")
+                read_took = time.monotonic() - probe
+                blocker.rollback()
+            self.assertLess(waited, 6)               # not "until someone notices"
+            self.assertIn("Nothing was changed", str(caught.exception))
+            self.assertLess(read_took, 2)
+            # It really didn't change anything.
+            names = {c.name for c in self.engine.list_columns("public", "_cli2ui_lock")}
+            self.assertNotIn("added", names)
+            # …and the same DDL succeeds once nothing is holding the lock.
+            self.engine.add_column("public", "_cli2ui_lock", "added", "text")
+            names = {c.name for c in self.engine.list_columns("public", "_cli2ui_lock")}
+            self.assertIn("added", names)
+        finally:
+            self.engine.run_query("DROP TABLE _cli2ui_lock", read_only=False)
 
     def test_fk_missing_index_discounts_partial_and_invalid_indexes(self):
         # An index only counts if the planner can use it for the FK's own lookup.
