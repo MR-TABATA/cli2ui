@@ -1,26 +1,39 @@
-{% load i18n %}<div class="space-y-4" x-data="{ write: false }">
+{% load i18n %}<div class="space-y-4" x-data="{ write: false, lockGuard: true }">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
       <h2 class="text-lg font-semibold flex items-center gap-2"><span>▷</span> SQL</h2>
       <p class="text-xs text-zinc-400 mono" x-show="!write">
         {% blocktrans %}read-only · SET TRANSACTION READ ONLY · statement_timeout 15s · capped at 1000 rows{% endblocktrans %}
       </p>
-      <p class="text-xs text-amber-400/90 mono" x-show="write" x-cloak>
-        {% blocktrans %}write mode · changes are committed · a safety snapshot is taken first{% endblocktrans %}
+      <p class="text-xs text-amber-400/90 mono" x-show="write && lockGuard" x-cloak>
+        {% blocktrans %}write mode · changes are committed · a safety snapshot is taken first · lock_timeout 2s{% endblocktrans %}
+      </p>
+      <p class="text-xs text-amber-400/90 mono" x-show="write && !lockGuard" x-cloak>
+        {% blocktrans %}write mode · changes are committed · a safety snapshot is taken first · waits for locks{% endblocktrans %}
       </p>
     </div>
-    <label class="flex items-center gap-2 cursor-pointer select-none"
-           title="{% trans 'Allow writes (INSERT / UPDATE / DELETE / DDL). A whole-database snapshot is taken before each write.' %}">
-      <input type="checkbox" name="write" value="1" x-model="write" class="accent-amber-500">
-      <span class="text-[10px] uppercase tracking-wide px-2 py-1 rounded"
-            :class="write ? 'bg-amber-950/50 text-amber-400 border border-amber-900/60'
-                          : 'bg-emerald-950/50 text-emerald-400 border border-emerald-900/60'"
-            x-text="write ? '{% trans 'write mode' %}' : '{% trans 'read-only' %}'"></span>
-    </label>
+    <!-- The mode toggles sit outside the form (they belong to the header), so the
+         form has to pull them in explicitly — htmx only serializes a form's own
+         descendants, and without this the checkboxes never reach the server. -->
+    <div id="sql-modes" class="flex flex-wrap items-center gap-3">
+      <label class="flex items-center gap-2 cursor-pointer select-none" x-show="write" x-cloak
+             title="{% trans 'Give up if the statement can’t get its lock within 2 seconds. A DDL statement that waits parks every later query behind it, reads included — turn this off only when you mean to wait.' %}">
+        <input type="checkbox" name="lock_guard" value="1" x-model="lockGuard" class="accent-amber-500">
+        <span class="text-[10px] tracking-wide text-zinc-400 mono">lock_timeout 2s</span>
+      </label>
+      <label class="flex items-center gap-2 cursor-pointer select-none"
+             title="{% trans 'Allow writes (INSERT / UPDATE / DELETE / DDL). A whole-database snapshot is taken before each write.' %}">
+        <input type="checkbox" name="write" value="1" x-model="write" class="accent-amber-500">
+        <span class="text-[10px] uppercase tracking-wide px-2 py-1 rounded"
+              :class="write ? 'bg-amber-950/50 text-amber-400 border border-amber-900/60'
+                            : 'bg-emerald-950/50 text-emerald-400 border border-emerald-900/60'"
+              x-text="write ? '{% trans 'write mode' %}' : '{% trans 'read-only' %}'"></span>
+      </label>
+    </div>
   </div>
 
   <form hx-post="{% url 'query_run' connection.pk %}" hx-target="#query-result" hx-swap="innerHTML"
-        hx-disabled-elt="find button"
+        hx-include="#sql-modes input" hx-disabled-elt="find button"
         @keydown.meta.enter.prevent="$el.requestSubmit()"
         @keydown.ctrl.enter.prevent="$el.requestSubmit()">
     <textarea name="sql" rows="6" spellcheck="false" autocomplete="off"

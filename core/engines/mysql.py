@@ -347,7 +347,11 @@ class MysqlEngine(Engine):
     # --- ad-hoc queries --------------------------------------------------
 
     def run_query(self, sql_text: str, *, max_rows: int = 1000,
-                  timeout_ms: int = 15000, read_only: bool = True) -> QueryResult:
+                  timeout_ms: int = 15000, read_only: bool = True,
+                  lock_timeout: str | None = None) -> QueryResult:
+        # The interface carries lock_timeout in engine-native units; MySQL's
+        # lock_wait_timeout is a whole number of seconds ("2s" → 2).
+        lock_wait = int(str(lock_timeout).rstrip("s")) if lock_timeout else None
         with self._connect() as conn:
             try:
                 with conn.cursor() as cur:
@@ -355,6 +359,10 @@ class MysqlEngine(Engine):
                     # in MySQL); START TRANSACTION READ ONLY makes the server
                     # itself reject any write — no fragile SQL scanning.
                     cur.execute("SET SESSION max_execution_time = %s", [timeout_ms])
+                    if lock_wait is not None:
+                        # Hand-written DDL queues on the metadata lock the same
+                        # way the buttons do (see _execute).
+                        cur.execute("SET SESSION lock_wait_timeout = %s", [lock_wait])
                     cur.execute("START TRANSACTION READ ONLY" if read_only
                                 else "START TRANSACTION")
                     t0 = time.perf_counter()
@@ -370,7 +378,14 @@ class MysqlEngine(Engine):
                         columns, rows, truncated, rowcount = [], [], False, cur.rowcount
             except pymysql.Error as exc:
                 conn.rollback()
+                if lock_wait is not None and exc.args \
+                        and exc.args[0] == ER.LOCK_WAIT_TIMEOUT:
+                    raise EngineError(_lock_error(lock_wait)) from exc
                 raise EngineError(_clean(exc)) from exc
+            finally:
+                if lock_wait is not None:
+                    with contextlib.suppress(pymysql.Error), conn.cursor() as cur:
+                        cur.execute("SET SESSION lock_wait_timeout = DEFAULT")
             if read_only:
                 conn.rollback()   # never persist, even a write that slipped past
             else:
@@ -1172,11 +1187,7 @@ class MysqlEngine(Engine):
                     cur.execute(statement, params)
                 except pymysql.Error as exc:
                     if exc.args and exc.args[0] == ER.LOCK_WAIT_TIMEOUT:
-                        raise EngineError(_(
-                            "Gave up after waiting %(secs)ss for a lock on this "
-                            "object — another transaction is holding it. Nothing "
-                            "was changed. The Locks panel shows who; retry when it "
-                            "clears.") % {"secs": lock_wait}) from exc
+                        raise EngineError(_lock_error(lock_wait)) from exc
                     raise EngineError(_clean(exc)) from exc
                 finally:
                     if lock_wait is not None:
@@ -1323,6 +1334,14 @@ def _pretty_size(n) -> str | None:
     if n >= 1024:
         return f"{n / 1024:.0f} kB"
     return f"{n} B"
+
+
+def _lock_error(secs: int) -> str:
+    """What to say when lock_wait_timeout fired: the statement never ran, so the
+    reassurance ("nothing was changed") matters as much as the cause."""
+    return _("Gave up after waiting %(secs)ss for a lock on this object — "
+             "another transaction is holding it. Nothing was changed. The Locks "
+             "panel shows who; retry when it clears.") % {"secs": secs}
 
 
 def _clean(exc: pymysql.Error) -> str:

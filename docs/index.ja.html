@@ -210,7 +210,7 @@
     <div class="mt-10 grid gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 lg:grid-cols-3">
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">SQL ランナー</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">既定はリードオンリーのアドホッククエリ（<span class="mono">READ ONLY</span> + 文タイムアウト + 1000行上限）。明示オプトインの書込みモードはコミットしますが、毎回 DB 全体の安全スナップショットで保護されます。クエリ結果やテーブル全体を CSV / JSON でエクスポート可能。</p>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">既定はリードオンリーのアドホッククエリ（<span class="mono">READ ONLY</span> + 文タイムアウト + 1000行上限）。明示オプトインの書込みモードはコミットしますが、毎回 DB 全体の安全スナップショットと、DDL ボタンと同じ 2 秒の <span class="mono">lock_timeout</span>（チェックボックスなので、待つつもりのときは外せます）で保護されます。クエリ結果やテーブル全体を CSV / JSON でエクスポート可能。</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">EXPLAIN スナップショット + 差分</h3>
@@ -238,7 +238,7 @@
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">詰まらせない DDL</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed"><span class="mono">ALTER</span> / <span class="mono">DROP</span> / <span class="mono">TRUNCATE</span> / リネームは短い <span class="mono">lock_timeout</span> 付きで実行。排他ロックが取れない変更は 2 秒で諦めて失敗します（<span class="text-zinc-200">変更は行われません</span>）。開いたトランザクションの後ろで待ち続け、その後ろに通常の <span class="mono">SELECT</span> まで含めた全クエリが並ぶ——という事故を防ぎます。並行インデックス構築は意図的に対象外。</p>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">テーブル・列・スキーマ・ロールに対する <span class="mono">ALTER</span> / <span class="mono">DROP</span> / <span class="mono">TRUNCATE</span> / リネームは、短い <span class="mono">lock_timeout</span> 付きで実行。排他ロックが取れない変更は 2 秒で諦めて失敗します（<span class="text-zinc-200">変更は行われません</span>）。開いたトランザクションの後ろで待ち続け、その後ろに通常の <span class="mono">SELECT</span> まで含めた全クエリが並ぶ——という事故を防ぎます。並行インデックス構築は意図的に対象外。</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">レプリケーション</h3>

@@ -81,7 +81,24 @@ Versioning convention for this project:
   CONCURRENTLY` / `DROP INDEX CONCURRENTLY` are deliberately exempt: they block
   nobody, and timing them out is what leaves an invalid index behind.
 
+- **Write mode offers the same lock guard** — hand-written DDL can park a table
+  exactly like the buttons can, so write mode in the SQL runner runs under the
+  same 2s `lock_timeout`, shown in the header line and turned off with a
+  checkbox. Opt-out rather than mandatory: this is SQL you wrote yourself, and
+  sometimes waiting for the lock is the point. Read-only runs are untouched — a
+  waiting `SELECT` holds no lock, so nothing can queue behind it, and
+  `statement_timeout` already bounds it.
+
 ### Fixed
+
+- **Write mode never reached the server** — the write-mode and (new) lock-guard
+  toggles sit outside the runner's `<form>`, and htmx only serializes a form's
+  own descendants, so `write=1` was silently dropped from every request. The
+  panel showed write mode as armed while the server ran the statement read-only:
+  writes came back as "cannot execute … in a read-only transaction" and the
+  safety snapshot that precedes a write never ran. The form now pulls the
+  toggles in explicitly (`hx-include`), and a test asserts it keeps doing so.
+
 
 - **Health: unindexed foreign keys** no longer counts a partial index (its
   predicate can't be proven for the FK's own lookup) or an invalid index (left

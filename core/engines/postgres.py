@@ -410,7 +410,8 @@ class PostgresEngine(Engine):
         return Preview(columns=columns, rows=rows)
 
     def run_query(self, sql_text: str, *, max_rows: int = 1000,
-                  timeout_ms: int = 15000, read_only: bool = True) -> QueryResult:
+                  timeout_ms: int = 15000, read_only: bool = True,
+                  lock_timeout: str | None = None) -> QueryResult:
         with self._connect() as conn:
             # Need a real transaction to scope READ ONLY + statement_timeout.
             conn.autocommit = False
@@ -421,6 +422,11 @@ class PostgresEngine(Engine):
                         # then rejects any write itself — no fragile SQL scanning.
                         cur.execute("SET TRANSACTION READ ONLY")
                     cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
+                    if lock_timeout is not None:
+                        # Hand-written DDL queues the same way the buttons do
+                        # (see _execute). SET LOCAL, so it dies with this
+                        # transaction — nothing to reset afterwards.
+                        cur.execute("SET LOCAL lock_timeout = %s", [lock_timeout])
                     t0 = time.perf_counter()
                     cur.execute(sql_text)
                     duration_ms = int((time.perf_counter() - t0) * 1000)
@@ -433,6 +439,9 @@ class PostgresEngine(Engine):
                         rowcount = len(rows)
                     else:
                         columns, rows, truncated, rowcount = [], [], False, cur.rowcount
+            except pg_errors.LockNotAvailable as exc:
+                conn.rollback()
+                raise EngineError(_lock_error(lock_timeout)) from exc
             except psycopg2.Error as exc:
                 conn.rollback()
                 raise EngineError(_clean(exc)) from exc
@@ -1251,11 +1260,7 @@ class PostgresEngine(Engine):
                         cur.execute("SET lock_timeout = %s", [lock_timeout])
                     cur.execute(statement)
                 except pg_errors.LockNotAvailable as exc:
-                    raise EngineError(_(
-                        "Gave up after waiting %(timeout)s for a lock on this "
-                        "object — another transaction is holding it. Nothing was "
-                        "changed. The Locks panel shows who; retry when it clears."
-                    ) % {"timeout": lock_timeout}) from exc
+                    raise EngineError(_lock_error(lock_timeout)) from exc
                 except psycopg2.Error as exc:
                     raise EngineError(_clean(exc)) from exc
                 finally:
@@ -1572,6 +1577,14 @@ def _plan_detail(d: dict) -> str | None:
         if d.get(key):
             bits.append(f"{key}: {d[key]}")
     return ", ".join(bits) or None
+
+
+def _lock_error(timeout: str) -> str:
+    """What to say when lock_timeout fired: the statement never ran, so the
+    reassurance ("nothing was changed") matters as much as the cause."""
+    return _("Gave up after waiting %(timeout)s for a lock on this object — "
+             "another transaction is holding it. Nothing was changed. The Locks "
+             "panel shows who; retry when it clears.") % {"timeout": timeout}
 
 
 def _clean(exc: psycopg2.Error) -> str:

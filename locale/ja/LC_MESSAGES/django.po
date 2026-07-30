@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-30 08:44+0900\n"
+"POT-Creation-Date: 2026-07-30 18:52+0900\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,29 +22,29 @@ msgstr ""
 msgid "Unsupported database kind: %(kind)s"
 msgstr "未対応のデータベース種別: %(kind)s"
 
-#: core/engines/mysql.py:394 core/engines/mysql.py:801
-#: core/engines/mysql.py:807 core/engines/postgres.py:371
-#: core/engines/postgres.py:463 core/engines/postgres.py:1112
+#: core/engines/mysql.py:409 core/engines/mysql.py:816
+#: core/engines/mysql.py:822 core/engines/postgres.py:371
+#: core/engines/postgres.py:472 core/engines/postgres.py:1121
 #, python-format
 msgid "No such column: %(name)s"
 msgstr "存在しない列: %(name)s"
 
-#: core/engines/mysql.py:396 core/engines/postgres.py:465
+#: core/engines/mysql.py:411 core/engines/postgres.py:474
 #, python-format
 msgid "Unknown filter operator: %(op)s"
 msgstr "不明なフィルタ演算子: %(op)s"
 
-#: core/engines/mysql.py:441 core/engines/mysql.py:446
-#: core/engines/postgres.py:515
+#: core/engines/mysql.py:456 core/engines/mysql.py:461
+#: core/engines/postgres.py:524
 msgid "The CSV file is empty."
 msgstr "CSV ファイルが空です。"
 
-#: core/engines/mysql.py:451 core/engines/postgres.py:522
+#: core/engines/mysql.py:466 core/engines/postgres.py:531
 #, python-format
 msgid "CSV header has columns not in %(table)s: %(cols)s"
 msgstr "%(table)s に無い列が CSV ヘッダにあります: %(cols)s"
 
-#: core/engines/mysql.py:610
+#: core/engines/mysql.py:625
 msgid ""
 "Can't check for lock waits: the MySQL performance_schema is disabled on this "
 "server, so blocking can't be detected. Enable it (performance_schema=ON) to "
@@ -54,7 +54,7 @@ msgstr ""
 "効なため、ブロッキングを検出できません。このパネルを使うには有効化してくださ"
 "い (performance_schema=ON)。"
 
-#: core/engines/mysql.py:620
+#: core/engines/mysql.py:635
 msgid ""
 "Can't check for lock waits: this needs MySQL 8.0+ "
 "(performance_schema.data_lock_waits is unavailable here)."
@@ -62,7 +62,7 @@ msgstr ""
 "ロック待ちを確認できません: これには MySQL 8.0 以降が必要です "
 "(performance_schema.data_lock_waits がここでは利用できません)。"
 
-#: core/engines/mysql.py:655
+#: core/engines/mysql.py:670
 msgid ""
 "MySQL can't create a database from a template (no TEMPLATE/CREATE DATABASE … "
 "LIKE). Create it empty, then load a dump."
@@ -70,7 +70,7 @@ msgstr ""
 "MySQL はテンプレートからデータベースを作成できません (TEMPLATE/CREATE "
 "DATABASE … LIKE は非対応)。空で作成してからダンプを読み込んでください。"
 
-#: core/engines/mysql.py:668
+#: core/engines/mysql.py:683
 msgid ""
 "Can't drop the database this connection is using — connect to another "
 "database first."
@@ -78,7 +78,7 @@ msgstr ""
 "この接続が使用中のデータベースは削除できません — 先に別のデータベースに接続し"
 "てください。"
 
-#: core/engines/mysql.py:674
+#: core/engines/mysql.py:689
 msgid ""
 "MySQL doesn't support renaming a database. Create the new one and move the "
 "tables (RENAME TABLE), or dump and reload."
@@ -86,44 +86,44 @@ msgstr ""
 "MySQL はデータベースのリネームに対応していません。新しいデータベースを作成し"
 "てテーブルを移動する (RENAME TABLE) か、ダンプして再読み込みしてください。"
 
-#: core/engines/mysql.py:689 core/engines/postgres.py:158
+#: core/engines/mysql.py:704 core/engines/postgres.py:158
 #, python-format
 msgid "Unsupported index method: %(method)s"
 msgstr "未対応のインデックス方式: %(method)s"
 
-#: core/engines/mysql.py:691 core/engines/postgres.py:160
+#: core/engines/mysql.py:706 core/engines/postgres.py:160
 #: core/views/tables.py:166
 msgid "Select at least one column to index."
 msgstr "インデックス対象の列を1つ以上選んでください。"
 
-#: core/engines/mysql.py:698 core/engines/postgres.py:1007
+#: core/engines/mysql.py:713 core/engines/postgres.py:1016
 #: planner_lab/whatif.py:115
 #, python-format
 msgid "No such column(s): %(cols)s"
 msgstr "存在しない列: %(cols)s"
 
-#: core/engines/mysql.py:711
+#: core/engines/mysql.py:726
 msgid "Dropping an index needs the table it's on."
 msgstr "インデックスの削除には、対象のテーブルが必要です。"
 
-#: core/engines/mysql.py:734 core/engines/mysql.py:763
+#: core/engines/mysql.py:749 core/engines/mysql.py:778
 #, python-format
 msgid "Unsupported column type: %(t)s. Pick one of the listed types."
 msgstr "未対応の列型です: %(t)s。一覧の型から選んでください。"
 
-#: core/engines/mysql.py:849
+#: core/engines/mysql.py:864
 msgid "Orphan-row checks are a PostgreSQL feature here."
 msgstr "孤児行チェックはここでは PostgreSQL の機能です。"
 
-#: core/engines/mysql.py:907
+#: core/engines/mysql.py:922
 msgid "mysqldump timed out."
 msgstr "mysqldump がタイムアウトしました。"
 
-#: core/engines/mysql.py:951 core/engines/postgres.py:1218
+#: core/engines/mysql.py:966 core/engines/postgres.py:1227
 msgid "restore timed out."
 msgstr "リストアがタイムアウトしました。"
 
-#: core/engines/mysql.py:1040
+#: core/engines/mysql.py:1055
 msgid ""
 "MySQL has no replication slots — it streams the binary log directly, so "
 "there's nothing to create."
@@ -131,18 +131,18 @@ msgstr ""
 "MySQL にレプリケーションスロットはありません — バイナリログを直接ストリーミン"
 "グするため、作成するものはありません。"
 
-#: core/engines/mysql.py:1044
+#: core/engines/mysql.py:1059
 msgid "MySQL has no replication slots — nothing to drop."
 msgstr ""
 "MySQL にレプリケーションスロットはありません — 削除するものはありません。"
 
-#: core/engines/mysql.py:1134 core/engines/mysql.py:1139
-#: core/engines/mysql.py:1149 core/engines/postgres.py:1495
+#: core/engines/mysql.py:1149 core/engines/mysql.py:1154
+#: core/engines/mysql.py:1164 core/engines/postgres.py:1500
 #, python-format
 msgid "Unknown setting: %(name)s"
 msgstr "不明な設定: %(name)s"
 
-#: core/engines/mysql.py:1176
+#: core/engines/mysql.py:1342
 #, python-format
 msgid ""
 "Gave up after waiting %(secs)ss for a lock on this object — another "
@@ -158,16 +158,28 @@ msgstr ""
 msgid "%(name)s is not a JSON column."
 msgstr "%(name)s は JSON 列ではありません。"
 
-#: core/engines/postgres.py:1136
+#: core/engines/postgres.py:1145
 #, python-format
 msgid "Unknown dump format: %(fmt)s"
 msgstr "不明なダンプ形式: %(fmt)s"
 
-#: core/engines/postgres.py:1154
+#: core/engines/postgres.py:1163
 msgid "pg_dump timed out."
 msgstr "pg_dump がタイムアウトしました。"
 
-#: core/engines/postgres.py:1255
+#: core/engines/postgres.py:1377
+msgid "No relationship to check was given."
+msgstr "チェックする関係が指定されていません。"
+
+#: core/engines/postgres.py:1390
+msgid ""
+"This reference no longer resolves to a single parent — it may have changed "
+"since the panel loaded."
+msgstr ""
+"この参照はもう単一の親に解決できません — パネルを開いてから変わった可能性があ"
+"ります。"
+
+#: core/engines/postgres.py:1585
 #, python-format
 msgid ""
 "Gave up after waiting %(timeout)s for a lock on this object — another "
@@ -177,18 +189,6 @@ msgstr ""
 "%(timeout)s 待ってもこのオブジェクトのロックが取れませんでした — 別のトランザ"
 "クションが保持しています。変更は行われていません。保持者は「ロック」パネルで"
 "確認し、解放されてから再実行してください。"
-
-#: core/engines/postgres.py:1372
-msgid "No relationship to check was given."
-msgstr "チェックする関係が指定されていません。"
-
-#: core/engines/postgres.py:1385
-msgid ""
-"This reference no longer resolves to a single parent — it may have changed "
-"since the panel loaded."
-msgstr ""
-"この参照はもう単一の親に解決できません — パネルを開いてから変わった可能性があ"
-"ります。"
 
 #: core/views/_shared.py:27
 #, python-format
@@ -272,11 +272,11 @@ msgstr "ロール名は必須です。"
 msgid "Slot name is required."
 msgstr "スロット名は必須です。"
 
-#: core/views/runner.py:100
+#: core/views/runner.py:111
 msgid "Nothing to export — run a query first."
 msgstr "エクスポートする結果がありません — 先にクエリを実行してください。"
 
-#: core/views/runner.py:134
+#: core/views/runner.py:145
 msgid "No table specified."
 msgstr "テーブルが指定されていません。"
 
@@ -2058,11 +2058,31 @@ msgstr ""
 "行"
 
 #: templates/partials/query.html:9
-msgid "write mode · changes are committed · a safety snapshot is taken first"
+msgid ""
+"write mode · changes are committed · a safety snapshot is taken first · "
+"lock_timeout 2s"
 msgstr ""
-"書き込みモード · 変更はコミットされます · 先に安全スナップショットを取得"
+"書き込みモード · 変更はコミットされます · 先に安全スナップショットを取得 · "
+"lock_timeout 2s"
 
-#: templates/partials/query.html:13
+#: templates/partials/query.html:12
+msgid ""
+"write mode · changes are committed · a safety snapshot is taken first · "
+"waits for locks"
+msgstr ""
+"書き込みモード · 変更はコミットされます · 先に安全スナップショットを取得 · "
+"ロックを待ち続けます"
+
+#: templates/partials/query.html:20
+msgid ""
+"Give up if the statement can’t get its lock within 2 seconds. A DDL "
+"statement that waits parks every later query behind it, reads included — "
+"turn this off only when you mean to wait."
+msgstr ""
+"2 秒でロックが取れなければ諦めます。待機中の DDL は、その後ろに通常の読み取り"
+"まで含めた全クエリを並ばせます — 待つつもりがあるときだけ外してください。"
+
+#: templates/partials/query.html:25
 msgid ""
 "Allow writes (INSERT / UPDATE / DELETE / DDL). A whole-database snapshot is "
 "taken before each write."
@@ -2070,19 +2090,19 @@ msgstr ""
 "書き込みを許可（INSERT / UPDATE / DELETE / DDL）。各書き込み前にDB全体のス"
 "ナップショットを取得します。"
 
-#: templates/partials/query.html:18
+#: templates/partials/query.html:30
 msgid "write mode"
 msgstr "書き込みモード"
 
-#: templates/partials/query.html:18 templates/partials/settings_row.html:22
+#: templates/partials/query.html:30 templates/partials/settings_row.html:22
 msgid "read-only"
 msgstr "リードオンリー"
 
-#: templates/partials/query.html:27
+#: templates/partials/query.html:40
 msgid "SELECT * FROM …   —   ⌘/Ctrl + Enter to run"
 msgstr "SELECT * FROM …   —   ⌘/Ctrl + Enter で実行"
 
-#: templates/partials/query.html:33
+#: templates/partials/query.html:46
 msgid ""
 "Run this in WRITE mode? It will be committed. A whole-database safety "
 "snapshot is taken first (recover it from Backups)."
@@ -2090,50 +2110,50 @@ msgstr ""
 "書き込みモードで実行しますか？コミットされます。先にDB全体の安全スナップ"
 "ショットを取得します（Backups から復元可能）。"
 
-#: templates/partials/query.html:37
+#: templates/partials/query.html:50
 msgid "Run write"
 msgstr "書き込み実行"
 
-#: templates/partials/query.html:37
+#: templates/partials/query.html:50
 msgid "Run"
 msgstr "実行"
 
-#: templates/partials/query.html:42
+#: templates/partials/query.html:55
 msgid "Running…"
 msgstr "実行中…"
 
-#: templates/partials/query.html:48
+#: templates/partials/query.html:61
 msgid "Explain"
 msgstr "Explain"
 
-#: templates/partials/query.html:52
+#: templates/partials/query.html:65
 msgid "Explain analyze"
 msgstr "Explain analyze"
 
-#: templates/partials/query.html:56
+#: templates/partials/query.html:69
 msgid ""
 "EXPLAIN at 1× / 100× / 10000× row counts — see where the plan breaks as data "
 "grows"
 msgstr ""
 "1× / 100× / 10000× の行数で EXPLAIN — データ増加で計画が崩れる箇所を確認"
 
-#: templates/partials/query.html:58
+#: templates/partials/query.html:71
 msgid "Scale ▸"
 msgstr "スケール ▸"
 
-#: templates/partials/query.html:61
+#: templates/partials/query.html:74
 msgid "Try an index against this query and measure it before creating it"
 msgstr "このクエリにインデックスを試し、作成前に計測"
 
-#: templates/partials/query.html:63
+#: templates/partials/query.html:76
 msgid "Try an index ▸"
 msgstr "インデックスを試す ▸"
 
-#: templates/partials/query.html:65
+#: templates/partials/query.html:78
 msgid "⌘/Ctrl + Enter to run"
 msgstr "⌘/Ctrl + Enter で実行"
 
-#: templates/partials/query.html:70
+#: templates/partials/query.html:83
 msgid "Run a query to see results here."
 msgstr "クエリを実行すると、ここに結果が表示されます。"
 

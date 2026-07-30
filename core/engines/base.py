@@ -851,9 +851,15 @@ class Engine:
         raise NotImplementedError
 
     def run_query(self, sql: str, *, max_rows: int = 1000,
-                  timeout_ms: int = 15000, read_only: bool = True) -> QueryResult:
+                  timeout_ms: int = 15000, read_only: bool = True,
+                  lock_timeout: str | None = None) -> QueryResult:
         """Run ad-hoc SQL. Read-only by default; the DB enforces it, and the
-        result is capped + time-limited so a stray query can't take anything down."""
+        result is capped + time-limited so a stray query can't take anything down.
+
+        lock_timeout (engine-native units) bounds how long the statement waits
+        for a lock, for hand-written DDL in write mode — the same guard the DDL
+        buttons get. Off by default: this is SQL the user typed, so waiting is
+        opt-out here rather than mandatory."""
         raise NotImplementedError
 
     def filter_rows(self, schema: str, table: str, filters: list[dict], *,

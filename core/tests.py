@@ -22,7 +22,7 @@ from core.engines import EngineError, get_engine
 from core.engines.base import (
     Activity, Blocker, Column, ConnectionHeadroom, DuplicateIndex, Extension,
     FKMissingIndex, ForeignKeyEdge, Index, JsonbKey, JsonbShape, LockWait,
-    OrphanCandidate, OrphanCount, PlanNode,
+    OrphanCandidate, OrphanCount, PlanNode, QueryResult,
     Setting, Standby, Table, build_block_forest, build_dependency_graph,
 )
 from core.engines.postgres import (
@@ -43,6 +43,7 @@ from core.engines.postgres import (
 from core.forms import ConnectionForm
 from core.models import Backup, Connection, PlanSnapshot
 from core.plan_diff import diff_plans, node_from_dict, node_to_dict, to_text
+from core.views.runner import RUNNER_LOCK_TIMEOUT
 from core.views._shared import _prune_old_backups
 
 
@@ -755,6 +756,33 @@ class DdlLockTimeoutTests(SimpleTestCase):
         self.assertEqual(self._ran(cur)[-1], "RESET lock_timeout")
 
     @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_run_query_takes_a_lock_timeout_only_when_asked(self, connect):
+        cur = self._cursor(connect)
+        cur.description = None
+        self._engine().run_query("ALTER TABLE t ADD COLUMN c text",
+                                 read_only=False, lock_timeout="2s")
+        # SET LOCAL: it dies with the transaction, so there's nothing to reset.
+        self.assertIn(("SET LOCAL lock_timeout = %s", ["2s"]),
+                      [c.args for c in cur.execute.call_args_list])
+        cur.reset_mock()
+        cur.description = None
+        self._engine().run_query("SELECT 1")
+        self.assertNotIn("SET LOCAL lock_timeout = %s", self._ran(cur))
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_run_query_explains_a_timed_out_lock_too(self, connect):
+        cur = self._cursor(connect)
+        cur.execute.side_effect = [
+            None,                                   # SET LOCAL statement_timeout
+            None,                                   # SET LOCAL lock_timeout
+            psycopg2.errors.LockNotAvailable("canceling statement due to lock timeout"),
+        ]
+        with self.assertRaises(EngineError) as caught:
+            self._engine().run_query("ALTER TABLE t ADD COLUMN c text",
+                                     read_only=False, lock_timeout="2s")
+        self.assertIn("Nothing was changed", str(caught.exception))
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
     def test_other_ddl_errors_still_report_themselves(self, connect):
         cur = self._cursor(connect)
         cur.execute.side_effect = [
@@ -765,6 +793,62 @@ class DdlLockTimeoutTests(SimpleTestCase):
         with self.assertRaises(EngineError) as caught:
             self._engine().drop_table("public", "nope")
         self.assertIn("does not exist", str(caught.exception))
+
+
+class RunnerLockGuardTests(TestCase):
+    """Write mode's lock guard, from the panel to the engine call. The toggles
+    live outside the <form> (they belong to the header), so the form has to pull
+    them in — when it didn't, `write` never reached the server and write mode
+    silently ran read-only. These pin both halves down."""
+
+    def setUp(self):
+        from django.urls import reverse
+        self.conn = Connection.objects.create(kind="postgres", dbname="d", user="u")
+        self.panel = reverse("query", args=[self.conn.pk])
+        self.run = reverse("query_run", args=[self.conn.pk])
+
+    def _run(self, data):
+        """POST to the runner with a stub engine, returning the run_query kwargs."""
+        seen = {}
+
+        def run_query(sql_text, **kwargs):
+            seen.update(kwargs)
+            return QueryResult(columns=["?"], rows=[], rowcount=0,
+                               truncated=False, duration_ms=1)
+
+        engine = SimpleNamespace(run_query=run_query)
+        with unittest.mock.patch("core.views.runner.get_engine", return_value=engine), \
+                unittest.mock.patch("core.views.runner._auto_backup", return_value=None):
+            self.client.post(self.run, data)
+        return seen
+
+    def test_panel_form_includes_the_mode_toggles(self):
+        # The regression that made write mode a no-op: htmx serializes a form's
+        # own descendants, and both checkboxes sit outside it.
+        resp = self.client.get(self.panel)
+        self.assertContains(resp, 'hx-include="#sql-modes input"')
+        self.assertContains(resp, 'id="sql-modes"')
+        self.assertContains(resp, 'name="write"')
+        self.assertContains(resp, 'name="lock_guard"')
+
+    def test_write_mode_with_the_guard_passes_the_lock_timeout(self):
+        seen = self._run({"sql": "ALTER TABLE t ADD COLUMN c text",
+                          "write": "1", "lock_guard": "1"})
+        self.assertEqual(seen["read_only"], False)
+        self.assertEqual(seen["lock_timeout"], RUNNER_LOCK_TIMEOUT)
+
+    def test_unchecking_the_guard_lets_the_statement_wait(self):
+        # Opt-out, not opt-in: sometimes you mean to wait for the lock.
+        seen = self._run({"sql": "ALTER TABLE t ADD COLUMN c text", "write": "1"})
+        self.assertEqual(seen["read_only"], False)
+        self.assertIsNone(seen["lock_timeout"])
+
+    def test_read_only_runs_are_left_alone(self):
+        # A waiting SELECT holds no lock, so it can't build a queue behind it —
+        # statement_timeout already covers it.
+        seen = self._run({"sql": "SELECT 1", "lock_guard": "1"})
+        self.assertEqual(seen["read_only"], True)
+        self.assertIsNone(seen["lock_timeout"])
 
 
 class BackupRetentionTests(TestCase):
@@ -1286,6 +1370,18 @@ class MysqlConnectionMockTests(SimpleTestCase):
         msg = str(caught.exception)
         self.assertIn("Nothing was changed", msg)
         self.assertIn("Locks panel", msg)
+
+    @unittest.mock.patch("core.engines.mysql.pymysql.connect")
+    def test_run_query_converts_the_lock_timeout_to_whole_seconds(self, connect):
+        cur = self._cursor(connect)
+        cur.description = None
+        # The interface speaks Postgres-flavoured units ("2s"); lock_wait_timeout
+        # is a bare number of seconds.
+        self._engine().run_query("ALTER TABLE t ADD COLUMN c text",
+                                 read_only=False, lock_timeout="2s")
+        calls = [c.args for c in cur.execute.call_args_list]
+        self.assertIn(("SET SESSION lock_wait_timeout = %s", [2]), calls)
+        self.assertEqual(calls[-1][0], "SET SESSION lock_wait_timeout = DEFAULT")
 
     # --- filter builder / DDL: identifiers quoted, values bound --------------
 

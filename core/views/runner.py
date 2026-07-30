@@ -14,6 +14,11 @@ from ..models import Backup, Command, Connection
 from ..plan_diff import node_to_dict, to_text
 from ._shared import _auto_backup
 
+# The lock wait offered in write mode, in the engines' own units — the same
+# short wait the DDL buttons take (see PostgresEngine._execute). The runner
+# offers it as a checkbox rather than imposing it: this is SQL the user wrote.
+RUNNER_LOCK_TIMEOUT = "2s"
+
 
 def query(request, pk):
     """SQL runner: render the read-only editor panel (htmx partial)."""
@@ -31,6 +36,7 @@ def query_run(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     sql_text = (request.POST.get("sql") or "").strip()
     write = bool(request.POST.get("write"))
+    lock_guard = bool(request.POST.get("lock_guard"))
     if not sql_text:
         return render(request, "partials/query_result.html", {"empty": True})
 
@@ -42,7 +48,12 @@ def query_run(request, pk):
                               kind=Backup.KIND_DATABASE, dbname=connection.dbname)
 
     try:
-        result = get_engine(connection).run_query(sql_text, read_only=not write)
+        result = get_engine(connection).run_query(
+            sql_text, read_only=not write,
+            # Hand-written DDL can park a table exactly like the buttons can, so
+            # write mode gets the same short lock wait — opt-out, because here
+            # the statement is the user's own and a long wait may be deliberate.
+            lock_timeout=RUNNER_LOCK_TIMEOUT if write and lock_guard else None)
     except EngineError as exc:
         _log_command(connection, sql_text, read_only=not write, error=str(exc))
         return render(request, "partials/query_result.html",

@@ -210,7 +210,7 @@
     <div class="mt-10 grid gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 lg:grid-cols-3">
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">SQL runner</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Read-only ad-hoc queries by default (<span class="mono">READ ONLY</span> + statement timeout + 1000-row cap), with an opt-in write mode that commits — guarded by a whole-database safety snapshot before each write. Export a full query result — or a whole table — as CSV or JSON.</p>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Read-only ad-hoc queries by default (<span class="mono">READ ONLY</span> + statement timeout + 1000-row cap), with an opt-in write mode that commits — guarded by a whole-database safety snapshot before each write, and by the same 2s <span class="mono">lock_timeout</span> the DDL buttons take (a checkbox, so you can wait when you mean to). Export a full query result — or a whole table — as CSV or JSON.</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">EXPLAIN snapshots + diff</h3>
@@ -238,7 +238,7 @@
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">DDL that gives up, not piles up</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Every <span class="mono">ALTER</span> / <span class="mono">DROP</span> / <span class="mono">TRUNCATE</span> / rename runs under a short <span class="mono">lock_timeout</span>, so a change that can't get its exclusive lock fails in two seconds — <span class="text-zinc-200">nothing changed</span> — instead of waiting behind an open transaction while every later query, plain <span class="mono">SELECT</span>s included, queues behind <em>it</em>. Concurrent index builds are exempt on purpose.</p>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Every <span class="mono">ALTER</span> / <span class="mono">DROP</span> / <span class="mono">TRUNCATE</span> / rename on a table, column, schema or role runs under a short <span class="mono">lock_timeout</span>, so a change that can't get its exclusive lock fails in two seconds — <span class="text-zinc-200">nothing changed</span> — instead of waiting behind an open transaction while every later query, plain <span class="mono">SELECT</span>s included, queues behind <em>it</em>. Concurrent index builds are exempt on purpose.</p>
       </div>
       <div class="bg-zinc-950 p-6">
         <h3 class="font-medium text-zinc-100">Replication</h3>
