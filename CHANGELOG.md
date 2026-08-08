@@ -17,6 +17,8 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-31
+
 ### Added
 
 - **Replication: replay lag in time, not just bytes** — the Standbys table now
