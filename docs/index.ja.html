@@ -121,6 +121,44 @@
     </div>
   </section>
 
+  <!-- 実行の前に: 出荷済みの dry-run 家族 -->
+  <section class="max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">実行の前に</h2>
+    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">
+      押す前に、結果を見る。
+    </p>
+    <p class="mt-4 text-zinc-400 max-w-2xl leading-relaxed">
+      危ないのは操作そのものより、やってみるまで分からないことです。
+      答えを出せるものは、先に出します —— どれも本番の DB に何も残しません。
+    </p>
+    <div class="mt-8 grid gap-px bg-zinc-800 border border-zinc-800 rounded-xl overflow-hidden sm:grid-cols-2">
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">いつ実行計画が崩れるか、崩れる前に</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">データが100倍でも100倍遅いとは限りません。索引が効いていればほぼ変わらず、崩れたときは桁違いに悪くなる —— 掛け算では予測できない。100倍・10000倍に増えたことにして <span class="mono">EXPLAIN</span> し、<span class="text-zinc-200">崩れる場所に目印を付けます</span>。100倍は同じ形、10000倍で崩れる、が押す前に分かります。分かるのは実行計画の形であって、速度そのものではありません。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">その索引は効くのか</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">本物の索引を張って <span class="mono">EXPLAIN ANALYZE</span> の前後を実測し、ロールバック。作る前に速くなるかが分かります。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">変更の前と後で、実行計画がどう変わるか</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed"><span class="mono">EXPLAIN</span> は、実行せずに答えを出す道具の元祖です。実行計画を保存しておき、索引を足した後のものと木構造で差分を取れます。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">制約違反は何行あるか</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed"><span class="mono">NOT VALID</span> な外部キーの違反行を、検証もせず何も変えずに数えます。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">消していい順番</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">外部キーを辿って <span class="mono">TRUNCATE</span> の安全な順序と、その逆（投入順）を出します。何も消しません。</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">何を打っても、書き込めない</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">SQL ランナーは既定で読み取り専用トランザクション。SQL を解析して弾くのではなく、サーバー自身が書き込みを拒否します。だから試すこと自体が安全です。</p>
+      </div>
+    </div>
+  </section>
+
   <!-- 仕組み: before → after -->
   <section id="how" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
     <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">仕組み</h2>

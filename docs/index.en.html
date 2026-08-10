@@ -121,6 +121,44 @@
     </div>
   </section>
 
+  <!-- Before you run it: the dry-run family that already ships -->
+  <section class="max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">Before you run it</h2>
+    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">
+      See the result before you commit to it.
+    </p>
+    <p class="mt-4 text-zinc-400 max-w-2xl leading-relaxed">
+      The dangerous part usually isn't the operation — it's not knowing until you've done it.
+      Whatever can be answered first, is — and none of it leaves anything behind in your database.
+    </p>
+    <div class="mt-8 grid gap-px bg-zinc-800 border border-zinc-800 rounded-xl overflow-hidden sm:grid-cols-2">
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">When the plan gives way — before it does</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">100× the data isn't 100× slower: with the right index it barely moves, and when the plan gives way it falls off a cliff — multiplication won't tell you which. <span class="mono">EXPLAIN</span> the query as if the tables were 100× or 10,000× bigger, and cli2ui <span class="text-zinc-200">marks where it gives way</span>. Same shape at 100×, broken at 10,000× — before you get there. What you learn is the shape of the plan, not the runtime.</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">Whether that index helps</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Build it for real, measure <span class="mono">EXPLAIN ANALYZE</span> before and after, roll it back. You know before you commit to creating it.</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">How the plan changes, before and after</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed"><span class="mono">EXPLAIN</span> is the original dry run. Save a plan, then diff it against the one you get after adding an index — as trees, not text.</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">How many rows violate a constraint</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Count the rows a <span class="mono">NOT VALID</span> foreign key never checked — without validating it, and without changing anything.</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">What order is safe to delete</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">The foreign-key graph sorted into a safe <span class="mono">TRUNCATE</span> order and its reverse. Nothing is truncated.</p>
+      </div>
+      <div class="bg-zinc-950 p-6">
+        <h3 class="font-medium text-zinc-100">Nothing you type can write</h3>
+        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">The SQL runner opens a read-only transaction by default. No SQL is parsed to guess your intent — the server itself refuses the write, which is what makes trying things safe.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- How it works: before → after -->
   <section id="how" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
     <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">How it works</h2>
