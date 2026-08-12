@@ -115,6 +115,11 @@ RESTORE_TIMEOUT = 300
 # purpose — see _execute() for why waiting is the dangerous part.
 DDL_LOCK_TIMEOUT = "2s"
 
+# How long the table-size probe may wait for a lock. Shorter than the DDL guard:
+# a size is informational, and this probe runs on the overview that leads to the
+# Locks panel — see table_sizes() for why a read-only query queues at all.
+SIZES_LOCK_TIMEOUT = "1s"
+
 # The parameters people actually reach for — connections, memory, WAL, logging.
 # Shown by default so the editor isn't a wall of 350 obscure GUCs.
 COMMON_SETTINGS = [
@@ -320,6 +325,35 @@ class PostgresEngine(Engine):
                 raise EngineError(_clean(exc)) from exc
             finally:
                 conn.rollback()  # the what-if is never persisted
+
+    @contextlib.contextmanager
+    def _size_probe_cursor(self, conn):
+        """A cursor for the read-only probes that measure on-disk size.
+
+        pg_total_relation_size() / pg_table_size() open the relation they
+        measure, so a query that only reads sizes still takes ACCESS SHARE on
+        every table it touches — and queues behind whoever holds ACCESS
+        EXCLUSIVE. That makes these probes stallable by somebody else's DDL,
+        which would be tolerable if they lived anywhere else: they feed the
+        workspace overview and the Health panel, the pages you pass through on
+        the way to the Locks panel. Unguarded, the one moment you need to see
+        who is blocking whom is the moment these pages stop loading.
+
+        So bound the wait and report it. The caller degrades its own card
+        (Health keeps its other cards; the overview falls back to '—') rather
+        than showing an empty list, which would read as "nothing to see"."""
+        with conn.cursor() as cur:
+            try:
+                cur.execute("SET lock_timeout = %s", [SIZES_LOCK_TIMEOUT])
+                yield cur
+            except pg_errors.LockNotAvailable as exc:
+                raise EngineError(_sizes_lock_error(SIZES_LOCK_TIMEOUT)) from exc
+            finally:
+                # Session-wide (SET LOCAL would need a transaction and _connect
+                # is autocommit), so undo it: session() holds this connection
+                # open for the probes that follow.
+                with contextlib.suppress(psycopg2.Error):
+                    cur.execute("RESET lock_timeout")
 
     def test(self) -> None:
         with self._connect() as conn:
@@ -1275,8 +1309,10 @@ class PostgresEngine(Engine):
     # --- health ----------------------------------------------------------
 
     def table_sizes(self, limit: int = 20) -> list[TableSize]:
+        """Largest tables by total on-disk footprint (\\dt+). Size-probing, so
+        it runs lock-guarded — see _size_probe_cursor."""
         with self._connect() as conn:
-            with conn.cursor() as cur:
+            with self._size_probe_cursor(conn) as cur:
                 cur.execute(TABLE_SIZES_SQL, [limit])
                 return [
                     TableSize(schema=row[0], name=row[1], total_bytes=row[2],
@@ -1310,7 +1346,9 @@ class PostgresEngine(Engine):
         # a trusted int, so splice it directly and execute with no params.
         sql_text = BLOAT_SQL.format(limit=int(limit))
         with self._connect() as conn:
-            with conn.cursor() as cur:
+            # pg_table_size() in the estimate opens each table — same lock
+            # exposure as table_sizes, same guard.
+            with self._size_probe_cursor(conn) as cur:
                 cur.execute(sql_text)
                 return [
                     BloatEstimate(schema=row[0], name=row[1], table_bytes=row[2],
@@ -1585,6 +1623,15 @@ def _lock_error(timeout: str) -> str:
     return _("Gave up after waiting %(timeout)s for a lock on this object — "
              "another transaction is holding it. Nothing was changed. The Locks "
              "panel shows who; retry when it clears.") % {"timeout": timeout}
+
+
+def _sizes_lock_error(timeout: str) -> str:
+    """A read-only probe that timed out needs a different reassurance from a
+    DDL one: nothing was attempted on the table at all — we only failed to
+    measure it while someone else holds it."""
+    return _("Gave up after waiting %(timeout)s to measure table sizes — another "
+             "transaction holds a lock on one of these tables. Nothing was "
+             "changed; the Locks panel shows who is holding it.") % {"timeout": timeout}
 
 
 def _clean(exc: psycopg2.Error) -> str:

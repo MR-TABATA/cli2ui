@@ -234,6 +234,19 @@ class Activity:
     def blocked(self) -> bool:
         return bool(self.blocked_by)
 
+    @property
+    def cancellable(self) -> bool:
+        """Whether "cancel" has anything to act on. It stops the *running query*
+        (pg_cancel_backend / KILL QUERY), so a session that isn't running one —
+        idle, or idle in transaction — accepts the signal and changes nothing;
+        pg_cancel_backend even returns true. The session holding locks open is
+        very often exactly that one, so offering cancel there is offering a
+        no-op at the moment it matters most. Only kill ends its transaction.
+
+        Both engines normalise a running query to state "active" (MySQL maps
+        COMMAND='Query' onto it), so this reads the same on either."""
+        return self.state == "active"
+
 
 @dataclass
 class ConnectionHeadroom:
@@ -311,6 +324,19 @@ class BlockNode:
     lock_mode: str | None       # the lock this session waits for (None = head)
     object: str | None          # contended object (None = head)
     in_cycle: bool = False
+
+    @property
+    def cancellable(self) -> bool:
+        """Same rule as Activity.cancellable, and it bites hardest here: the
+        classic head blocker is idle in transaction, where cancel is a no-op.
+
+        A node that carries wait fields is blocked *on a lock*, which only
+        happens part-way through a statement — so it has a running query to
+        cancel even though `state` is unset for it (the flat lock-wait row
+        describes what it waits for, and only the blocker side carries state)."""
+        if self.lock_mode is not None:
+            return True
+        return self.state == "active"
 
 
 @dataclass

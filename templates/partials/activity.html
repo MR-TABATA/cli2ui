@@ -89,10 +89,16 @@
                   {% if s.is_self %}
                     <span class="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">{% trans "this tool" %}</span>
                   {% else %}
-                    <button hx-post="{% url 'activity_cancel' connection.pk %}" hx-vals='{"pid": "{{ s.pid }}"}'
-                            hx-target="#detail" hx-swap="innerHTML"
-                            hx-confirm="{% blocktrans with pid=s.pid %}Cancel the running query on PID {{ pid }}?{% endblocktrans %}"
-                            class="text-xs text-amber-400 hover:text-amber-300 underline">{% trans "cancel" %}</button>
+                    {% if s.cancellable %}
+                      <button hx-post="{% url 'activity_cancel' connection.pk %}" hx-vals='{"pid": "{{ s.pid }}"}'
+                              hx-target="#detail" hx-swap="innerHTML"
+                              hx-confirm="{% blocktrans with pid=s.pid %}Cancel the running query on PID {{ pid }}?{% endblocktrans %}"
+                              class="text-xs text-amber-400 hover:text-amber-300 underline">{% trans "cancel" %}</button>
+                    {% else %}
+                      {# Not running a query: cancel would be accepted and do nothing. #}
+                      <span class="text-xs text-zinc-600 cursor-help"
+                            title="{% trans 'This session is not running a query, so there is nothing to cancel — it would report success and release nothing. Only kill ends its transaction.' %}">{% trans "cancel" %}</span>
+                    {% endif %}
                     <button hx-post="{% url 'activity_kill' connection.pk %}" hx-vals='{"pid": "{{ s.pid }}"}'
                             hx-target="#detail" hx-swap="innerHTML"
                             hx-confirm="{% blocktrans with pid=s.pid %}Force-close session PID {{ pid }}? Its transaction will be rolled back.{% endblocktrans %}"

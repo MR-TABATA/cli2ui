@@ -351,13 +351,24 @@ def health(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     try:
         engine = get_engine(connection)
-        sizes = engine.table_sizes()
+        # Sizes and bloat are the probes that measure on-disk footprint, so they
+        # open user tables and a DDL lock can stop them (see
+        # PostgresEngine._size_probe_cursor). Everything else here reads catalog
+        # and stats views, so let those two degrade their own card rather than
+        # blanking a panel whose remaining cards would have loaded fine.
+        try:
+            sizes, sizes_error = engine.table_sizes(), None
+        except EngineError as exc:
+            sizes, sizes_error = [], str(exc)
         unused = engine.unused_indexes()
         fk_missing = engine.fk_missing_indexes() if engine.supports("fk_index") else []
         duplicates = engine.duplicate_indexes()
         orphans = engine.orphan_candidates() if engine.supports("orphans") else []
         vacuum = engine.vacuum_stats()
-        bloat = engine.bloat_estimates()
+        try:
+            bloat, bloat_error = engine.bloat_estimates(), None
+        except EngineError as exc:
+            bloat, bloat_error = [], str(exc)
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
     return render(
@@ -366,6 +377,7 @@ def health(request, pk):
         {
             "connection": connection,
             "sizes": sizes,
+            "sizes_error": sizes_error,
             "max_bytes": max((s.total_bytes for s in sizes), default=0),
             "unused": unused,
             "fk_missing": fk_missing,
@@ -373,6 +385,7 @@ def health(request, pk):
             "orphan_candidates": orphans,
             "vacuum": vacuum,
             "bloat": bloat,
+            "bloat_error": bloat_error,
             # Some engines have no vacuum/bloat concept (e.g. MySQL/InnoDB), and
             # MySQL auto-indexes FK columns so "FK missing index" can't apply: the
             # panel shows a "not applicable here" note instead of an empty card.

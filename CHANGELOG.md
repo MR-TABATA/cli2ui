@@ -17,6 +17,29 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Fixed
+
+- **The workspace no longer hangs while a table is locked** — `pg_total_relation_size()`
+  and `pg_table_size()` open the relation they measure, so the size and bloat
+  probes take `ACCESS SHARE` on every table and queued behind any `ACCESS
+  EXCLUSIVE` holder. Both probes feed the overview and the Health panel, the
+  pages on the way to the Locks panel, so an `ALTER TABLE` waiting on an idle
+  transaction made the workspace unreachable at exactly the moment you needed it
+  to explain the jam. Measured before the fix: `/locks` answered in 0.02s while
+  the connection page never returned. Both probes now run under a 1s
+  `lock_timeout` and report what happened; each degrades its own card, so Health
+  keeps the cards a lock can't touch. (MySQL is unaffected: its sizes come from
+  `information_schema.TABLES`, which reads the data dictionary — verified under a
+  held `LOCK TABLES … WRITE`, where a plain `SELECT` blocked and the size query
+  returned in 8ms.)
+- **"Cancel" is no longer offered where it does nothing** — cancel stops a
+  *running query*, so on a session that isn't running one it reports success and
+  releases nothing. That session is the usual head blocker (`idle in
+  transaction`), so the button appeared exactly where it couldn't help.
+  Cancel now renders disabled there, with a note that only kill ends the
+  transaction; sessions waiting on a lock keep it, since a lock wait means a
+  statement is in flight.
+
 ## [1.3.0] - 2026-07-31
 
 ### Added

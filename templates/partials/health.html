@@ -41,6 +41,8 @@
           {% endfor %}
         </tbody>
       </table>
+    {% elif sizes_error %}
+      <p class="px-5 py-6 text-sm text-amber-300/90">{{ sizes_error }}</p>
     {% else %}
       <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No user tables." %}</p>
     {% endif %}
@@ -333,6 +335,8 @@
         {% blocktrans %}An estimate from planner statistics — run <span class="mono">VACUUM FULL</span> or
         <span class="mono">pg_repack</span> to reclaim. Needs a recent <span class="mono">ANALYZE</span> to be accurate.{% endblocktrans %}
       </div>
+    {% elif bloat_error %}
+      <p class="px-5 py-6 text-sm text-amber-300/90">{{ bloat_error }}</p>
     {% else %}
       <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No bloat to estimate (or stats not collected yet)." %}</p>
     {% endif %}

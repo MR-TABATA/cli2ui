@@ -52,10 +52,16 @@
                 <pre class="mt-1.5 text-xs mono text-zinc-400 whitespace-pre-wrap break-words">{{ n.query|default:"—" }}</pre>
               </div>
               <div class="text-right whitespace-nowrap space-x-3 shrink-0">
-                <button hx-post="{% url 'locks_cancel' connection.pk %}" hx-vals='{"pid": "{{ n.pid }}"}'
-                        hx-target="#detail" hx-swap="innerHTML"
-                        hx-confirm="{% blocktrans with pid=n.pid %}Cancel the running query on PID {{ pid }}?{% endblocktrans %}"
-                        class="text-xs text-amber-400 hover:text-amber-300 underline">{% trans "cancel" %}</button>
+                {% if n.cancellable %}
+                  <button hx-post="{% url 'locks_cancel' connection.pk %}" hx-vals='{"pid": "{{ n.pid }}"}'
+                          hx-target="#detail" hx-swap="innerHTML"
+                          hx-confirm="{% blocktrans with pid=n.pid %}Cancel the running query on PID {{ pid }}?{% endblocktrans %}"
+                          class="text-xs text-amber-400 hover:text-amber-300 underline">{% trans "cancel" %}</button>
+                {% else %}
+                  {# Not running a query: cancel would be accepted and do nothing. #}
+                  <span class="text-xs text-zinc-600 cursor-help"
+                        title="{% trans 'This session is not running a query, so there is nothing to cancel — it would report success and release nothing. Only kill ends its transaction.' %}">{% trans "cancel" %}</span>
+                {% endif %}
                 <button hx-post="{% url 'locks_kill' connection.pk %}" hx-vals='{"pid": "{{ n.pid }}"}'
                         hx-target="#detail" hx-swap="innerHTML"
                         hx-confirm="{% blocktrans with pid=n.pid %}Force-close session PID {{ pid }}? Its transaction will be rolled back.{% endblocktrans %}"
@@ -67,7 +73,7 @@
       {% endfor %}
     </div>
     <p class="text-xs text-zinc-400">
-      {% blocktrans count n=blocked_total %}{{ n }} blocked session · cancel/kill the <span class="text-amber-400/80">head blocker</span> at the top of a chain to free everything beneath it{% plural %}{{ n }} blocked sessions · cancel/kill the <span class="text-amber-400/80">head blocker</span> at the top of a chain to free everything beneath it{% endblocktrans %}
+      {% blocktrans count n=blocked_total %}{{ n }} blocked session · end the <span class="text-amber-400/80">head blocker</span> at the top of a chain to free everything beneath it — cancel stops its query, kill ends its transaction{% plural %}{{ n }} blocked sessions · end the <span class="text-amber-400/80">head blocker</span> at the top of a chain to free everything beneath it — cancel stops its query, kill ends its transaction{% endblocktrans %}
     </p>
   {% else %}
     <div class="border border-dashed border-zinc-800 rounded-xl py-12 px-6 text-center">

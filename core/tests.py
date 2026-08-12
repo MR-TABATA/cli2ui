@@ -20,13 +20,15 @@ from psycopg2 import sql
 
 from core.engines import EngineError, get_engine
 from core.engines.base import (
-    Activity, Blocker, Column, ConnectionHeadroom, DuplicateIndex, Extension,
+    Activity, BlockNode, Blocker, Column, ConnectionHeadroom, DuplicateIndex,
+    Extension,
     FKMissingIndex, ForeignKeyEdge, Index, JsonbKey, JsonbShape, LockWait,
     OrphanCandidate, OrphanCount, PlanNode, QueryResult,
     Setting, Standby, Table, build_block_forest, build_dependency_graph,
 )
 from core.engines.postgres import (
     DDL_LOCK_TIMEOUT,
+    SIZES_LOCK_TIMEOUT,
     INDEX_METHODS,
     PostgresEngine,
     _clean,
@@ -275,13 +277,15 @@ def fk(child, parent, columns="x_id", constraint="fk"):
                           columns=columns)
 
 
-def _wait(pid, blockers, secs=1, mode="AccessExclusiveLock", obj="orders"):
+def _wait(pid, blockers, secs=1, mode="AccessExclusiveLock", obj="orders",
+          blocker_state="active"):
     """A LockWait for one blocked session and its direct blockers, for the forest
     tests. `blockers` is a list of pids holding what `pid` waits on."""
     return LockWait(
         blocked_pid=pid, blocked_user="u%d" % pid, blocked_query="q%d" % pid,
         wait_secs=secs, lock_type="relation", lock_mode=mode, object=obj,
-        blockers=[Blocker(pid=b, user="u%d" % b, state="active", query="q%d" % b)
+        blockers=[Blocker(pid=b, user="u%d" % b, state=blocker_state,
+                          query="q%d" % b)
                   for b in blockers])
 
 
@@ -331,6 +335,58 @@ class BlockForestTests(SimpleTestCase):
                                     _wait(3, [200])])
         self.assertEqual([t.head.pid for t in trees], [100, 200])
         self.assertEqual([t.blocked_count for t in trees], [2, 1])
+
+
+class CancellableTests(SimpleTestCase):
+    """"Cancel" stops a *running query*. Aimed at a session that isn't running
+    one it reports success and frees nothing — and the classic head blocker is
+    exactly that session (idle in transaction), so the panel must not offer it
+    there. Verified live: pg_cancel_backend returned true on an idle-in-txn
+    holder and the queue behind it never moved; pg_terminate_backend cleared it."""
+
+    def _node(self, state, lock_mode=None):
+        return BlockNode(pid=1, user="u", state=state, query="", depth=0,
+                         wait_secs=None, lock_mode=lock_mode, object=None)
+
+    def _session(self, state):
+        return Activity(pid=1, user="u", database="d", app=None, client=None,
+                        state=state, wait=None, blocked_by=[], query_secs=None,
+                        query="")
+
+    def test_only_a_running_query_can_be_cancelled(self):
+        self.assertTrue(self._node("active").cancellable)
+        self.assertTrue(self._session("active").cancellable)
+
+    def test_an_idle_transaction_holder_cannot(self):
+        # The head blocker people actually meet: locks held, nothing running.
+        self.assertFalse(self._node("idle in transaction").cancellable)
+        self.assertFalse(self._session("idle in transaction").cancellable)
+        self.assertFalse(self._session("idle in transaction (aborted)").cancellable)
+
+    def test_idle_and_unknown_states_cannot_either(self):
+        self.assertFalse(self._session("idle").cancellable)
+        self.assertFalse(self._session(None).cancellable)
+        # MySQL maps COMMAND='Query' onto "active" and shows the rest verbatim.
+        self.assertFalse(self._session("sleep").cancellable)
+
+    def test_a_session_waiting_on_a_lock_can_be_cancelled(self):
+        # The sessions *under* a head blocker: their state is unset in the tree
+        # (only the blocker side carries it), but waiting on a lock means a
+        # statement is in flight, so cancel really does stop something.
+        node = self._node(None, lock_mode="AccessShareLock")
+        self.assertTrue(node.cancellable)
+
+    def test_the_forest_marks_victims_cancellable_and_the_head_not(self):
+        # End to end over the real builder: 456 waits on 123, which holds and
+        # waits on nothing — the shape the panel renders buttons from.
+        trees = build_block_forest([_wait(456, [123])])
+        head, victim = trees[0].nodes
+        self.assertEqual((head.pid, victim.pid), (123, 456))
+        self.assertTrue(victim.cancellable)      # mid-statement, waiting
+        self.assertTrue(head.cancellable)        # _wait() describes it as active
+        idle_head = build_block_forest(
+            [_wait(456, [123], blocker_state="idle in transaction")])[0].head
+        self.assertFalse(idle_head.cancellable)  # holds locks, runs nothing
 
 
 class DependencyGraphTests(SimpleTestCase):
@@ -793,6 +849,80 @@ class DdlLockTimeoutTests(SimpleTestCase):
         with self.assertRaises(EngineError) as caught:
             self._engine().drop_table("public", "nope")
         self.assertIn("does not exist", str(caught.exception))
+
+
+class SizeProbeLockTimeoutTests(SimpleTestCase):
+    """Measuring on-disk size is read-only but not lock-free: the size functions
+    open the relation, so they take ACCESS SHARE and queue behind a DDL holding
+    ACCESS EXCLUSIVE. These probes feed the overview and the Health panel — the
+    pages on the way to the Locks panel — so an unbounded wait hides the very
+    answer the user came for. Mocked psycopg2: we assert what gets sent."""
+
+    def _engine(self):
+        return PostgresEngine(Connection(kind="postgres", host="h", port=5432,
+                                         dbname="d", user="u", password="p"))
+
+    @staticmethod
+    def _cursor(connect):
+        cur = unittest.mock.MagicMock()
+        connect.return_value.cursor.return_value.__enter__.return_value = cur
+        return cur
+
+    @staticmethod
+    def _ran(cur):
+        return [c.args[0] for c in cur.execute.call_args_list]
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_table_sizes_bounds_its_lock_wait(self, connect):
+        cur = self._cursor(connect)
+        cur.fetchall.return_value = []
+        self._engine().table_sizes()
+        calls = cur.execute.call_args_list
+        self.assertEqual(calls[0].args[0], "SET lock_timeout = %s")
+        self.assertEqual(calls[0].args[1], [SIZES_LOCK_TIMEOUT])
+        # Cleared afterwards: session() keeps this connection for later probes.
+        self.assertEqual(self._ran(cur)[-1], "RESET lock_timeout")
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_bloat_estimate_is_guarded_too(self, connect):
+        cur = self._cursor(connect)
+        cur.fetchall.return_value = []
+        self._engine().bloat_estimates()
+        # pg_table_size() inside the estimate opens each table, same as sizes.
+        self.assertEqual(self._ran(cur)[0], "SET lock_timeout = %s")
+        self.assertEqual(self._ran(cur)[-1], "RESET lock_timeout")
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_timed_out_size_probe_says_it_measured_nothing(self, connect):
+        cur = self._cursor(connect)
+        cur.execute.side_effect = [
+            None,                                   # SET lock_timeout
+            psycopg2.errors.LockNotAvailable("canceling statement due to lock timeout"),
+            None,                                   # RESET lock_timeout
+        ]
+        with self.assertRaises(EngineError) as caught:
+            self._engine().table_sizes()
+        msg = str(caught.exception)
+        self.assertIn(SIZES_LOCK_TIMEOUT, msg)      # how long it waited
+        self.assertIn("table sizes", msg)           # which probe gave up
+        self.assertIn("Locks panel", msg)           # where to look next
+        self.assertEqual(self._ran(cur)[-1], "RESET lock_timeout")
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_a_locked_table_does_not_blank_the_health_panel(self, connect):
+        """The failure has to stay inside its own card. Health's other probes
+        read catalog and stats views, which no DDL can block."""
+        cur = self._cursor(connect)
+        cur.execute.side_effect = psycopg2.errors.LockNotAvailable("lock timeout")
+        engine = self._engine()
+        with self.assertRaises(EngineError):
+            engine.table_sizes()
+        # Nothing sticky left behind: the next probe starts clean.
+        cur.reset_mock()
+        cur.execute.side_effect = None
+        cur.fetchall.return_value = []
+        self.assertEqual(engine.vacuum_stats(), [])
+        self.assertNotIn("SET lock_timeout = %s", self._ran(cur))
 
 
 class RunnerLockGuardTests(TestCase):
