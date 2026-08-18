@@ -1,0 +1,86 @@
+{
+  "product": "cli2ui",
+
+  "versions": [
+    { "name": "__version__",   "path": "cli2ui/__init__.py", "pattern": "__version__ = \"([\\d.]+)\"" },
+    { "name": "README Status", "path": "README.md",          "pattern": "\nv([\\d.]+) — " },
+    { "name": "CHANGELOG 最新", "path": "CHANGELOG.md",       "pattern": "## \\[([\\d.]+)\\] - " }
+  ],
+
+  "lang_parity": {
+    "_comment": "LP は言語別ファイルを手で書いているので、訳ではなく骨組みを突き合わせる。",
+    "pairs": [["docs/index.en.html", "docs/index.ja.html"]],
+    "count_tags": ["section", "h2", "h3", "li", "a", "img", "table"],
+    "compare_ids": true
+  },
+
+  "i18n": {
+    "format": "gettext",
+    "langs": ["ja"],
+    "catalog": "locale/{lang}/LC_MESSAGES/django.po",
+    "compiled": "locale/{lang}/LC_MESSAGES/django.mo"
+  },
+
+  "release_docs": {
+    "tag_prefix": "v",
+    "history": { "path": "CHANGELOG.md", "pattern": "^## \\[([\\d.]+)\\] - " }
+  },
+
+  "measured": {
+    "_comment": "同じ指標に別の値が残っていないかを見る。family で拾い、canonical 以外を落とす。docs を書いた項目はコード側の定数も同じ土俵で押さえる。",
+
+    "SQL ランナーの行上限（文書）": {
+      "canonical": "1000-row cap|1000 ?行上限",
+      "family": "[\\d,]+-row cap|[\\d,]+ ?行上限"
+    },
+    "SQL ランナーの行上限（コード）": {
+      "note": "文書の「1000行上限」の出どころ。既定引数を変えたら文書も直す。",
+      "canonical": "def run_query\\(self, sql[^\\n]*max_rows: int = 1000",
+      "family": "def run_query\\(self, sql[^\\n]*max_rows: int = [\\d_]+",
+      "docs": ["core/engines/base.py", "core/engines/postgres.py", "core/engines/mysql.py"]
+    },
+
+    "DDL / 書込みの lock_timeout（文書）": {
+      "note": "README・LP とも「2s」「2 秒」で公表している。",
+      "canonical": "2s|2 ?秒",
+      "family": "[\\d.]+ ?s(?= ?`?lock_timeout)|[\\d.]+ ?秒(?=(?:の|で) ?`?(?:lock_timeout|諦め))"
+    },
+    "DDL / 書込みの lock_timeout（コード）": {
+      "canonical": "(?:DDL|RUNNER)_LOCK_TIMEOUT = \"2s\"",
+      "family": "(?:DDL|RUNNER)_LOCK_TIMEOUT = \"[^\"]*\"",
+      "docs": ["core/engines/postgres.py", "core/views/runner.py"]
+    },
+
+    "スケールシミュレーションの倍率（文書）": {
+      "canonical": "1× / 100× / 10000×|100× or 10,000×|100倍・10000倍",
+      "family": "1× / [\\d,]+× / [\\d,]+×|[\\d,]+× or [\\d,]+×|[\\d,]+倍・[\\d,]+倍"
+    },
+    "スケールシミュレーションの倍率（コード）": {
+      "canonical": "SCALE_FACTORS = \\(1, 100, 10000\\)",
+      "family": "SCALE_FACTORS = \\([^)]*\\)",
+      "docs": ["planner_lab/views.py"]
+    },
+
+    "Airlines デモ DB の規模": {
+      "note": "チケット 83 万行超・復元後 ~250MB。行数と容量は別の数字なので family も分ける。",
+      "canonical": "830k\\+ tickets|チケット83万行超",
+      "family": "[\\d,]+k\\+ tickets|チケット[\\d,]+万行超"
+    },
+    "対応 MySQL": {
+      "canonical": "MySQL ?[（(]8\\.0\\+",
+      "family": "MySQL ?[（(]8\\.[\\d]\\+"
+    }
+  },
+
+  "docs": ["README.md", "CHANGELOG.md", "docs/index.en.html", "docs/index.ja.html"],
+
+  "optional_app": {
+    "_comment": "planner_lab は INSTALLED_APPS から外しても本体が動くこと。入口は urls.py の一箇所だけ。",
+    "app": "planner_lab",
+    "code_dirs": ["core", "cli2ui"],
+    "template_dirs": ["templates"],
+    "gate_files": ["cli2ui/urls.py"],
+    "install_gate": "django_apps.is_installed(\"planner_lab\")",
+    "template_gate": "'planner_lab' in enabled_features"
+  }
+}
