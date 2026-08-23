@@ -13,6 +13,8 @@ venv/
 /seed/demo/.extract/
 /*.png
 *.code-workspace
+# Developer build/live-reload override — copied from the .example, kept local.
+docker-compose.override.yml
 
 # Local, never-committed working area (strategy notes, drafts, scratch).
 /local/
