@@ -1,0 +1,40 @@
+# 配布まわりの数字を毎日1回、非公開 Gist に貯める。
+#
+# GitHub の traffic API は **直近14日しか返さない**。取り逃がした日は永久に
+# 戻らないので、毎日拾って積む。Docker Hub の pull 数とリリースアセットの
+# download_count も同時に記録する（こちらは累計値なので日次のスナップショット）。
+#
+# 必要な準備:
+#   METRICS_TOKEN  classic PAT。scope は `gist`（Gist 書き込み）と
+#                  `public_repo`（traffic API は push 権限を要求する）。
+#   GIST_ID        非公開 Gist の ID（URL 末尾の英数字）。中に
+#                  `cli2ui-metrics.json` を1つ置いておけばよい（空でも可）。
+#
+# 数字を見るときは手元で:  GIST_ID=... python3 scripts/metrics.py report
+name: Metrics
+
+on:
+  schedule:
+    # 12:00 JST（= 03:00 UTC）。traffic は日単位なので時刻はいつでもよいが、
+    # 当日の値は日中に増えるため、同じ日を翌日また上書きして取り切る。
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Collect and store
+        env:
+          METRICS_TOKEN: ${{ secrets.METRICS_TOKEN }}
+          GIST_ID: ${{ secrets.GIST_ID }}
+          DOCKERHUB_NAMESPACE: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: python3 scripts/metrics.py snapshot
