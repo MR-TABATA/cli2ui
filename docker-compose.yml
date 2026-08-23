@@ -1,10 +1,20 @@
 services:
   app:
-    build: .
+    # The published image by default, so the first run is a pull rather than a
+    # multi-minute apt/pip build on a laptop that has no reason to compile
+    # anything. To build from your working tree instead, copy
+    # docker-compose.override.yml.example — Compose merges it and its `build:`
+    # wins. Pin a version with CLI2UI_IMAGE (e.g. jiniie/cli2ui:1.3.0).
+    image: ${CLI2UI_IMAGE:-jiniie/cli2ui:latest}
     ports:
       - "8000:8000"
+    environment:
+      # Saved connections and auto-backups live in one SQLite file. Without the
+      # source tree mounted it would sit inside the container and disappear the
+      # next time the container is recreated, so put it on a named volume.
+      CLI2UI_DB_PATH: /data/db.sqlite3
     volumes:
-      - .:/app
+      - cli2ui-data:/data
     # Lets you reach a database running elsewhere on the host (another container
     # that publishes a port, or a native install) by connecting cli2ui to
     # host.docker.internal. Docker Desktop (Mac/Windows) provides this name
@@ -72,3 +82,4 @@ services:
 
 volumes:
   airlines-data:
+  cli2ui-data:

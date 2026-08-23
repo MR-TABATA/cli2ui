@@ -38,8 +38,18 @@ them, and it auto-detects your browser's language on first visit.
 docker compose up
 ```
 
+This pulls the published image
+([`jiniie/cli2ui`](https://hub.docker.com/r/jiniie/cli2ui), amd64 and arm64) —
+there is nothing to build and nothing to compile.
+
 Then open <http://localhost:8000>. The connection form is pre-filled to point at
 a bundled sample database — just hit **Connect** and you'll see its tables.
+
+> **Building from source instead:** copy `docker-compose.override.yml.example`
+> to `docker-compose.override.yml`. It builds the image from your working tree
+> and mounts the tree for live reload — that is the development setup.
+>
+> **Pinning a version:** set `CLI2UI_IMAGE=jiniie/cli2ui:1.3.0` in `.env`.
 
 To point at your own PostgreSQL, change the form fields (host, port, db, user,
 password) and connect.
