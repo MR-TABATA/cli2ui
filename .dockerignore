@@ -5,3 +5,13 @@ db.sqlite3
 .venv/
 venv/
 .DS_Store
+
+# Never let a locally built image embed the working-only directories. The CI
+# build starts from a clean checkout so it never sees these, but `build: .`
+# from a developer's tree would copy them straight into the image — and that
+# image is one `docker push` away from being public.
+.env
+/local/
+.claude/
+.continue/
+.playwright-mcp/
