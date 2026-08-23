@@ -17,6 +17,8 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-23
+
 ### Fixed
 
 - **The workspace no longer hangs while a table is locked** — `pg_total_relation_size()`
@@ -39,6 +41,23 @@ Versioning convention for this project:
   Cancel now renders disabled there, with a note that only kill ends the
   transaction; sessions waiting on a lock keep it, since a lock wait means a
   statement is in flight.
+
+### Changed
+
+- **`docker compose up` now pulls a published image instead of building one** —
+  the first screen used to be preceded by apt and pip on a laptop that has no
+  reason to compile anything. Compose points at `jiniie/cli2ui:latest` (amd64 and
+  arm64, pushed on `v*` tags), so starting the app is a pull; `CLI2UI_IMAGE` in
+  `.env` pins a version. Building from source moves to
+  `docker-compose.override.yml.example` — copy it and you get `build: .` plus the
+  working-tree mount, i.e. the previous behaviour with live reload.
+- **Upgrading an existing checkout moves the management database.** Dropping the
+  `.:/app` mount from the default path meant saved connections and auto-backups
+  would have lived inside the container and vanished on the next `up`, so
+  `CLI2UI_DB_PATH` now points at `/data` on a named volume. A checkout that had
+  connections saved in the project root will therefore start empty: either copy
+  the existing `db.sqlite3` into the volume, or use the override, which puts the
+  file back in the project root where the host can inspect or delete it.
 
 ## [1.3.0] - 2026-07-31
 
@@ -258,7 +277,9 @@ reserved for multi-DB support).
 - Internationalisation (English / Japanese).
 - Workspace overview dashboard and unified UI (design system).
 
-[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/MR-TABATA/cli2ui/compare/v0.9.0...v1.0.0
