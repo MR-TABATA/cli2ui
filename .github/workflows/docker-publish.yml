@@ -1,0 +1,83 @@
+# Docker Hub へイメージを公開する。
+#
+# ここまで配布経路は `git clone` だけで、GitHub が数える「ダウンロード」は
+# 構造的にゼロだった（自動生成の Source code zip は集計対象外）。Docker Hub は
+# pull 数を認証不要の公開 API で返すので、これが最初の本物の DL 指標になる。
+#
+# 必要な準備（GitHub → Settings → Secrets and variables → Actions）:
+#   DOCKERHUB_USERNAME  Docker Hub のユーザー名（イメージ名にも使う）
+#   DOCKERHUB_TOKEN     Docker Hub の Access Token（パスワードではなく）
+#
+# 動くタイミング: `v*` タグを push した時と、手動実行。main への push では
+# 動かさない（誰も使っていない中間ビルドで pull 数を汚さないため）。
+name: Publish image
+
+on:
+  push:
+    tags: ['v*']
+  # Dockerfile まわりを触る PR では、push せずビルドだけ通るか見る。
+  # タグを打った当日に初めて壊れているのが分かる、を避けるため。
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - 'requirements.txt'
+      - '.github/workflows/docker-publish.yml'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '手動公開するときのタグ名（例 v1.3.0）'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # PR ではビルドが通ることだけ確認する（認証情報も要らない）。
+  check:
+    name: image builds
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  publish:
+    name: build and push
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Apple Silicon と x86 の両方で動くように2アーキテクチャ出す。
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Work out the tags
+        id: meta
+        run: |
+          version="${{ github.event.inputs.tag || github.ref_name }}"
+          image="${{ secrets.DOCKERHUB_USERNAME }}/cli2ui"
+          echo "tags=${image}:${version#v},${image}:latest" >> "$GITHUB_OUTPUT"
+          echo "publishing ${image}:${version#v}"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
