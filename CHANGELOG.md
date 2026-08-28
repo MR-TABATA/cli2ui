@@ -17,6 +17,49 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-08-28
+
+Press it and find out — that was the whole confirmation dialog. Now the button
+says what it is about to do, before you press it.
+
+### Added
+
+- **The SQL a button is about to run, shown in its confirmation.** Not a second
+  rendering of what we think it will do: `engine.preview()` runs the *same*
+  method with the *same* arguments and captures what the executor composed,
+  without sending it. A preview written separately from the executor drifts from
+  it, and the first time you notice is when the button does something the
+  preview did not show.
+
+  The `SET lock_timeout` that guards every destructive DDL is shown too. It has
+  always been there — bounding the wait so one clicked button cannot stall a
+  table until the connection pool runs dry — but nothing in the UI ever said so.
+
+- **What a TRUNCATE or DROP would take with it.** How many rows, and who points
+  at this table.
+
+  The row count comes from the planner's statistics, not `count(*)`: opening a
+  confirmation dialog must not scan a billion-row table. It is labelled an
+  estimate, with the date the statistics were last refreshed. A table that has
+  never been analyzed reports **unknown**, not zero — "0 rows" would read as
+  "empty, safe to drop".
+
+  Foreign keys pointing at the table are listed, because a TRUNCATE fails
+  without CASCADE while one exists, and finding that out after pressing is late.
+
+- **What `DROP … CASCADE` would take with it.** Views and materialized views, by
+  name. `DROP TABLE` defaults to RESTRICT and simply fails while something
+  depends on it — that is the safe outcome. The dangerous one is reaching for
+  CASCADE without knowing what is on the other end.
+
+  Implicit dependencies (indexes, constraints, types) are left out: they go with
+  the table by definition, and listing them buries the view you actually needed
+  to see. Foreign keys are left out here too — they are counted in the line
+  above, and the same object in two places reads as two casualties.
+
+Previews that cannot be produced are not rendered at all. An empty SQL box or a
+"0 rows" line would state something untrue.
+
 ## [1.5.0] - 2026-08-28
 
 Declared, but not in force. Two constraints that are enforced with a hole in
