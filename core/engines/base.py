@@ -580,6 +580,10 @@ class WriteImpact:
     estimated: bool
     analyzed: str | None                   # ISO date of the last (auto)analyze
     referenced_by: list[dict]              # [{"table", "constraint", "rows"}, …]
+    # Objects that a DROP … CASCADE would take with it. Without CASCADE the drop
+    # simply fails (RESTRICT is the default), which is the safe outcome — the
+    # dangerous one is adding CASCADE without knowing what is on this list.
+    fallout: list[dict] = field(default_factory=list)   # [{"kind", "name"}, …]
 
     @property
     def unknown(self) -> bool:

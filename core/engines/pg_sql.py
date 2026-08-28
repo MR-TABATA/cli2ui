@@ -368,6 +368,38 @@ LEFT JOIN pg_catalog.pg_stat_user_tables st ON st.relid = cl.oid
 WHERE ns.nspname = %s AND cl.relname = %s;
 """
 
+# 押す前に見せる — DROP の巻き添え。
+#
+# `DROP TABLE` は既定で RESTRICT ＝ 依存しているものがあれば失敗する。CASCADE を
+# 付けた瞬間に**それらも一緒に消える**ので、「何が付いてくるか」は押す前に見せる
+# べき筆頭。pg_depend の deptype = 'n'（normal）が、CASCADE で連れて行かれる側。
+#
+# 索引・制約・型の暗黙依存（'a' auto / 'i' internal）は除く。テーブルと一緒に消えて
+# 当たり前のもので、並べると本当に見たいもの（ビュー・関数・FK）が埋もれる。
+# ただし FK は別枠で数えているので（WRITE_IMPACT_SQL の referenced_by）ここでは
+# ビューとルールに絞る ── 同じものを 2 か所で数えると、合計が二重になる。
+DROP_FALLOUT_SQL = """
+SELECT DISTINCT
+       CASE dependent.relkind
+         WHEN 'v' THEN 'view'
+         WHEN 'm' THEN 'materialized view'
+         ELSE dependent.relkind::text
+       END AS kind,
+       dns.nspname || '.' || dependent.relname AS name
+FROM pg_catalog.pg_class target
+JOIN pg_catalog.pg_namespace ns   ON ns.oid = target.relnamespace
+JOIN pg_catalog.pg_depend dep     ON dep.refobjid = target.oid
+                                 AND dep.refclassid = 'pg_class'::regclass
+                                 AND dep.deptype = 'n'
+JOIN pg_catalog.pg_rewrite rw     ON rw.oid = dep.objid
+JOIN pg_catalog.pg_class dependent ON dependent.oid = rw.ev_class
+JOIN pg_catalog.pg_namespace dns  ON dns.oid = dependent.relnamespace
+WHERE ns.nspname = %s AND target.relname = %s
+  AND dependent.oid <> target.oid
+  AND dependent.relkind IN ('v', 'm')
+ORDER BY 1, 2;
+"""
+
 # Health — composite UNIQUE that NULL slips through.
 #
 # `UNIQUE (email, tenant_id)` は、tenant_id が NULL の行同士を**別物**として扱う。

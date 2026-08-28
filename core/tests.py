@@ -579,6 +579,26 @@ class WriteImpactTests(SimpleTestCase):
         self.assertIn("con.contype = 'f'", q)
         self.assertIn("con.confrelid = cl.oid", q)
 
+    def test_fallout_lists_what_cascade_would_take(self):
+        # RESTRICT が既定なので、CASCADE を付けない限り DROP は失敗する ＝ 安全側。
+        # 危ないのは、何が付いてくるか知らずに CASCADE を足すほう。
+        i = WriteImpact(rows=10, estimated=True, analyzed="2026-08-28", referenced_by=[],
+                        fallout=[{"kind": "view", "name": "public.orders_v"}])
+        self.assertEqual(i.fallout[0]["name"], "public.orders_v")
+
+    def test_fallout_query_skips_implicit_dependencies(self):
+        # 索引・制約・型の暗黙依存（auto / internal）まで並べると、本当に見たい
+        # ビューが埋もれる。normal だけを見る。
+        from core.engines.pg_sql import DROP_FALLOUT_SQL as q
+        self.assertIn("dep.deptype = 'n'", q)
+        self.assertIn("dependent.relkind IN ('v', 'm')", q)
+
+    def test_fallout_does_not_double_count_foreign_keys(self):
+        # FK は referenced_by で数えている。同じものを 2 か所で出すと、読む人には
+        # 「2 つ巻き添えがある」に見える。
+        from core.engines.pg_sql import DROP_FALLOUT_SQL as q
+        self.assertNotIn("contype = 'f'", q)
+
     def test_mysql_declares_write_impact_not_applicable(self):
         from core.engines.mysql import MysqlEngine
         self.assertIn("write_impact", MysqlEngine.UNSUPPORTED)
