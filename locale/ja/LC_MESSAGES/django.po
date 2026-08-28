@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-28 05:25-0500\n"
+"POT-Creation-Date: 2026-08-28 05:40-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -23,23 +23,23 @@ msgid "Unsupported database kind: %(kind)s"
 msgstr "未対応のデータベース種別: %(kind)s"
 
 #: core/engines/mysql.py:423 core/engines/mysql.py:830
-#: core/engines/mysql.py:836 core/engines/postgres.py:415
-#: core/engines/postgres.py:516 core/engines/postgres.py:1173
+#: core/engines/mysql.py:836 core/engines/postgres.py:416
+#: core/engines/postgres.py:517 core/engines/postgres.py:1174
 #, python-format
 msgid "No such column: %(name)s"
 msgstr "存在しない列: %(name)s"
 
-#: core/engines/mysql.py:425 core/engines/postgres.py:518
+#: core/engines/mysql.py:425 core/engines/postgres.py:519
 #, python-format
 msgid "Unknown filter operator: %(op)s"
 msgstr "不明なフィルタ演算子: %(op)s"
 
 #: core/engines/mysql.py:470 core/engines/mysql.py:475
-#: core/engines/postgres.py:568
+#: core/engines/postgres.py:569
 msgid "The CSV file is empty."
 msgstr "CSV ファイルが空です。"
 
-#: core/engines/mysql.py:480 core/engines/postgres.py:575
+#: core/engines/mysql.py:480 core/engines/postgres.py:576
 #, python-format
 msgid "CSV header has columns not in %(table)s: %(cols)s"
 msgstr "%(table)s に無い列が CSV ヘッダにあります: %(cols)s"
@@ -86,17 +86,17 @@ msgstr ""
 "MySQL はデータベースのリネームに対応していません。新しいデータベースを作成し"
 "てテーブルを移動する (RENAME TABLE) か、ダンプして再読み込みしてください。"
 
-#: core/engines/mysql.py:718 core/engines/postgres.py:173
+#: core/engines/mysql.py:718 core/engines/postgres.py:174
 #, python-format
 msgid "Unsupported index method: %(method)s"
 msgstr "未対応のインデックス方式: %(method)s"
 
-#: core/engines/mysql.py:720 core/engines/postgres.py:175
+#: core/engines/mysql.py:720 core/engines/postgres.py:176
 #: core/views/tables.py:192
 msgid "Select at least one column to index."
 msgstr "インデックス対象の列を1つ以上選んでください。"
 
-#: core/engines/mysql.py:727 core/engines/postgres.py:1068
+#: core/engines/mysql.py:727 core/engines/postgres.py:1069
 #: planner_lab/whatif.py:115
 #, python-format
 msgid "No such column(s): %(cols)s"
@@ -119,7 +119,7 @@ msgstr "孤児行チェックはここでは PostgreSQL の機能です。"
 msgid "mysqldump timed out."
 msgstr "mysqldump がタイムアウトしました。"
 
-#: core/engines/mysql.py:980 core/engines/postgres.py:1279
+#: core/engines/mysql.py:980 core/engines/postgres.py:1280
 msgid "restore timed out."
 msgstr "リストアがタイムアウトしました。"
 
@@ -137,7 +137,7 @@ msgstr ""
 "MySQL にレプリケーションスロットはありません — 削除するものはありません。"
 
 #: core/engines/mysql.py:1163 core/engines/mysql.py:1168
-#: core/engines/mysql.py:1178 core/engines/postgres.py:1655
+#: core/engines/mysql.py:1178 core/engines/postgres.py:1660
 #, python-format
 msgid "Unknown setting: %(name)s"
 msgstr "不明な設定: %(name)s"
@@ -153,25 +153,25 @@ msgstr ""
 "クションが保持しています。変更は行われていません。保持者は「ロック」パネルで"
 "確認し、解放されてから再実行してください。"
 
-#: core/engines/postgres.py:418
+#: core/engines/postgres.py:419
 #, python-format
 msgid "%(name)s is not a JSON column."
 msgstr "%(name)s は JSON 列ではありません。"
 
-#: core/engines/postgres.py:1197
+#: core/engines/postgres.py:1198
 #, python-format
 msgid "Unknown dump format: %(fmt)s"
 msgstr "不明なダンプ形式: %(fmt)s"
 
-#: core/engines/postgres.py:1215
+#: core/engines/postgres.py:1216
 msgid "pg_dump timed out."
 msgstr "pg_dump がタイムアウトしました。"
 
-#: core/engines/postgres.py:1381
+#: core/engines/postgres.py:1382
 msgid "That table no longer exists."
 msgstr ""
 
-#: core/engines/postgres.py:1423
+#: core/engines/postgres.py:1428
 msgid ""
 "This index no longer looks like a composite UNIQUE with a nullable column — "
 "it may have changed since the panel loaded."
@@ -180,11 +180,11 @@ msgstr ""
 "てから作り替えられた可能性があります。この参照はもう単一の親に解決できません "
 "— パネルを開いてから変わった可能性があります。"
 
-#: core/engines/postgres.py:1532
+#: core/engines/postgres.py:1537
 msgid "No relationship to check was given."
 msgstr "チェックする関係が指定されていません。"
 
-#: core/engines/postgres.py:1545
+#: core/engines/postgres.py:1550
 msgid ""
 "This reference no longer resolves to a single parent — it may have changed "
 "since the panel loaded."
@@ -192,7 +192,7 @@ msgstr ""
 "この参照はもう単一の親に解決できません — パネルを開いてから変わった可能性があ"
 "ります。"
 
-#: core/engines/postgres.py:1740
+#: core/engines/postgres.py:1745
 #, python-format
 msgid ""
 "Gave up after waiting %(timeout)s for a lock on this object — another "
@@ -203,7 +203,7 @@ msgstr ""
 "クションが保持しています。変更は行われていません。保持者は「ロック」パネルで"
 "確認し、解放されてから再実行してください。"
 
-#: core/engines/postgres.py:1749
+#: core/engines/postgres.py:1754
 #, python-format
 msgid ""
 "Gave up after waiting %(timeout)s to measure table sizes — another "
@@ -1192,6 +1192,10 @@ msgstr "行数: 約 %(n)s（統計からの推定・最終 ANALYZE %(d)s）"
 #: templates/partials/detail.html:256 templates/partials/detail.html:268
 msgid "Referenced by:"
 msgstr "参照しているテーブル:"
+
+#: templates/partials/detail.html:256 templates/partials/detail.html:268
+msgid "A DROP … CASCADE would also drop:"
+msgstr "DROP … CASCADE で一緒に消えるもの:"
 
 #: templates/partials/detail.html:259
 msgid "Truncate"

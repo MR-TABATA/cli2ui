@@ -86,6 +86,7 @@ from .pg_sql import (
     TABLE_SIZES_SQL,
     INVALID_INDEXES_SQL,
     NULL_SLIP_RESOLVE_SQL,
+    DROP_FALLOUT_SQL,
     WRITE_IMPACT_SQL,
     NULL_SLIP_SQL_LEGACY,
     NULL_SLIP_SQL_PG15,
@@ -1377,8 +1378,11 @@ class PostgresEngine(Engine):
             with conn.cursor() as cur:
                 cur.execute(WRITE_IMPACT_SQL, (schema, table))
                 row = cur.fetchone()
-        if row is None:
-            raise EngineError(_("That table no longer exists."))
+                if row is None:
+                    raise EngineError(_("That table no longer exists."))
+                # 同じ 1 接続で巻き添えも引く（確認ダイアログのために 2 回つながない）
+                cur.execute(DROP_FALLOUT_SQL, (schema, table))
+                fallout = [{"kind": k, "name": n} for k, n in cur.fetchall()]
         rows, last_analyze, last_autoanalyze, referenced_by = row
         analyzed = max(filter(None, (last_analyze, last_autoanalyze)), default=None)
         # reltuples = -1 は「まだ ANALYZE していない」（PG14+）。それ以前は 0 が
@@ -1389,6 +1393,7 @@ class PostgresEngine(Engine):
             estimated=True,
             analyzed=analyzed.date().isoformat() if analyzed else None,
             referenced_by=referenced_by or [],
+            fallout=fallout,
         )
 
     def null_slips(self) -> list[NullSlip]:
