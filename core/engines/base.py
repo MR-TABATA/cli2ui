@@ -562,6 +562,29 @@ class TableSize:
 
 
 @dataclass
+class InvalidIndex:
+    """An index the planner refuses to use (indisvalid = false) — normally what a
+    failed CREATE INDEX CONCURRENTLY left behind. It still costs disk and write
+    time while answering nothing.
+
+    `building` distinguishes the one case that looks identical in the catalog: a
+    CIC that is still running. Dropping that one throws away work that is about
+    to finish, so it is reported, not hidden — and never as wreckage.
+
+    `live` = false is the failed *concurrent drop*: unusable for reads but still
+    maintained on every write."""
+
+    schema: str
+    table: str
+    name: str
+    ready: bool
+    live: bool
+    building: bool
+    bytes: int
+    size: str             # pretty
+
+
+@dataclass
 class UnusedIndex:
     """A non-constraint index the planner has never used (idx_scan = 0 since the
     last stats reset) — a candidate to drop. The inverse of the index lab."""
@@ -1102,6 +1125,11 @@ class Engine:
 
     def unused_indexes(self) -> list[UnusedIndex]:
         """Non-constraint indexes the planner has never used — drop candidates."""
+        raise NotImplementedError
+
+    def invalid_indexes(self) -> list[InvalidIndex]:
+        """Indexes the planner ignores (indisvalid = false), DB-wide. A build in
+        progress is included and flagged, never reported as wreckage."""
         raise NotImplementedError
 
     def vacuum_stats(self) -> list[VacuumStat]:

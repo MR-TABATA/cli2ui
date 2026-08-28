@@ -22,8 +22,8 @@ from core.engines import EngineError, get_engine
 from core.engines.base import (
     Activity, BlockNode, Blocker, Column, ConnectionHeadroom, DuplicateIndex,
     Extension,
-    FKMissingIndex, ForeignKeyEdge, Index, JsonbKey, JsonbShape, LockWait,
-    OrphanCandidate, OrphanCount, PlanNode, QueryResult,
+    FKMissingIndex, ForeignKeyEdge, Index, InvalidIndex, JsonbKey, JsonbShape,
+    LockWait, OrphanCandidate, OrphanCount, PlanNode, QueryResult,
     Setting, Standby, Table, build_block_forest, build_dependency_graph,
 )
 from core.engines.postgres import (
@@ -480,6 +480,46 @@ class IndexHealthTests(SimpleTestCase):
                            covered_by="t_ab", covered_by_columns="a, b",
                            identical=False, size="8192 bytes")
         self.assertEqual(d.qualified, "s.t")
+
+
+class InvalidIndexTests(SimpleTestCase):
+    """DB 全体の無効インデックス一覧。SQL の正しさは live PostgreSQL 側で見る。
+    ここで固定するのは**状態の言い分け**で、ここを間違えると「まだ効いていない」と
+    「もう壊れている」が同じ顔で並ぶ。"""
+
+    def test_mysql_declares_invalid_index_not_applicable(self):
+        # InnoDB has no half-built index state: a failed ALTER rolls the index
+        # away, so there is nothing left behind to list. A structural absence
+        # (UNSUPPORTED), never a false "no invalid indexes".
+        from core.engines.mysql import MysqlEngine
+        self.assertIn("invalid_index", MysqlEngine.UNSUPPORTED)
+
+    def test_a_running_build_is_not_reported_as_wreckage(self):
+        # A CREATE INDEX CONCURRENTLY still running is indisvalid = false too.
+        # It must arrive flagged as building — dropping it throws away work that
+        # is about to finish.
+        ix = InvalidIndex(schema="public", table="orders", name="idx_total",
+                          ready=False, live=True, building=True,
+                          bytes=8192, size="8192 bytes")
+        self.assertTrue(ix.building)
+        self.assertTrue(ix.live)
+
+    def test_a_failed_concurrent_drop_is_distinguishable(self):
+        # indislive = false is the other half: unusable for reads, still
+        # maintained on every write. Same badge as a failed build would hide it.
+        ix = InvalidIndex(schema="public", table="orders", name="idx_total",
+                          ready=True, live=False, building=False,
+                          bytes=8192, size="8192 bytes")
+        self.assertFalse(ix.building)
+        self.assertFalse(ix.live)
+
+    def test_the_query_reads_the_progress_view_and_skips_system_schemas(self):
+        # The two things the SQL must not lose: the running-build join (or every
+        # in-flight CIC reads as wreckage) and the system-schema filter.
+        from core.engines.pg_sql import INVALID_INDEXES_SQL
+        self.assertIn("pg_stat_progress_create_index", INVALID_INDEXES_SQL)
+        self.assertIn("NOT ix.indisvalid", INVALID_INDEXES_SQL)
+        self.assertIn("pg_catalog", INVALID_INDEXES_SQL.split("WHERE")[1])
 
 
 class JsonbShapeTests(SimpleTestCase):

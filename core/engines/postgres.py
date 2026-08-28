@@ -17,19 +17,20 @@ from psycopg2 import sql
 
 from .base import (
     Activity,
-    Blocker,
     BloatEstimate,
+    Blocker,
     Column,
     ConnectionHeadroom,
     Database,
-    DuplicateIndex,
     Dump,
+    DuplicateIndex,
     Engine,
     EngineError,
     Extension,
     FKMissingIndex,
     ForeignKeyEdge,
     Index,
+    InvalidIndex,
     JsonbKey,
     JsonbShape,
     LockWait,
@@ -79,6 +80,7 @@ from .pg_sql import (
     STANDBYS_SQL,
     TABLE_COMMENT_SQL,
     TABLE_SIZES_SQL,
+    INVALID_INDEXES_SQL,
     UNUSED_INDEXES_SQL,
     VACUUM_STATS_SQL,
 )
@@ -1327,6 +1329,17 @@ class PostgresEngine(Engine):
                 return [
                     UnusedIndex(schema=row[0], table=row[1], name=row[2],
                                 scans=row[3], bytes=row[4], size=row[5])
+                    for row in cur.fetchall()
+                ]
+
+    def invalid_indexes(self) -> list[InvalidIndex]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(INVALID_INDEXES_SQL)
+                return [
+                    InvalidIndex(schema=row[0], table=row[1], name=row[2],
+                                 ready=row[3], live=row[4], building=row[5],
+                                 bytes=row[6], size=row[7])
                     for row in cur.fetchall()
                 ]
 

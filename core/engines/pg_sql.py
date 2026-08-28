@@ -336,6 +336,39 @@ WHERE con.contype = 'f'
 ORDER BY 1, 2, 3;
 """
 
+# Health — invalid indexes: what a failed CREATE INDEX CONCURRENTLY leaves behind.
+# The planner ignores such an index outright, so it costs disk and write time
+# while answering nothing. The badge already exists on the table detail; a DB is
+# where you actually notice them, because nobody opens 200 tables one by one.
+#
+# **A build in progress looks exactly the same in pg_index** (indisvalid = false
+# until it finishes). Reporting a running CIC as wreckage would send someone to
+# drop an index that is about to become useful, so the state is read from
+# pg_stat_progress_create_index (PG 12+) and reported as its own column rather
+# than filtered out — "I cannot tell yet" is a different answer from "it failed".
+#
+# indislive = false is the other half of the family: a failed *concurrent drop*.
+# The index is already unusable for queries but still maintained on write, which
+# is the worst of both, so it is called out separately.
+INVALID_INDEXES_SQL = """
+SELECT ns.nspname AS schema,
+       tbl.relname AS table,
+       idx.relname AS index,
+       ix.indisready AS ready,
+       ix.indislive AS live,
+       (prog.pid IS NOT NULL) AS building,
+       pg_relation_size(idx.oid) AS bytes,
+       pg_size_pretty(pg_relation_size(idx.oid)) AS size
+FROM pg_catalog.pg_index ix
+JOIN pg_catalog.pg_class idx     ON idx.oid = ix.indexrelid
+JOIN pg_catalog.pg_class tbl     ON tbl.oid = ix.indrelid
+JOIN pg_catalog.pg_namespace ns  ON ns.oid = idx.relnamespace
+LEFT JOIN pg_catalog.pg_stat_progress_create_index prog ON prog.index_relid = idx.oid
+WHERE NOT ix.indisvalid
+  AND ns.nspname NOT IN ('pg_catalog', 'information_schema')
+ORDER BY pg_relation_size(idx.oid) DESC, 1, 2, 3;
+"""
+
 # Health — redundant indexes: a non-unique index whose leading key columns are a
 # prefix of (or identical to) another index on the same table + access method.
 # Partial (indpred) and expression (indexprs) indexes are excluded — their keycol
