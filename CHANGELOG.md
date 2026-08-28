@@ -17,6 +17,44 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-08-28
+
+Declared, but not in force. Two constraints that are enforced with a hole in
+them, both read from the catalog and both shown where you would actually notice
+them — a database, not one table at a time.
+
+### Added
+
+- **Invalid indexes, listed DB-wide.** An index left `indisvalid = false` by a
+  failed `CREATE INDEX CONCURRENTLY` is ignored by the planner outright: it
+  costs disk and write time while answering nothing. The badge already existed
+  on the table detail, but nobody opens 200 tables one by one.
+
+  A build still running looks **exactly the same** in the catalog, so
+  `pg_stat_progress_create_index` is read and "building" is reported as its own
+  state rather than filtered out — dropping that one throws away work that is
+  about to finish. A failed *concurrent drop* (`indislive = false`) gets its own
+  state too: unusable for queries, still maintained on every write.
+
+- **Composite UNIQUE with a NULL hole.** `UNIQUE (email, tenant_id)` does not
+  stop two rows with the same email when `tenant_id` is NULL in both — NULLs are
+  not equal to each other, so the index sees two different keys. The constraint
+  is enforced; it has a hole the shape of its nullable columns.
+
+  The list is catalog-only. Counting what actually slipped through is a separate,
+  on-demand read: `GROUP BY` treats NULLs as the same group, which is precisely
+  what the unique index does not do, and that difference is the duplicates.
+  PostgreSQL 15's `NULLS NOT DISTINCT` closes the hole, so those indexes are not
+  listed; the column itself only exists from 15, so the query is chosen by server
+  version rather than referencing a column that would fail to parse on 14.
+
+  Partial and expression indexes are excluded: a `WHERE`-qualified unique
+  constraint declares uniqueness *for those rows*, so duplicates outside the
+  predicate are the specification, not a slip.
+
+Both are declared UNSUPPORTED on MySQL rather than answered with an empty card —
+an empty card reads as "no problem here".
+
 ## [1.4.0] - 2026-08-23
 
 ### Fixed
