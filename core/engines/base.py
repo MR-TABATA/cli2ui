@@ -1,4 +1,5 @@
 """Engine interface shared by all database backends."""
+import contextlib
 from dataclasses import dataclass, field
 from datetime import datetime
 from graphlib import CycleError, TopologicalSorter
@@ -562,6 +563,33 @@ class TableSize:
 
 
 @dataclass
+class SqlPreview:
+    """The statements a write *would* run, captured without running them.
+
+    Built by composing exactly what the real call composes — the same code path,
+    not a second rendering of "what we think it will do". A preview written
+    separately from the executor drifts from it, and the first time you notice is
+    when the button does something the preview did not show.
+
+    `statements` is in order and includes the guards: a DDL that runs under a
+    lock timeout shows the `SET lock_timeout` too, because that is part of what
+    the button does."""
+
+    statements: list[str] = field(default_factory=list)
+
+    @property
+    def text(self) -> str:
+        return ";\n".join(self.statements) + ";" if self.statements else ""
+
+    @property
+    def empty(self) -> bool:
+        """No statement was captured — the call does not go through the executor,
+        so there is nothing to show. Say so; never render an empty box as if the
+        button ran no SQL."""
+        return not self.statements
+
+
+@dataclass
 class NullSlip:
     """A composite UNIQUE that NULL slips through.
 
@@ -914,6 +942,25 @@ class Engine:
     def supports(self, feature: str) -> bool:
         """Whether this engine can answer `feature` at all (see UNSUPPORTED)."""
         return feature not in self.UNSUPPORTED
+
+    @contextlib.contextmanager
+    def preview(self):
+        """Run write calls without writing, capturing the SQL they would run.
+
+            with engine.preview() as sql:
+                engine.drop_schema("reporting", cascade=True)
+            sql.text   # SET lock_timeout = '3s';\nDROP SCHEMA "reporting" CASCADE;
+
+        The point is that the caller invokes **the same method it would call for
+        real**, with the same arguments — so the preview cannot disagree with the
+        execution about what is going to run."""
+        capture = SqlPreview()
+        previous = getattr(self, "_preview", None)
+        self._preview = capture
+        try:
+            yield capture
+        finally:
+            self._preview = previous
 
     def test(self) -> None:
         """Open a connection and fail loudly (EngineError) if it can't."""

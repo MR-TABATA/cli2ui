@@ -1187,7 +1187,21 @@ class MysqlEngine(Engine):
         (ALGORITHM=INPLACE) doesn't save you: the brief exclusive MDL it takes at
         each end is enough to build the pileup. lock_wait_timeout is the MDL
         equivalent of Postgres' lock_timeout and it bounds only the wait, not how
-        long the statement then holds the lock."""
+        long the statement then holds the lock.
+
+        Inside engine.preview() nothing is sent: the statement (with its bound
+        values interpolated the way the driver would) and the lock guard are
+        recorded instead."""
+        if getattr(self, "_preview", None) is not None:
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    if lock_wait is not None:
+                        self._preview.statements.append(
+                            f"SET SESSION lock_wait_timeout = {lock_wait}")
+                    self._preview.statements.append(
+                        cur.mogrify(statement, params) if params else statement)
+            return
+
         with self._connect() as conn:
             with conn.cursor() as cur:
                 try:

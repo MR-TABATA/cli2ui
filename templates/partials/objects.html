@@ -1,4 +1,4 @@
-{% load i18n %}{% comment %}Catalog objects. Subtabs (Databases | Schemas | Roles) keep each a
+{% load i18n sqlpreview %}{% comment %}Catalog objects. Subtabs (Databases | Schemas | Roles) keep each a
 clean read-only table; create/rename/alter/restore happen in the shared right
 drawer, drops behind an hx-confirm. `drawer` holds the open form's kind; `ctx`
 carries the row being acted on. Submits target #detail, so the whole panel
@@ -63,7 +63,7 @@ carries the row being acted on. Submits target #detail, so the whole panel
                     <button type="button" class="text-xs text-zinc-400 hover:text-zinc-100"
                             @click="ctx = { name: '{{ d.name|escapejs }}' }; drawer = 'db-rename'">{% trans "rename" %}</button>
                     <form hx-post="{% url 'database_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                          hx-confirm="{% blocktrans with name=d.name %}Drop database &quot;{{ name }}&quot;? This permanently deletes all its data.{% endblocktrans %}">
+                          hx-confirm="{% blocktrans with name=d.name %}Drop database &quot;{{ name }}&quot;? This permanently deletes all its data.{% endblocktrans %}{% with key="database:"|add:d.name %}{% with sql=drop_sql|sql_for:key %}{% if sql %}&#10;&#10;{% trans "This runs:" %}&#10;{{ sql }}{% endif %}{% endwith %}{% endwith %}">
                       <input type="hidden" name="name" value="{{ d.name }}">
                       <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">{% trans "drop" %}</button>
                     </form>
@@ -106,7 +106,7 @@ carries the row being acted on. Submits target #detail, so the whole panel
                     <button type="button" class="text-xs text-zinc-400 hover:text-zinc-100"
                             @click="ctx = { name: '{{ s.name|escapejs }}', owner: '{{ s.owner|escapejs }}' }; drawer = 'schema-edit'">{% trans "edit" %}</button>
                     <form hx-post="{% url 'schema_delete' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                          hx-confirm="{% blocktrans with name=s.name %}Drop schema &quot;{{ name }}&quot;? This only works if it's empty.{% endblocktrans %}">
+                          hx-confirm="{% blocktrans with name=s.name %}Drop schema &quot;{{ name }}&quot;? This only works if it's empty.{% endblocktrans %}{% with key="schema:"|add:s.name %}{% with sql=drop_sql|sql_for:key %}{% if sql %}&#10;&#10;{% trans "This runs:" %}&#10;{{ sql }}{% endif %}{% endwith %}{% endwith %}">
                       <input type="hidden" name="name" value="{{ s.name }}">
                       <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">{% trans "drop" %}</button>
                     </form>
@@ -150,7 +150,7 @@ carries the row being acted on. Submits target #detail, so the whole panel
                   <button type="button" class="text-xs text-zinc-400 hover:text-zinc-100"
                           @click="ctx = { name: '{{ r.name|escapejs }}', login: {{ r.can_login|yesno:'true,false' }}, superuser: {{ r.superuser|yesno:'true,false' }}, createdb: {{ r.createdb|yesno:'true,false' }}, createrole: {{ r.createrole|yesno:'true,false' }} }; drawer = 'role-edit'">{% trans "edit" %}</button>
                   <form hx-post="{% url 'role_delete' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                        hx-confirm="{% blocktrans with name=r.name %}Drop role &quot;{{ name }}&quot;? This fails if it owns objects or is connected.{% endblocktrans %}">
+                        hx-confirm="{% blocktrans with name=r.name %}Drop role &quot;{{ name }}&quot;? This fails if it owns objects or is connected.{% endblocktrans %}{% with key="role:"|add:r.name %}{% with sql=drop_sql|sql_for:key %}{% if sql %}&#10;&#10;{% trans "This runs:" %}&#10;{{ sql }}{% endif %}{% endwith %}{% endwith %}">
                     <input type="hidden" name="name" value="{{ r.name }}">
                     <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">{% trans "drop" %}</button>
                   </form>

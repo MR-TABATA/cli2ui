@@ -47,6 +47,7 @@ from .base import (
     Role,
     Schema,
     Setting,
+    SqlPreview,
     Standby,
     Table,
     TableSize,
@@ -857,6 +858,14 @@ class PostgresEngine(Engine):
         errors to EngineError. Args are bound values, never spliced."""
         placeholders = sql.SQL(", ").join(sql.Placeholder() * len(args))
         stmt = sql.SQL("SELECT {}({})").format(sql.Identifier(fn), placeholders)
+        if getattr(self, "_preview", None) is not None:
+            # 値はバインドで渡すので、見せる側でも同じ形に組んでから文字列にする。
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    self._preview.statements.append(
+                        cur.mogrify(stmt, args).decode(conn.encoding or "utf-8"))
+            return
+
         with self._connect() as conn:
             with conn.cursor() as cur:
                 try:
@@ -1293,7 +1302,20 @@ class PostgresEngine(Engine):
 
         Pass lock_timeout=None for CONCURRENTLY index work: it takes a weak lock
         that blocks nobody, but legitimately waits on other transactions, and
-        timing it out is what leaves behind the invalid index it exists to avoid."""
+        timing it out is what leaves behind the invalid index it exists to avoid.
+
+        Inside engine.preview() nothing is sent: the composed statement (and the
+        lock guard that would precede it) is rendered and recorded instead. The
+        rendering needs a connection — identifier quoting is the server's
+        business — but no statement is executed on it."""
+        if getattr(self, "_preview", None) is not None:
+            with self._connect() as conn:
+                if lock_timeout is not None:
+                    self._preview.statements.append(
+                        f"SET lock_timeout = '{lock_timeout}'")
+                self._preview.statements.append(statement.as_string(conn))
+            return
+
         with self._connect() as conn:
             with conn.cursor() as cur:
                 try:
