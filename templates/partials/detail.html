@@ -252,7 +252,7 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
           <p class="text-xs text-zinc-400">{% trans "Delete every row. A safety snapshot is taken first." %}</p>
         </div>
         <form hx-post="{% url 'table_truncate' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              hx-confirm="{% blocktrans with schema=schema table=table %}Truncate &quot;{{ schema }}.{{ table }}&quot;? This permanently deletes every row.{% endblocktrans %}">
+              hx-confirm="{% blocktrans with schema=schema table=table %}Truncate &quot;{{ schema }}.{{ table }}&quot;? This permanently deletes every row.{% endblocktrans %}{% if truncate_sql %}&#10;&#10;{% trans "This runs:" %}&#10;{{ truncate_sql }}{% endif %}{% if write_impact %}&#10;&#10;{% if write_impact.unknown %}{% trans "Rows: unknown (this table has never been analyzed)" %}{% else %}{% blocktrans with n=write_impact.rows d=write_impact.analyzed %}Rows: about {{ n }} (estimated from statistics, last analyzed {{ d }}){% endblocktrans %}{% endif %}{% if write_impact.referenced_by %}&#10;{% trans "Referenced by:" %}{% for r in write_impact.referenced_by %}&#10;  {{ r.table }} ({{ r.constraint }}){% endfor %}{% endif %}{% endif %}">
           <input type="hidden" name="schema" value="{{ schema }}">
           <input type="hidden" name="table" value="{{ table }}">
           <button type="submit" class="btn btn-sm btn-warn">{% trans "Truncate" %}</button>
@@ -264,7 +264,7 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
           <p class="text-xs text-zinc-400">{% trans "Remove the table and all its data. A safety snapshot is taken first." %}</p>
         </div>
         <form hx-post="{% url 'table_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              hx-confirm="{% blocktrans with schema=schema table=table %}Drop table &quot;{{ schema }}.{{ table }}&quot;? This cannot be undone.{% endblocktrans %}">
+              hx-confirm="{% blocktrans with schema=schema table=table %}Drop table &quot;{{ schema }}.{{ table }}&quot;? This cannot be undone.{% endblocktrans %}{% if drop_sql %}&#10;&#10;{% trans "This runs:" %}&#10;{{ drop_sql }}{% endif %}{% if write_impact %}&#10;&#10;{% if write_impact.unknown %}{% trans "Rows: unknown (this table has never been analyzed)" %}{% else %}{% blocktrans with n=write_impact.rows d=write_impact.analyzed %}Rows: about {{ n }} (estimated from statistics, last analyzed {{ d }}){% endblocktrans %}{% endif %}{% if write_impact.referenced_by %}&#10;{% trans "Referenced by:" %}{% for r in write_impact.referenced_by %}&#10;  {{ r.table }} ({{ r.constraint }}){% endfor %}{% endif %}{% endif %}">
           <input type="hidden" name="schema" value="{{ schema }}">
           <input type="hidden" name="table" value="{{ table }}">
           <button type="submit" class="btn btn-sm btn-danger">{% trans "Drop table" %}</button>

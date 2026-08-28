@@ -47,11 +47,13 @@ from .base import (
     Role,
     Schema,
     Setting,
+    SqlPreview,
     Standby,
     Table,
     TableSize,
     UnusedIndex,
     VacuumStat,
+    WriteImpact,
 )
 
 # Catalog / stat query text lives in pg_sql.py; the engine methods below
@@ -84,6 +86,7 @@ from .pg_sql import (
     TABLE_SIZES_SQL,
     INVALID_INDEXES_SQL,
     NULL_SLIP_RESOLVE_SQL,
+    WRITE_IMPACT_SQL,
     NULL_SLIP_SQL_LEGACY,
     NULL_SLIP_SQL_PG15,
     UNUSED_INDEXES_SQL,
@@ -857,6 +860,14 @@ class PostgresEngine(Engine):
         errors to EngineError. Args are bound values, never spliced."""
         placeholders = sql.SQL(", ").join(sql.Placeholder() * len(args))
         stmt = sql.SQL("SELECT {}({})").format(sql.Identifier(fn), placeholders)
+        if getattr(self, "_preview", None) is not None:
+            # 値はバインドで渡すので、見せる側でも同じ形に組んでから文字列にする。
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    self._preview.statements.append(
+                        cur.mogrify(stmt, args).decode(conn.encoding or "utf-8"))
+            return
+
         with self._connect() as conn:
             with conn.cursor() as cur:
                 try:
@@ -1293,7 +1304,20 @@ class PostgresEngine(Engine):
 
         Pass lock_timeout=None for CONCURRENTLY index work: it takes a weak lock
         that blocks nobody, but legitimately waits on other transactions, and
-        timing it out is what leaves behind the invalid index it exists to avoid."""
+        timing it out is what leaves behind the invalid index it exists to avoid.
+
+        Inside engine.preview() nothing is sent: the composed statement (and the
+        lock guard that would precede it) is rendered and recorded instead. The
+        rendering needs a connection — identifier quoting is the server's
+        business — but no statement is executed on it."""
+        if getattr(self, "_preview", None) is not None:
+            with self._connect() as conn:
+                if lock_timeout is not None:
+                    self._preview.statements.append(
+                        f"SET lock_timeout = '{lock_timeout}'")
+                self._preview.statements.append(statement.as_string(conn))
+            return
+
         with self._connect() as conn:
             with conn.cursor() as cur:
                 try:
@@ -1347,6 +1371,25 @@ class PostgresEngine(Engine):
                                  bytes=row[6], size=row[7])
                     for row in cur.fetchall()
                 ]
+
+    def write_impact(self, schema: str, table: str) -> WriteImpact:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(WRITE_IMPACT_SQL, (schema, table))
+                row = cur.fetchone()
+        if row is None:
+            raise EngineError(_("That table no longer exists."))
+        rows, last_analyze, last_autoanalyze, referenced_by = row
+        analyzed = max(filter(None, (last_analyze, last_autoanalyze)), default=None)
+        # reltuples = -1 は「まだ ANALYZE していない」（PG14+）。それ以前は 0 が
+        # 同じ意味を持ちうるので、統計時刻が無いことと併せて「不明」にする。
+        unknown = rows is None or rows < 0 or (rows == 0 and analyzed is None)
+        return WriteImpact(
+            rows=None if unknown else rows,
+            estimated=True,
+            analyzed=analyzed.date().isoformat() if analyzed else None,
+            referenced_by=referenced_by or [],
+        )
 
     def null_slips(self) -> list[NullSlip]:
         with self._connect() as conn:

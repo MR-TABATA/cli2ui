@@ -1,4 +1,5 @@
 """Engine interface shared by all database backends."""
+import contextlib
 from dataclasses import dataclass, field
 from datetime import datetime
 from graphlib import CycleError, TopologicalSorter
@@ -562,6 +563,58 @@ class TableSize:
 
 
 @dataclass
+class WriteImpact:
+    """What a TRUNCATE / DROP would take with it.
+
+    `rows` comes from the planner's statistics, not `count(*)`: opening the
+    confirm dialog must not scan a billion-row table. So it is an **estimate**,
+    and `estimated` says so — a number presented as exact when it is not is
+    worse than no number. `analyzed` is when the statistics were last refreshed;
+    `None` means never, and then `rows` means nothing at all.
+
+    `referenced_by` is the other half of the question: a TRUNCATE fails without
+    CASCADE while a foreign key points at the table, and a DROP fails while
+    anything depends on it. Finding that out after pressing the button is late."""
+
+    rows: int | None                       # estimate; None when never analyzed
+    estimated: bool
+    analyzed: str | None                   # ISO date of the last (auto)analyze
+    referenced_by: list[dict]              # [{"table", "constraint", "rows"}, …]
+
+    @property
+    def unknown(self) -> bool:
+        """Statistics have never been collected — say "unknown", not "0 rows"."""
+        return self.rows is None
+
+
+@dataclass
+class SqlPreview:
+    """The statements a write *would* run, captured without running them.
+
+    Built by composing exactly what the real call composes — the same code path,
+    not a second rendering of "what we think it will do". A preview written
+    separately from the executor drifts from it, and the first time you notice is
+    when the button does something the preview did not show.
+
+    `statements` is in order and includes the guards: a DDL that runs under a
+    lock timeout shows the `SET lock_timeout` too, because that is part of what
+    the button does."""
+
+    statements: list[str] = field(default_factory=list)
+
+    @property
+    def text(self) -> str:
+        return ";\n".join(self.statements) + ";" if self.statements else ""
+
+    @property
+    def empty(self) -> bool:
+        """No statement was captured — the call does not go through the executor,
+        so there is nothing to show. Say so; never render an empty box as if the
+        button ran no SQL."""
+        return not self.statements
+
+
+@dataclass
 class NullSlip:
     """A composite UNIQUE that NULL slips through.
 
@@ -915,6 +968,25 @@ class Engine:
         """Whether this engine can answer `feature` at all (see UNSUPPORTED)."""
         return feature not in self.UNSUPPORTED
 
+    @contextlib.contextmanager
+    def preview(self):
+        """Run write calls without writing, capturing the SQL they would run.
+
+            with engine.preview() as sql:
+                engine.drop_schema("reporting", cascade=True)
+            sql.text   # SET lock_timeout = '3s';\nDROP SCHEMA "reporting" CASCADE;
+
+        The point is that the caller invokes **the same method it would call for
+        real**, with the same arguments — so the preview cannot disagree with the
+        execution about what is going to run."""
+        capture = SqlPreview()
+        previous = getattr(self, "_preview", None)
+        self._preview = capture
+        try:
+            yield capture
+        finally:
+            self._preview = previous
+
     def test(self) -> None:
         """Open a connection and fail loudly (EngineError) if it can't."""
         raise NotImplementedError
@@ -1176,6 +1248,12 @@ class Engine:
     def invalid_indexes(self) -> list[InvalidIndex]:
         """Indexes the planner ignores (indisvalid = false), DB-wide. A build in
         progress is included and flagged, never reported as wreckage."""
+        raise NotImplementedError
+
+    def write_impact(self, schema: str, table: str) -> WriteImpact:
+        """What a TRUNCATE / DROP of this table would take with it: an estimated
+        row count (from statistics — never a scan) and the tables whose foreign
+        keys point at it. Catalog-only."""
         raise NotImplementedError
 
     def null_slips(self) -> list[NullSlip]:

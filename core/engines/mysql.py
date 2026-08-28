@@ -251,7 +251,12 @@ class MysqlEngine(Engine):
                              # MySQL too, but finding it reads pg_index. Declared
                              # unsupported rather than answered wrongly — an
                              # empty card here would read as "no holes".
-                             "null_slip"})
+                             "null_slip",
+                             # 同じ問い（何行消えるか・誰が参照しているか）は
+                             # information_schema でも答えられるが、いまの実装は
+                             # pg_class / pg_constraint 前提。空を返すと「影響なし」に
+                             # 見えるので、非対応と宣言する。
+                             "write_impact"})
 
     # When inside session(), the one open connection reused for every probe;
     # otherwise None and each _connect() dials its own. Mirrors PostgresEngine.
@@ -1187,7 +1192,21 @@ class MysqlEngine(Engine):
         (ALGORITHM=INPLACE) doesn't save you: the brief exclusive MDL it takes at
         each end is enough to build the pileup. lock_wait_timeout is the MDL
         equivalent of Postgres' lock_timeout and it bounds only the wait, not how
-        long the statement then holds the lock."""
+        long the statement then holds the lock.
+
+        Inside engine.preview() nothing is sent: the statement (with its bound
+        values interpolated the way the driver would) and the lock guard are
+        recorded instead."""
+        if getattr(self, "_preview", None) is not None:
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    if lock_wait is not None:
+                        self._preview.statements.append(
+                            f"SET SESSION lock_wait_timeout = {lock_wait}")
+                    self._preview.statements.append(
+                        cur.mogrify(statement, params) if params else statement)
+            return
+
         with self._connect() as conn:
             with conn.cursor() as cur:
                 try:

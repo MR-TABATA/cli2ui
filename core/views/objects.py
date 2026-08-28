@@ -311,6 +311,32 @@ def role_delete(request, pk):
     return _render_objects(request, connection)
 
 
+def _preview_drops(engine, databases, schemas, roles):
+    """行ごとの「削除で流れる SQL」を先に組み立てておく（`{kind}:{name}` で引ける）。
+
+    実行しないので DB には触らない。組み立てに失敗した種類は**黙って空にせず落とす** ──
+    テンプレート側は SQL が無いときプレビューを出さない（空の枠は「何も流れない」に
+    見えるので、出さないほうが正直）。"""
+    out = {}
+    calls = [("database", databases, engine.drop_database),
+             ("schema", schemas, engine.drop_schema),
+             ("role", roles, engine.drop_role)]
+    # 1 行につき 1 接続を開くと、20 行のパネルで 20 回つなぎに行くことになる。
+    # session() は 1 本を握って使い回す（ワークスペース概要と同じ仕掛け）。
+    with engine.session():
+        for kind, rows, call in calls:
+            for row in rows:
+                name = getattr(row, "name", None) or str(row)
+                try:
+                    with engine.preview() as captured:
+                        call(name)
+                except (EngineError, NotImplementedError):
+                    continue
+                if not captured.empty:
+                    out[f"{kind}:{name}"] = captured.text
+    return out
+
+
 def _render_objects(request, connection, error=None, notice=None):
     """Gather databases / schemas / roles and render the objects panel.
 
@@ -325,6 +351,11 @@ def _render_objects(request, connection, error=None, notice=None):
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
 
+    # 押す前に「これから流す SQL」を出すための下見。実行と同じメソッドを、同じ引数で
+    # 呼んで組み立てさせる ── ここで別に SQL を書くと、いつか実物とズレる。
+    # DB は読まない（組み立てた文を文字列にするだけ）。
+    drop_sql = _preview_drops(engine, databases, schemas, roles)
+
     return render(
         request,
         "partials/objects.html",
@@ -333,6 +364,7 @@ def _render_objects(request, connection, error=None, notice=None):
             "databases": databases,
             "schemas": schemas,
             "roles": roles,
+            "drop_sql": drop_sql,
             # MySQL has no schema distinct from a database: the panel shows a note
             # in the schemas section instead of an always-empty list.
             "supports_schemas": engine.supports("schemas"),

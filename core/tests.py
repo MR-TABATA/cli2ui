@@ -27,6 +27,8 @@ from core.engines.base import (
     NullSlip,
     NullSlipCount,
     Setting, Standby, Table, build_block_forest, build_dependency_graph,
+    SqlPreview,
+    WriteImpact,
 )
 from core.engines.postgres import (
     DDL_LOCK_TIMEOUT,
@@ -482,6 +484,117 @@ class IndexHealthTests(SimpleTestCase):
                            covered_by="t_ab", covered_by_columns="a, b",
                            identical=False, size="8192 bytes")
         self.assertEqual(d.qualified, "s.t")
+
+
+class SqlPreviewTests(SimpleTestCase):
+    """押す前に「これから流す SQL」を出す仕掛け。
+
+    肝は**実行と同じ経路で組み立てること**。プレビュー用に別で SQL を書くと、
+    いつか実物とズレて、気づくのはボタンが違うことをした時になる。"""
+
+    def _engine(self):
+        from core.engines.postgres import PostgresEngine
+        return PostgresEngine(unittest.mock.Mock(
+            host="h", port=5432, database="d", username="u", password="p",
+            options=None, sslmode=None))
+
+    @staticmethod
+    def _rendering():
+        """識別子のクオートはサーバの仕事なので、組み立て済みの文を文字列にするには
+        本物の接続が要る。ここで見たいのは「実行しないこと」と「何を捕まえるか」なので、
+        描画だけ差し替える。"""
+        from psycopg2 import sql as pgsql
+        return unittest.mock.patch.object(
+            pgsql.Composed, "as_string", lambda self, ctx: 'DROP SCHEMA "reporting" CASCADE')
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_preview_does_not_execute(self, connect):
+        with self._rendering():
+            # プレビュー中は接続しても文を投げない。ここが破れると「下見のつもりで
+            # DROP した」になる。
+            cur = connect.return_value.cursor.return_value.__enter__.return_value
+            engine = self._engine()
+            with engine.preview() as captured:
+                engine.drop_schema("reporting", cascade=True)
+            cur.execute.assert_not_called()
+            self.assertFalse(captured.empty)
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_preview_shows_the_lock_guard_too(self, connect):
+        with self._rendering():
+            # 破壊的 DDL の前に必ず流れる SET lock_timeout も、ボタンがやることの一部。
+            # 見せないと「このツールは待たされ続けない」という性質が伝わらない。
+            engine = self._engine()
+            with engine.preview() as captured:
+                engine.drop_schema("reporting", cascade=True)
+            self.assertTrue(captured.statements[0].startswith("SET lock_timeout"))
+            self.assertEqual(len(captured.statements), 2)
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_preview_mode_ends_with_the_block(self, connect):
+        with self._rendering():
+            # 抜けたら普通に実行される。プレビューが漏れて実行を止め続けると、
+            # ボタンが黙って効かないアプリになる。
+            cur = connect.return_value.cursor.return_value.__enter__.return_value
+            engine = self._engine()
+            with engine.preview():
+                engine.drop_schema("a")
+            cur.execute.reset_mock()
+            engine.drop_schema("b")
+            self.assertTrue(cur.execute.called)
+
+    def test_empty_preview_is_not_an_empty_sql_box(self):
+        # 捕まらなかった ＝ その操作は執行経路を通っていない。「SQL 無し」と
+        # 見せると、何も流れないと誤解される。
+        self.assertTrue(SqlPreview().empty)
+        self.assertEqual(SqlPreview().text, "")
+        self.assertFalse(SqlPreview(statements=['DROP SCHEMA "x"']).empty)
+
+    def test_text_joins_statements_in_order(self):
+        p = SqlPreview(statements=["SET lock_timeout = '3s'", 'DROP SCHEMA "x" CASCADE'])
+        self.assertEqual(p.text, "SET lock_timeout = '3s';\nDROP SCHEMA \"x\" CASCADE;")
+
+
+class WriteImpactTests(SimpleTestCase):
+    """TRUNCATE / DROP が持っていくもの。**推定を断言に見せない**のが要点。"""
+
+    def test_never_analyzed_is_unknown_not_zero(self):
+        # 統計が無いテーブルの reltuples は -1（PG14+）。これを 0 行と出すと、
+        # 「空だから消していい」と読ませてしまう。
+        self.assertTrue(WriteImpact(rows=None, estimated=True, analyzed=None,
+                                    referenced_by=[]).unknown)
+        self.assertFalse(WriteImpact(rows=0, estimated=True, analyzed="2026-08-28",
+                                     referenced_by=[]).unknown)
+
+    def test_the_query_reads_statistics_and_never_counts(self):
+        # count(*) を書いた瞬間、確認ダイアログを開くだけで 10 億行を走査する。
+        from core.engines.pg_sql import WRITE_IMPACT_SQL as q
+        self.assertIn("reltuples", q)
+        self.assertNotIn("count(*)", q.lower())
+
+    def test_the_query_also_answers_who_points_at_this_table(self):
+        # TRUNCATE は FK に参照されていると CASCADE 無しで失敗する。押してから
+        # 知るのでは遅い。
+        from core.engines.pg_sql import WRITE_IMPACT_SQL as q
+        self.assertIn("con.contype = 'f'", q)
+        self.assertIn("con.confrelid = cl.oid", q)
+
+    def test_mysql_declares_write_impact_not_applicable(self):
+        from core.engines.mysql import MysqlEngine
+        self.assertIn("write_impact", MysqlEngine.UNSUPPORTED)
+
+
+class SqlForFilterTests(SimpleTestCase):
+    """行ごとのプレビューを引く filter。無い行は空を返す ＝ 何も出さない。"""
+
+    def test_missing_key_returns_empty_so_nothing_is_rendered(self):
+        from core.templatetags.sqlpreview import sql_for
+        self.assertEqual(sql_for({"schema:public": "DROP SCHEMA x"}, "schema:none"), "")
+        self.assertEqual(sql_for(None, "schema:public"), "")
+
+    def test_present_key_returns_the_sql(self):
+        from core.templatetags.sqlpreview import sql_for
+        self.assertEqual(sql_for({"role:app": 'DROP ROLE "app"'}, "role:app"), 'DROP ROLE "app"')
 
 
 class NullSlipTests(SimpleTestCase):
