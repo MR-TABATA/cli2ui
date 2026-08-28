@@ -22,8 +22,10 @@ from core.engines import EngineError, get_engine
 from core.engines.base import (
     Activity, BlockNode, Blocker, Column, ConnectionHeadroom, DuplicateIndex,
     Extension,
-    FKMissingIndex, ForeignKeyEdge, Index, JsonbKey, JsonbShape, LockWait,
-    OrphanCandidate, OrphanCount, PlanNode, QueryResult,
+    FKMissingIndex, ForeignKeyEdge, Index, InvalidIndex, JsonbKey, JsonbShape,
+    LockWait, OrphanCandidate, OrphanCount, PlanNode, QueryResult,
+    NullSlip,
+    NullSlipCount,
     Setting, Standby, Table, build_block_forest, build_dependency_graph,
 )
 from core.engines.postgres import (
@@ -480,6 +482,93 @@ class IndexHealthTests(SimpleTestCase):
                            covered_by="t_ab", covered_by_columns="a, b",
                            identical=False, size="8192 bytes")
         self.assertEqual(d.qualified, "s.t")
+
+
+class NullSlipTests(SimpleTestCase):
+    """複合 UNIQUE の NULL すり抜け。宣言は効いているのに、NULL を含む行だけ効いて
+    いない ── ここで固定するのは**穴の定義**と、版差の扱い。"""
+
+    def test_mysql_declares_null_slip_not_applicable(self):
+        # 穴自体は MySQL にもあるが、見つけ方が pg_index 前提。空を返すと
+        # 「穴なし」に見えるので、構造的に非対応と宣言する。
+        from core.engines.mysql import MysqlEngine
+        self.assertIn("null_slip", MysqlEngine.UNSUPPORTED)
+
+    def test_the_query_needs_a_composite_key_and_a_nullable_column(self):
+        # 単一列 UNIQUE は対象外（NULL が入っても重複は 1 行ずつ別扱いで、
+        # 「同じキーの重複」という話にならない）。部分索引と式索引も外す。
+        from core.engines.pg_sql import NULL_SLIP_SQL_LEGACY as q
+        self.assertIn("ix.indnkeyatts > 1", q)
+        self.assertIn("NOT att.attnotnull", q)
+        self.assertIn("ix.indpred IS NULL", q)
+        self.assertIn("ix.indexprs IS NULL", q)
+
+    def test_pg15_excludes_nulls_not_distinct_and_legacy_cannot_mention_it(self):
+        # 15 で入った NULLS NOT DISTINCT はすり抜けない ＝ 除外する。
+        # 14 以前は列自体が無く、書くと parse で落ちるので触れてはいけない。
+        from core.engines.pg_sql import NULL_SLIP_SQL_PG15, NULL_SLIP_SQL_LEGACY
+        self.assertIn("indnullsnotdistinct", NULL_SLIP_SQL_PG15)
+        self.assertNotIn("indnullsnotdistinct", NULL_SLIP_SQL_LEGACY)
+
+    def test_counting_re_reads_the_columns_from_the_catalog(self):
+        # 数えるときに列を要求から取ると、パネルを開いてから索引が作り替えられて
+        # いた場合に別物を数える。名指しさせるのは索引だけ。
+        from core.engines.pg_sql import NULL_SLIP_RESOLVE_SQL as q
+        self.assertIn("ix.indisunique", q)
+        self.assertIn("ix.indnkeyatts > 1", q)
+        self.assertEqual(q.count("%s"), 3)   # schema, table, index
+
+    def test_clean_means_nothing_slipped_not_nothing_checked(self):
+        # 母数が 0（キーに NULL を含む行が無い）でも「すり抜け 0」は正しい。
+        # ただし extra が 0 でないなら clean ではない。
+        self.assertTrue(NullSlipCount(groups=0, extra=0, checked=0).clean)
+        self.assertFalse(NullSlipCount(groups=1, extra=3, checked=9).clean)
+
+    def test_qualified_name(self):
+        u = NullSlip(schema="public", table="users", index="users_email_tenant_key",
+                     constraint="users_email_tenant_key", columns="email, tenant_id",
+                     nullable="tenant_id")
+        self.assertEqual(u.qualified, "public.users")
+
+
+class InvalidIndexTests(SimpleTestCase):
+    """DB 全体の無効インデックス一覧。SQL の正しさは live PostgreSQL 側で見る。
+    ここで固定するのは**状態の言い分け**で、ここを間違えると「まだ効いていない」と
+    「もう壊れている」が同じ顔で並ぶ。"""
+
+    def test_mysql_declares_invalid_index_not_applicable(self):
+        # InnoDB has no half-built index state: a failed ALTER rolls the index
+        # away, so there is nothing left behind to list. A structural absence
+        # (UNSUPPORTED), never a false "no invalid indexes".
+        from core.engines.mysql import MysqlEngine
+        self.assertIn("invalid_index", MysqlEngine.UNSUPPORTED)
+
+    def test_a_running_build_is_not_reported_as_wreckage(self):
+        # A CREATE INDEX CONCURRENTLY still running is indisvalid = false too.
+        # It must arrive flagged as building — dropping it throws away work that
+        # is about to finish.
+        ix = InvalidIndex(schema="public", table="orders", name="idx_total",
+                          ready=False, live=True, building=True,
+                          bytes=8192, size="8192 bytes")
+        self.assertTrue(ix.building)
+        self.assertTrue(ix.live)
+
+    def test_a_failed_concurrent_drop_is_distinguishable(self):
+        # indislive = false is the other half: unusable for reads, still
+        # maintained on every write. Same badge as a failed build would hide it.
+        ix = InvalidIndex(schema="public", table="orders", name="idx_total",
+                          ready=True, live=False, building=False,
+                          bytes=8192, size="8192 bytes")
+        self.assertFalse(ix.building)
+        self.assertFalse(ix.live)
+
+    def test_the_query_reads_the_progress_view_and_skips_system_schemas(self):
+        # The two things the SQL must not lose: the running-build join (or every
+        # in-flight CIC reads as wreckage) and the system-schema filter.
+        from core.engines.pg_sql import INVALID_INDEXES_SQL
+        self.assertIn("pg_stat_progress_create_index", INVALID_INDEXES_SQL)
+        self.assertIn("NOT ix.indisvalid", INVALID_INDEXES_SQL)
+        self.assertIn("pg_catalog", INVALID_INDEXES_SQL.split("WHERE")[1])
 
 
 class JsonbShapeTests(SimpleTestCase):

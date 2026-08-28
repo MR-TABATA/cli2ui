@@ -242,7 +242,16 @@ class MysqlEngine(Engine):
     # first cut is PostgreSQL-only, so the whole card shows "not applicable here".)
     UNSUPPORTED = frozenset({"vacuum", "bloat", "schemas",
                              "replication_slots", "db_template", "fk_index",
-                             "extensions", "jsonb_shape", "orphans"})
+                             "extensions", "jsonb_shape", "orphans",
+                             # InnoDB has no half-built index state: an ALTER
+                             # that fails rolls the index away, so there is
+                             # nothing left behind to list.
+                             "invalid_index",
+                             # The NULL hole in a composite UNIQUE exists in
+                             # MySQL too, but finding it reads pg_index. Declared
+                             # unsupported rather than answered wrongly — an
+                             # empty card here would read as "no holes".
+                             "null_slip"})
 
     # When inside session(), the one open connection reused for every probe;
     # otherwise None and each _connect() dials its own. Mirrors PostgresEngine.

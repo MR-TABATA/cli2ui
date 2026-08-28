@@ -50,6 +50,7 @@ urlpatterns = [
     path("c/<int:pk>/replication/slots/drop", views.slot_drop, name="slot_drop"),
     path("c/<int:pk>/health", views.health, name="health"),
     path("c/<int:pk>/health/orphans", views.orphan_count, name="orphan_count"),
+    path("c/<int:pk>/health/null-slip", views.null_slip_count, name="null_slip_count"),
     path("c/<int:pk>/dependencies", views.dependencies, name="dependencies"),
     path("c/<int:pk>/extensions", views.extensions, name="extensions"),
     path("c/<int:pk>/objects", views.objects, name="objects"),

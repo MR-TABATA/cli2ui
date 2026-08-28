@@ -17,22 +17,25 @@ from psycopg2 import sql
 
 from .base import (
     Activity,
-    Blocker,
     BloatEstimate,
+    Blocker,
     Column,
     ConnectionHeadroom,
     Database,
-    DuplicateIndex,
     Dump,
+    DuplicateIndex,
     Engine,
     EngineError,
     Extension,
     FKMissingIndex,
     ForeignKeyEdge,
     Index,
+    InvalidIndex,
     JsonbKey,
     JsonbShape,
     LockWait,
+    NullSlip,
+    NullSlipCount,
     OrphanCandidate,
     OrphanCount,
     PlanNode,
@@ -79,6 +82,10 @@ from .pg_sql import (
     STANDBYS_SQL,
     TABLE_COMMENT_SQL,
     TABLE_SIZES_SQL,
+    INVALID_INDEXES_SQL,
+    NULL_SLIP_RESOLVE_SQL,
+    NULL_SLIP_SQL_LEGACY,
+    NULL_SLIP_SQL_PG15,
     UNUSED_INDEXES_SQL,
     VACUUM_STATS_SQL,
 )
@@ -1329,6 +1336,73 @@ class PostgresEngine(Engine):
                                 scans=row[3], bytes=row[4], size=row[5])
                     for row in cur.fetchall()
                 ]
+
+    def invalid_indexes(self) -> list[InvalidIndex]:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(INVALID_INDEXES_SQL)
+                return [
+                    InvalidIndex(schema=row[0], table=row[1], name=row[2],
+                                 ready=row[3], live=row[4], building=row[5],
+                                 bytes=row[6], size=row[7])
+                    for row in cur.fetchall()
+                ]
+
+    def null_slips(self) -> list[NullSlip]:
+        with self._connect() as conn:
+            # NULLS NOT DISTINCT は 15 で入った。14 以前は列そのものが無く、SQL に
+            # 書くと parse で落ちるので、版でクエリを選ぶ（14 以前は全件が対象）。
+            query = (NULL_SLIP_SQL_PG15 if conn.server_version >= 150000
+                     else NULL_SLIP_SQL_LEGACY)
+            with conn.cursor() as cur:
+                cur.execute(query)
+                return [
+                    NullSlip(schema=row[0], table=row[1], index=row[2],
+                             constraint=row[3], columns=row[4] or "",
+                             nullable=row[5] or "")
+                    for row in cur.fetchall()
+                ]
+
+    def null_slip_count(self, schema: str, table: str, index: str,
+                        timeout_ms: int = 15000) -> NullSlipCount:
+        # 列は要求を信じずカタログから引き直す（要求が名指しするのは索引だけ）。
+        with self._connect() as conn:
+            conn.autocommit = False
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SET TRANSACTION READ ONLY")
+                    cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
+                    cur.execute(NULL_SLIP_RESOLVE_SQL, (schema, table, index))
+                    row = cur.fetchone()
+                    if row is None or not row[0]:
+                        conn.rollback()
+                        raise EngineError(_(
+                            "This index no longer looks like a composite UNIQUE "
+                            "with a nullable column — it may have changed since "
+                            "the panel loaded."))
+                    cols = row[0]
+
+                    # GROUP BY は NULL 同士を同じ組として扱う ── 一意索引がしない
+                    # 扱い方で、その差がまさに漏れている重複。キーに NULL を 1 つも
+                    # 含まない行は索引が止めているので、母数から外す。
+                    keys = sql.SQL(", ").join(sql.Identifier(c) for c in cols)
+                    any_null = sql.SQL(" OR ").join(
+                        sql.SQL("{} IS NULL").format(sql.Identifier(c)) for c in cols)
+                    query = sql.SQL(
+                        "SELECT count(*) AS groups, "
+                        "       coalesce(sum(n), 0) - count(*) AS extra, "
+                        "       coalesce((SELECT count(*) FROM {tbl} WHERE {any_null}), 0) AS checked "
+                        "FROM (SELECT count(*) AS n FROM {tbl} WHERE {any_null} "
+                        "      GROUP BY {keys} HAVING count(*) > 1) g"
+                    ).format(tbl=sql.Identifier(schema, table),
+                             any_null=any_null, keys=keys)
+                    cur.execute(query)
+                    groups, extra, checked = cur.fetchone()
+            except psycopg2.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+            conn.rollback()   # 読むだけ。SET も含めて残さない
+        return NullSlipCount(groups=groups, extra=extra, checked=checked)
 
     def vacuum_stats(self) -> list[VacuumStat]:
         with self._connect() as conn:

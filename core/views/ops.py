@@ -217,6 +217,45 @@ SIZES_SHOW_SQL = (
 )
 
 
+NULL_SLIP_SHOW_SQL = (
+    "SELECT ns.nspname AS schema, tbl.relname AS table, idx.relname AS index,\n"
+    "       (SELECT string_agg(a.attname, ', ' ORDER BY k.ord)\n"
+    "          FROM unnest(ix.indkey[0:ix.indnkeyatts-1]) WITH ORDINALITY AS k(attnum, ord)\n"
+    "          JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = k.attnum) AS columns,\n"
+    "       (SELECT string_agg(a.attname, ', ' ORDER BY k.ord)\n"
+    "          FROM unnest(ix.indkey[0:ix.indnkeyatts-1]) WITH ORDINALITY AS k(attnum, ord)\n"
+    "          JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = k.attnum\n"
+    "         WHERE NOT a.attnotnull) AS nullable\n"
+    "FROM pg_index ix\n"
+    "JOIN pg_class idx ON idx.oid = ix.indexrelid\n"
+    "JOIN pg_class tbl ON tbl.oid = ix.indrelid\n"
+    "JOIN pg_namespace ns ON ns.oid = tbl.relnamespace\n"
+    "WHERE ix.indisunique AND ix.indisvalid AND ix.indnkeyatts > 1\n"
+    "  AND ix.indpred IS NULL AND ix.indexprs IS NULL\n"
+    "  AND ns.nspname NOT IN ('pg_catalog', 'information_schema')\n"
+    "  AND EXISTS (SELECT 1 FROM unnest(ix.indkey[0:ix.indnkeyatts-1]) AS k(attnum)\n"
+    "              JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = k.attnum\n"
+    "              WHERE NOT a.attnotnull)\n"
+    "ORDER BY 1, 2, 3;"
+)
+
+
+INVALID_INDEX_SHOW_SQL = (
+    "SELECT ns.nspname AS schema, tbl.relname AS table, idx.relname AS index,\n"
+    "       ix.indisready AS ready, ix.indislive AS live,\n"
+    "       (prog.pid IS NOT NULL) AS building,\n"
+    "       pg_size_pretty(pg_relation_size(idx.oid)) AS size\n"
+    "FROM pg_index ix\n"
+    "JOIN pg_class idx ON idx.oid = ix.indexrelid\n"
+    "JOIN pg_class tbl ON tbl.oid = ix.indrelid\n"
+    "JOIN pg_namespace ns ON ns.oid = idx.relnamespace\n"
+    "LEFT JOIN pg_stat_progress_create_index prog ON prog.index_relid = idx.oid\n"
+    "WHERE NOT ix.indisvalid\n"
+    "  AND ns.nspname NOT IN ('pg_catalog', 'information_schema')\n"
+    "ORDER BY pg_relation_size(idx.oid) DESC;"
+)
+
+
 UNUSED_SHOW_SQL = (
     "SELECT s.schemaname, s.relname AS table, s.indexrelname AS index,\n"
     "       s.idx_scan AS scans,\n"
@@ -361,6 +400,8 @@ def health(request, pk):
         except EngineError as exc:
             sizes, sizes_error = [], str(exc)
         unused = engine.unused_indexes()
+        invalid = engine.invalid_indexes() if engine.supports("invalid_index") else []
+        slips = engine.null_slips() if engine.supports("null_slip") else []
         fk_missing = engine.fk_missing_indexes() if engine.supports("fk_index") else []
         duplicates = engine.duplicate_indexes()
         orphans = engine.orphan_candidates() if engine.supports("orphans") else []
@@ -380,6 +421,8 @@ def health(request, pk):
             "sizes_error": sizes_error,
             "max_bytes": max((s.total_bytes for s in sizes), default=0),
             "unused": unused,
+            "invalid": invalid,
+            "null_slips": slips,
             "fk_missing": fk_missing,
             "duplicates": duplicates,
             "orphan_candidates": orphans,
@@ -393,13 +436,39 @@ def health(request, pk):
             "supports_bloat": engine.supports("bloat"),
             "supports_fk_index": engine.supports("fk_index"),
             "supports_orphans": engine.supports("orphans"),
+            "supports_invalid_index": engine.supports("invalid_index"),
+            "supports_null_slip": engine.supports("null_slip"),
             "sizes_sql": SIZES_SHOW_SQL,
             "unused_sql": UNUSED_SHOW_SQL,
+            "invalid_index_sql": INVALID_INDEX_SHOW_SQL,
+            "null_slip_sql": NULL_SLIP_SHOW_SQL,
             "fk_index_sql": FK_MISSING_INDEX_SHOW_SQL,
             "vacuum_sql": VACUUM_SHOW_SQL,
             "bloat_sql": BLOAT_SHOW_SQL,
         },
     )
+
+
+def null_slip_count(request, pk):
+    """On-demand count of the duplicates a composite UNIQUE let through, rendered
+    as a small inline partial back into the Health card. Read-only: a GROUP BY
+    under a statement timeout, nothing written. The request names *which* index;
+    the engine re-reads its columns from the catalog."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.GET.get("schema", "")
+    table = request.GET.get("table", "")
+    index = request.GET.get("index", "")
+    ctx = {"connection": connection, "schema": schema, "table": table}
+    try:
+        engine = get_engine(connection)
+        if not engine.supports("null_slip"):
+            return render(request, "partials/null_slip_count.html",
+                          {**ctx, "unsupported": True})
+        result = engine.null_slip_count(schema, table, index)
+    except EngineError as exc:
+        return render(request, "partials/null_slip_count.html",
+                      {**ctx, "error": str(exc)})
+    return render(request, "partials/null_slip_count.html", {**ctx, "result": result})
 
 
 def orphan_count(request, pk):

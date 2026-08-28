@@ -336,6 +336,110 @@ WHERE con.contype = 'f'
 ORDER BY 1, 2, 3;
 """
 
+# Health — composite UNIQUE that NULL slips through.
+#
+# `UNIQUE (email, tenant_id)` は、tenant_id が NULL の行同士を**別物**として扱う。
+# NULL 同士は等しくないので、同じ email が何行でも入る。宣言は効いているのに、
+# 効いていない範囲がある ── 気づくのはたいてい重複が出たあと。
+#
+# 検出は 2 条件だけ: 複合（キー列が 2 本以上）で、キー列に NULL 許容が混ざること。
+# PostgreSQL 15 の `NULLS NOT DISTINCT` で作った索引はすり抜けないので除く。
+# **その列は 15 で増えたため、14 以前では SQL に書くと parse で落ちる。**
+# だから 2 本用意して、サーバ版で選ぶ（14 以前は常に NULLS DISTINCT ＝ 全部対象）。
+#
+# 部分索引（indpred）は除く。WHERE 付きの一意制約は「その条件の行だけ」の宣言で、
+# 範囲外の重複はすり抜けではなく仕様。式索引（indexprs）も列に還元できないので除く。
+_NULL_SLIP_BASE = """
+SELECT ns.nspname AS schema,
+       tbl.relname AS table,
+       idx.relname AS index,
+       con.conname AS constraint,
+       (SELECT string_agg(att.attname, ', ' ORDER BY k.ord)
+          FROM unnest(ix.indkey[0:ix.indnkeyatts-1]) WITH ORDINALITY AS k(attnum, ord)
+          JOIN pg_catalog.pg_attribute att
+            ON att.attrelid = ix.indrelid AND att.attnum = k.attnum) AS columns,
+       (SELECT string_agg(att.attname, ', ' ORDER BY k.ord)
+          FROM unnest(ix.indkey[0:ix.indnkeyatts-1]) WITH ORDINALITY AS k(attnum, ord)
+          JOIN pg_catalog.pg_attribute att
+            ON att.attrelid = ix.indrelid AND att.attnum = k.attnum
+         WHERE NOT att.attnotnull) AS nullable
+FROM pg_catalog.pg_index ix
+JOIN pg_catalog.pg_class idx     ON idx.oid = ix.indexrelid
+JOIN pg_catalog.pg_class tbl     ON tbl.oid = ix.indrelid
+JOIN pg_catalog.pg_namespace ns  ON ns.oid = tbl.relnamespace
+LEFT JOIN pg_catalog.pg_constraint con
+       ON con.conindid = ix.indexrelid AND con.contype IN ('u', 'p')
+WHERE ix.indisunique
+  AND ix.indisvalid
+  AND ix.indnkeyatts > 1
+  AND ix.indpred IS NULL
+  AND ix.indexprs IS NULL
+  AND ns.nspname NOT IN ('pg_catalog', 'information_schema')
+  {extra}
+  AND EXISTS (
+    SELECT 1 FROM unnest(ix.indkey[0:ix.indnkeyatts-1]) AS k(attnum)
+    JOIN pg_catalog.pg_attribute att
+      ON att.attrelid = ix.indrelid AND att.attnum = k.attnum
+    WHERE NOT att.attnotnull
+  )
+ORDER BY 1, 2, 3;
+"""
+
+# 15 以降: NULLS NOT DISTINCT で作られた索引はすり抜けないので落とす。
+NULL_SLIP_SQL_PG15 = _NULL_SLIP_BASE.format(extra="AND NOT ix.indnullsnotdistinct")
+# 14 以前: その概念自体が無い ＝ 一意索引はすべて NULLS DISTINCT。
+NULL_SLIP_SQL_LEGACY = _NULL_SLIP_BASE.format(extra="")
+
+# 数えるとき、列は要求ではなくカタログから引き直す（要求が名指しするのは索引だけ）。
+# 複合・一意・部分索引でない、という条件をここでもう一度確かめる ── パネルを開いてから
+# 索引が作り替えられていたら、数える対象が別物になっているため。
+NULL_SLIP_RESOLVE_SQL = """
+SELECT (SELECT array_agg(att.attname ORDER BY k.ord)
+          FROM unnest(ix.indkey[0:ix.indnkeyatts-1]) WITH ORDINALITY AS k(attnum, ord)
+          JOIN pg_catalog.pg_attribute att
+            ON att.attrelid = ix.indrelid AND att.attnum = k.attnum) AS columns
+FROM pg_catalog.pg_index ix
+JOIN pg_catalog.pg_class idx     ON idx.oid = ix.indexrelid
+JOIN pg_catalog.pg_class tbl     ON tbl.oid = ix.indrelid
+JOIN pg_catalog.pg_namespace ns  ON ns.oid = tbl.relnamespace
+WHERE ns.nspname = %s AND tbl.relname = %s AND idx.relname = %s
+  AND ix.indisunique AND ix.indisvalid AND ix.indnkeyatts > 1
+  AND ix.indpred IS NULL AND ix.indexprs IS NULL;
+"""
+
+# Health — invalid indexes: what a failed CREATE INDEX CONCURRENTLY leaves behind.
+# The planner ignores such an index outright, so it costs disk and write time
+# while answering nothing. The badge already exists on the table detail; a DB is
+# where you actually notice them, because nobody opens 200 tables one by one.
+#
+# **A build in progress looks exactly the same in pg_index** (indisvalid = false
+# until it finishes). Reporting a running CIC as wreckage would send someone to
+# drop an index that is about to become useful, so the state is read from
+# pg_stat_progress_create_index (PG 12+) and reported as its own column rather
+# than filtered out — "I cannot tell yet" is a different answer from "it failed".
+#
+# indislive = false is the other half of the family: a failed *concurrent drop*.
+# The index is already unusable for queries but still maintained on write, which
+# is the worst of both, so it is called out separately.
+INVALID_INDEXES_SQL = """
+SELECT ns.nspname AS schema,
+       tbl.relname AS table,
+       idx.relname AS index,
+       ix.indisready AS ready,
+       ix.indislive AS live,
+       (prog.pid IS NOT NULL) AS building,
+       pg_relation_size(idx.oid) AS bytes,
+       pg_size_pretty(pg_relation_size(idx.oid)) AS size
+FROM pg_catalog.pg_index ix
+JOIN pg_catalog.pg_class idx     ON idx.oid = ix.indexrelid
+JOIN pg_catalog.pg_class tbl     ON tbl.oid = ix.indrelid
+JOIN pg_catalog.pg_namespace ns  ON ns.oid = idx.relnamespace
+LEFT JOIN pg_catalog.pg_stat_progress_create_index prog ON prog.index_relid = idx.oid
+WHERE NOT ix.indisvalid
+  AND ns.nspname NOT IN ('pg_catalog', 'information_schema')
+ORDER BY pg_relation_size(idx.oid) DESC, 1, 2, 3;
+"""
+
 # Health — redundant indexes: a non-unique index whose leading key columns are a
 # prefix of (or identical to) another index on the same table + access method.
 # Partial (indpred) and expression (indexprs) indexes are excluded — their keycol

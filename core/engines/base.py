@@ -562,6 +562,75 @@ class TableSize:
 
 
 @dataclass
+class NullSlip:
+    """A composite UNIQUE that NULL slips through.
+
+    `UNIQUE (email, tenant_id)` does not stop two rows with the same email when
+    tenant_id is NULL in both: NULLs are not equal to each other, so the index
+    sees two different keys. The constraint is declared and enforced — it just
+    has a hole the shape of every nullable column in it.
+
+    Structural fact only: this says where duplicates *can* hide, never that the
+    column should be NOT NULL or the index rebuilt. Counting what actually
+    slipped through is a separate, on-demand read (see `null_slip_count`)."""
+
+    schema: str
+    table: str
+    index: str
+    constraint: str | None    # UNIQUE/PK constraint name, when the index backs one
+    columns: str              # all key columns, comma-joined
+    nullable: str             # the subset that is nullable — the hole
+
+    @property
+    def qualified(self) -> str:
+        return f"{self.schema}.{self.table}"
+
+
+@dataclass
+class NullSlipCount:
+    """The result of counting what a composite UNIQUE let through.
+
+    `groups` is how many distinct key combinations occur more than once among
+    rows that have a NULL in a key column; `extra` is how many rows beyond the
+    first in each of those groups — the rows the constraint was meant to stop.
+    `checked` is the denominator: rows with at least one NULL in the key.
+
+    Rows with no NULL in the key are not counted either way: the index does stop
+    those, so they are not the question being asked."""
+
+    groups: int
+    extra: int
+    checked: int
+
+    @property
+    def clean(self) -> bool:
+        return self.extra == 0
+
+
+@dataclass
+class InvalidIndex:
+    """An index the planner refuses to use (indisvalid = false) — normally what a
+    failed CREATE INDEX CONCURRENTLY left behind. It still costs disk and write
+    time while answering nothing.
+
+    `building` distinguishes the one case that looks identical in the catalog: a
+    CIC that is still running. Dropping that one throws away work that is about
+    to finish, so it is reported, not hidden — and never as wreckage.
+
+    `live` = false is the failed *concurrent drop*: unusable for reads but still
+    maintained on every write."""
+
+    schema: str
+    table: str
+    name: str
+    ready: bool
+    live: bool
+    building: bool
+    bytes: int
+    size: str             # pretty
+
+
+@dataclass
 class UnusedIndex:
     """A non-constraint index the planner has never used (idx_scan = 0 since the
     last stats reset) — a candidate to drop. The inverse of the index lab."""
@@ -1102,6 +1171,23 @@ class Engine:
 
     def unused_indexes(self) -> list[UnusedIndex]:
         """Non-constraint indexes the planner has never used — drop candidates."""
+        raise NotImplementedError
+
+    def invalid_indexes(self) -> list[InvalidIndex]:
+        """Indexes the planner ignores (indisvalid = false), DB-wide. A build in
+        progress is included and flagged, never reported as wreckage."""
+        raise NotImplementedError
+
+    def null_slips(self) -> list[NullSlip]:
+        """Composite UNIQUE indexes with a nullable key column — where duplicates
+        can hide because NULLs are distinct from each other. Catalog-only; no
+        table data is read. (Engines whose UNIQUE treats NULLs as equal — MySQL —
+        declare "null_slip" UNSUPPORTED: there is no hole to report.)"""
+        raise NotImplementedError
+
+    def null_slip_count(self, schema: str, table: str, index: str) -> NullSlipCount:
+        """Count the duplicates a composite UNIQUE actually let through, for one
+        index. On-demand and read-only, under a statement timeout."""
         raise NotImplementedError
 
     def vacuum_stats(self) -> list[VacuumStat]:
