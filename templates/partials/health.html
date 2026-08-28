@@ -91,6 +91,60 @@
     {% endif %}
   </section>
 
+  <!-- Composite UNIQUE with a nullable key column: NULLs are distinct from each
+       other, so duplicates fit through the hole. Counting is on demand — the
+       list is catalog-only, the count reads the table. -->
+  {% if supports_null_slip %}
+  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-zinc-400">
+        {% trans "UNIQUE with a NULL hole" %} <span class="mono lowercase text-zinc-500">NULLs are distinct — duplicates fit through</span>
+      </span>
+      <button hx-get="{% url 'query' connection.pk %}?sql={{ null_slip_sql|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML"
+              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
+                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
+    </div>
+    {% if null_slips %}
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+          <tr class="border-b border-zinc-800">
+            <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Unique on" %}</th>
+            <th class="px-5 py-2 font-medium">{% trans "Nullable" %}</th>
+            <th class="px-5 py-2 font-medium text-right">{% trans "Slipped through" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in null_slips %}
+            <tr class="border-b border-zinc-800/60">
+              <td class="px-5 py-2 mono">{{ u.qualified }}</td>
+              <td class="px-5 py-2 mono text-zinc-300">{{ u.columns }}
+                <span class="text-zinc-600">({{ u.constraint|default:u.index }})</span></td>
+              <td class="px-5 py-2 mono text-amber-300/90">{{ u.nullable }}</td>
+              <td class="px-5 py-2 text-right whitespace-nowrap">
+                <button hx-get="{% url 'null_slip_count' connection.pk %}?schema={{ u.schema|urlencode }}&table={{ u.table|urlencode }}&index={{ u.index|urlencode }}"
+                        hx-target="#slip-{{ forloop.counter }}" hx-swap="innerHTML"
+                        hx-indicator="#slip-spin-{{ forloop.counter }}"
+                        class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1 hover:border-zinc-600 transition">
+                  {% trans "count duplicates →" %}
+                  <span id="slip-spin-{{ forloop.counter }}" class="htmx-indicator">…</span>
+                </button>
+              </td>
+            </tr>
+            <tr><td colspan="4" class="px-5"><span id="slip-{{ forloop.counter }}"></span></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
+        {% blocktrans %}A NULL is not equal to another NULL, so rows whose key holds one are all different to the index — the constraint is enforced, with a hole the shape of its nullable columns. PostgreSQL 15's <span class="mono">NULLS NOT DISTINCT</span> closes it; those indexes are not listed. Counting reads the table, read-only.{% endblocktrans %}
+      </div>
+    {% else %}
+      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No composite UNIQUE has a nullable column — no hole to fit through. 🎉" %}</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
   <!-- Invalid indexes: what a failed CREATE INDEX CONCURRENTLY leaves behind.
        A build still running looks the same in the catalog, so it is shown with
        its own badge instead of being filtered out or called wreckage. -->
