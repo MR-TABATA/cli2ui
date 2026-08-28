@@ -251,7 +251,12 @@ class MysqlEngine(Engine):
                              # MySQL too, but finding it reads pg_index. Declared
                              # unsupported rather than answered wrongly — an
                              # empty card here would read as "no holes".
-                             "null_slip"})
+                             "null_slip",
+                             # 同じ問い（何行消えるか・誰が参照しているか）は
+                             # information_schema でも答えられるが、いまの実装は
+                             # pg_class / pg_constraint 前提。空を返すと「影響なし」に
+                             # 見えるので、非対応と宣言する。
+                             "write_impact"})
 
     # When inside session(), the one open connection reused for every probe;
     # otherwise None and each _connect() dials its own. Mirrors PostgresEngine.

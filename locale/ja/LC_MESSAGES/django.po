@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-28 05:20-0500\n"
+"POT-Creation-Date: 2026-08-28 05:25-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,29 +22,29 @@ msgstr ""
 msgid "Unsupported database kind: %(kind)s"
 msgstr "未対応のデータベース種別: %(kind)s"
 
-#: core/engines/mysql.py:418 core/engines/mysql.py:825
-#: core/engines/mysql.py:831 core/engines/postgres.py:413
-#: core/engines/postgres.py:514 core/engines/postgres.py:1171
+#: core/engines/mysql.py:423 core/engines/mysql.py:830
+#: core/engines/mysql.py:836 core/engines/postgres.py:415
+#: core/engines/postgres.py:516 core/engines/postgres.py:1173
 #, python-format
 msgid "No such column: %(name)s"
 msgstr "存在しない列: %(name)s"
 
-#: core/engines/mysql.py:420 core/engines/postgres.py:516
+#: core/engines/mysql.py:425 core/engines/postgres.py:518
 #, python-format
 msgid "Unknown filter operator: %(op)s"
 msgstr "不明なフィルタ演算子: %(op)s"
 
-#: core/engines/mysql.py:465 core/engines/mysql.py:470
-#: core/engines/postgres.py:566
+#: core/engines/mysql.py:470 core/engines/mysql.py:475
+#: core/engines/postgres.py:568
 msgid "The CSV file is empty."
 msgstr "CSV ファイルが空です。"
 
-#: core/engines/mysql.py:475 core/engines/postgres.py:573
+#: core/engines/mysql.py:480 core/engines/postgres.py:575
 #, python-format
 msgid "CSV header has columns not in %(table)s: %(cols)s"
 msgstr "%(table)s に無い列が CSV ヘッダにあります: %(cols)s"
 
-#: core/engines/mysql.py:634
+#: core/engines/mysql.py:639
 msgid ""
 "Can't check for lock waits: the MySQL performance_schema is disabled on this "
 "server, so blocking can't be detected. Enable it (performance_schema=ON) to "
@@ -54,7 +54,7 @@ msgstr ""
 "効なため、ブロッキングを検出できません。このパネルを使うには有効化してくださ"
 "い (performance_schema=ON)。"
 
-#: core/engines/mysql.py:644
+#: core/engines/mysql.py:649
 msgid ""
 "Can't check for lock waits: this needs MySQL 8.0+ "
 "(performance_schema.data_lock_waits is unavailable here)."
@@ -62,7 +62,7 @@ msgstr ""
 "ロック待ちを確認できません: これには MySQL 8.0 以降が必要です "
 "(performance_schema.data_lock_waits がここでは利用できません)。"
 
-#: core/engines/mysql.py:679
+#: core/engines/mysql.py:684
 msgid ""
 "MySQL can't create a database from a template (no TEMPLATE/CREATE DATABASE … "
 "LIKE). Create it empty, then load a dump."
@@ -70,7 +70,7 @@ msgstr ""
 "MySQL はテンプレートからデータベースを作成できません (TEMPLATE/CREATE "
 "DATABASE … LIKE は非対応)。空で作成してからダンプを読み込んでください。"
 
-#: core/engines/mysql.py:692
+#: core/engines/mysql.py:697
 msgid ""
 "Can't drop the database this connection is using — connect to another "
 "database first."
@@ -78,7 +78,7 @@ msgstr ""
 "この接続が使用中のデータベースは削除できません — 先に別のデータベースに接続し"
 "てください。"
 
-#: core/engines/mysql.py:698
+#: core/engines/mysql.py:703
 msgid ""
 "MySQL doesn't support renaming a database. Create the new one and move the "
 "tables (RENAME TABLE), or dump and reload."
@@ -86,44 +86,44 @@ msgstr ""
 "MySQL はデータベースのリネームに対応していません。新しいデータベースを作成し"
 "てテーブルを移動する (RENAME TABLE) か、ダンプして再読み込みしてください。"
 
-#: core/engines/mysql.py:713 core/engines/postgres.py:171
+#: core/engines/mysql.py:718 core/engines/postgres.py:173
 #, python-format
 msgid "Unsupported index method: %(method)s"
 msgstr "未対応のインデックス方式: %(method)s"
 
-#: core/engines/mysql.py:715 core/engines/postgres.py:173
-#: core/views/tables.py:166
+#: core/engines/mysql.py:720 core/engines/postgres.py:175
+#: core/views/tables.py:192
 msgid "Select at least one column to index."
 msgstr "インデックス対象の列を1つ以上選んでください。"
 
-#: core/engines/mysql.py:722 core/engines/postgres.py:1066
+#: core/engines/mysql.py:727 core/engines/postgres.py:1068
 #: planner_lab/whatif.py:115
 #, python-format
 msgid "No such column(s): %(cols)s"
 msgstr "存在しない列: %(cols)s"
 
-#: core/engines/mysql.py:735
+#: core/engines/mysql.py:740
 msgid "Dropping an index needs the table it's on."
 msgstr "インデックスの削除には、対象のテーブルが必要です。"
 
-#: core/engines/mysql.py:758 core/engines/mysql.py:787
+#: core/engines/mysql.py:763 core/engines/mysql.py:792
 #, python-format
 msgid "Unsupported column type: %(t)s. Pick one of the listed types."
 msgstr "未対応の列型です: %(t)s。一覧の型から選んでください。"
 
-#: core/engines/mysql.py:873
+#: core/engines/mysql.py:878
 msgid "Orphan-row checks are a PostgreSQL feature here."
 msgstr "孤児行チェックはここでは PostgreSQL の機能です。"
 
-#: core/engines/mysql.py:931
+#: core/engines/mysql.py:936
 msgid "mysqldump timed out."
 msgstr "mysqldump がタイムアウトしました。"
 
-#: core/engines/mysql.py:975 core/engines/postgres.py:1277
+#: core/engines/mysql.py:980 core/engines/postgres.py:1279
 msgid "restore timed out."
 msgstr "リストアがタイムアウトしました。"
 
-#: core/engines/mysql.py:1064
+#: core/engines/mysql.py:1069
 msgid ""
 "MySQL has no replication slots — it streams the binary log directly, so "
 "there's nothing to create."
@@ -131,18 +131,18 @@ msgstr ""
 "MySQL にレプリケーションスロットはありません — バイナリログを直接ストリーミン"
 "グするため、作成するものはありません。"
 
-#: core/engines/mysql.py:1068
+#: core/engines/mysql.py:1073
 msgid "MySQL has no replication slots — nothing to drop."
 msgstr ""
 "MySQL にレプリケーションスロットはありません — 削除するものはありません。"
 
-#: core/engines/mysql.py:1158 core/engines/mysql.py:1163
-#: core/engines/mysql.py:1173 core/engines/postgres.py:1634
+#: core/engines/mysql.py:1163 core/engines/mysql.py:1168
+#: core/engines/mysql.py:1178 core/engines/postgres.py:1655
 #, python-format
 msgid "Unknown setting: %(name)s"
 msgstr "不明な設定: %(name)s"
 
-#: core/engines/mysql.py:1365
+#: core/engines/mysql.py:1370
 #, python-format
 msgid ""
 "Gave up after waiting %(secs)ss for a lock on this object — another "
@@ -153,21 +153,25 @@ msgstr ""
 "クションが保持しています。変更は行われていません。保持者は「ロック」パネルで"
 "確認し、解放されてから再実行してください。"
 
-#: core/engines/postgres.py:416
+#: core/engines/postgres.py:418
 #, python-format
 msgid "%(name)s is not a JSON column."
 msgstr "%(name)s は JSON 列ではありません。"
 
-#: core/engines/postgres.py:1195
+#: core/engines/postgres.py:1197
 #, python-format
 msgid "Unknown dump format: %(fmt)s"
 msgstr "不明なダンプ形式: %(fmt)s"
 
-#: core/engines/postgres.py:1213
+#: core/engines/postgres.py:1215
 msgid "pg_dump timed out."
 msgstr "pg_dump がタイムアウトしました。"
 
-#: core/engines/postgres.py:1402
+#: core/engines/postgres.py:1381
+msgid "That table no longer exists."
+msgstr ""
+
+#: core/engines/postgres.py:1423
 msgid ""
 "This index no longer looks like a composite UNIQUE with a nullable column — "
 "it may have changed since the panel loaded."
@@ -176,11 +180,11 @@ msgstr ""
 "てから作り替えられた可能性があります。この参照はもう単一の親に解決できません "
 "— パネルを開いてから変わった可能性があります。"
 
-#: core/engines/postgres.py:1511
+#: core/engines/postgres.py:1532
 msgid "No relationship to check was given."
 msgstr "チェックする関係が指定されていません。"
 
-#: core/engines/postgres.py:1524
+#: core/engines/postgres.py:1545
 msgid ""
 "This reference no longer resolves to a single parent — it may have changed "
 "since the panel loaded."
@@ -188,7 +192,7 @@ msgstr ""
 "この参照はもう単一の親に解決できません — パネルを開いてから変わった可能性があ"
 "ります。"
 
-#: core/engines/postgres.py:1719
+#: core/engines/postgres.py:1740
 #, python-format
 msgid ""
 "Gave up after waiting %(timeout)s for a lock on this object — another "
@@ -199,7 +203,7 @@ msgstr ""
 "クションが保持しています。変更は行われていません。保持者は「ロック」パネルで"
 "確認し、解放されてから再実行してください。"
 
-#: core/engines/postgres.py:1728
+#: core/engines/postgres.py:1749
 #, python-format
 msgid ""
 "Gave up after waiting %(timeout)s to measure table sizes — another "
@@ -300,24 +304,24 @@ msgstr "エクスポートする結果がありません — 先にクエリを�
 msgid "No table specified."
 msgstr "テーブルが指定されていません。"
 
-#: core/views/tables.py:126
+#: core/views/tables.py:152
 msgid "Choose a CSV file to import."
 msgstr "インポートする CSV ファイルを選んでください。"
 
-#: core/views/tables.py:134
+#: core/views/tables.py:160
 #, python-format
 msgid "Imported %(n)s row(s) from %(name)s."
 msgstr "%(name)s から %(n)s 行をインポートしました。"
 
-#: core/views/tables.py:200
+#: core/views/tables.py:226
 msgid "Enter a new table name."
 msgstr "新しいテーブル名を入力してください。"
 
-#: core/views/tables.py:251
+#: core/views/tables.py:277
 msgid "Enter a column name."
 msgstr "列名を入力してください。"
 
-#: core/views/tables.py:271
+#: core/views/tables.py:297
 msgid "Enter a new column name."
 msgstr "新しい列名を入力してください。"
 
@@ -1170,6 +1174,25 @@ msgstr ""
 "&quot;%(schema)s.%(table)s&quot; を truncate しますか？全行が完全に削除されま"
 "す。"
 
+#: templates/partials/detail.html:256 templates/partials/detail.html:268
+#: templates/partials/objects.html:67 templates/partials/objects.html:110
+#: templates/partials/objects.html:154
+msgid "This runs:"
+msgstr "実行される SQL:"
+
+#: templates/partials/detail.html:256 templates/partials/detail.html:268
+msgid "Rows: unknown (this table has never been analyzed)"
+msgstr "行数: 不明（このテーブルはまだ ANALYZE されていません）"
+
+#: templates/partials/detail.html:256 templates/partials/detail.html:268
+#, python-format
+msgid "Rows: about %(n)s (estimated from statistics, last analyzed %(d)s)"
+msgstr "行数: 約 %(n)s（統計からの推定・最終 ANALYZE %(d)s）"
+
+#: templates/partials/detail.html:256 templates/partials/detail.html:268
+msgid "Referenced by:"
+msgstr "参照しているテーブル:"
+
 #: templates/partials/detail.html:259
 msgid "Truncate"
 msgstr "Truncate"
@@ -1982,11 +2005,6 @@ msgid ""
 msgstr ""
 "データベース &quot;%(name)s&quot; を削除しますか？全データが完全に削除されま"
 "す。"
-
-#: templates/partials/objects.html:67 templates/partials/objects.html:110
-#: templates/partials/objects.html:154
-msgid "This runs:"
-msgstr "実行される SQL:"
 
 #: templates/partials/objects.html:85
 msgid "+ New schema"

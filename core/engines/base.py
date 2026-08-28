@@ -563,6 +563,31 @@ class TableSize:
 
 
 @dataclass
+class WriteImpact:
+    """What a TRUNCATE / DROP would take with it.
+
+    `rows` comes from the planner's statistics, not `count(*)`: opening the
+    confirm dialog must not scan a billion-row table. So it is an **estimate**,
+    and `estimated` says so — a number presented as exact when it is not is
+    worse than no number. `analyzed` is when the statistics were last refreshed;
+    `None` means never, and then `rows` means nothing at all.
+
+    `referenced_by` is the other half of the question: a TRUNCATE fails without
+    CASCADE while a foreign key points at the table, and a DROP fails while
+    anything depends on it. Finding that out after pressing the button is late."""
+
+    rows: int | None                       # estimate; None when never analyzed
+    estimated: bool
+    analyzed: str | None                   # ISO date of the last (auto)analyze
+    referenced_by: list[dict]              # [{"table", "constraint", "rows"}, …]
+
+    @property
+    def unknown(self) -> bool:
+        """Statistics have never been collected — say "unknown", not "0 rows"."""
+        return self.rows is None
+
+
+@dataclass
 class SqlPreview:
     """The statements a write *would* run, captured without running them.
 
@@ -1223,6 +1248,12 @@ class Engine:
     def invalid_indexes(self) -> list[InvalidIndex]:
         """Indexes the planner ignores (indisvalid = false), DB-wide. A build in
         progress is included and flagged, never reported as wreckage."""
+        raise NotImplementedError
+
+    def write_impact(self, schema: str, table: str) -> WriteImpact:
+        """What a TRUNCATE / DROP of this table would take with it: an estimated
+        row count (from statistics — never a scan) and the tables whose foreign
+        keys point at it. Catalog-only."""
         raise NotImplementedError
 
     def null_slips(self) -> list[NullSlip]:

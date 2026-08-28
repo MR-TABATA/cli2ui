@@ -40,6 +40,29 @@ def jsonb_shape(request, pk):
     return render(request, "partials/jsonb_shape.html", ctx)
 
 
+def _write_previews(engine, schema, table):
+    """TRUNCATE / DROP の下見。失敗しても詳細画面は出す（下見が無いだけ）。
+
+    プレビューが取れなかったものは**キーごと落とす** ── テンプレートは値が無ければ
+    何も描かない。空の SQL 欄や「0 行」は、事実と違うことを言ってしまう。"""
+    out = {}
+    try:
+        with engine.session():
+            with engine.preview() as truncate_sql:
+                engine.truncate_table(schema, table)
+            with engine.preview() as drop_sql:
+                engine.drop_table(schema, table)
+            if engine.supports("write_impact"):
+                out["write_impact"] = engine.write_impact(schema, table)
+    except (EngineError, NotImplementedError):
+        return out
+    if not truncate_sql.empty:
+        out["truncate_sql"] = truncate_sql.text
+    if not drop_sql.empty:
+        out["drop_sql"] = drop_sql.text
+    return out
+
+
 def _render_detail(request, connection, schema, table, error=None, notice=None):
     """Render the table-detail panel: columns, indexes and a row preview.
 
@@ -71,6 +94,9 @@ def _render_detail(request, connection, schema, table, error=None, notice=None):
             "table_comment": comment,
             "columns": columns,
             "indexes": indexes,
+            # 押す前に見せる: これから流す SQL と、その操作が持っていくもの。
+            # どちらもカタログだけ（行数は統計からの推定で、走査はしない）。
+            **_write_previews(engine, schema, table),
             # Whether this engine can sample JSON columns for their shape — gates
             # the per-column "shape" affordance (PostgreSQL only for now).
             "jsonb_shape_supported": engine.supports("jsonb_shape"),

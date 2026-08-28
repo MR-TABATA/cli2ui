@@ -336,6 +336,38 @@ WHERE con.contype = 'f'
 ORDER BY 1, 2, 3;
 """
 
+# 押す前に見せる — TRUNCATE / DROP の影響量。
+#
+# 行数は `count(*)` ではなく統計（reltuples）から出す。10 億行のテーブルで確認
+# ダイアログを開くたびに全表走査するわけにはいかない。**代わりに推定だと明示する** ──
+# `-1` は「まだ ANALYZE されていない」で、0 行とはまったく違う（PG14 以降。それ以前は
+# 0 が同じ意味を持ってしまうので、last_analyze が無いことと併せて判定する）。
+#
+# 参照しているテーブルも返す。TRUNCATE は FK で参照されていると CASCADE 無しでは失敗し、
+# DROP TABLE も依存があると失敗する ── 押してから知るのでは遅い種類の事実。
+WRITE_IMPACT_SQL = """
+SELECT cl.reltuples::bigint AS rows,
+       st.last_analyze,
+       st.last_autoanalyze,
+       (SELECT coalesce(json_agg(json_build_object(
+                   'table', child.qualified,
+                   'constraint', child.conname,
+                   'rows', child.rows) ORDER BY child.qualified), '[]'::json)
+          FROM (
+            SELECT cns.nspname || '.' || ccl.relname AS qualified,
+                   con.conname,
+                   ccl.reltuples::bigint AS rows
+            FROM pg_catalog.pg_constraint con
+            JOIN pg_catalog.pg_class ccl     ON ccl.oid = con.conrelid
+            JOIN pg_catalog.pg_namespace cns ON cns.oid = ccl.relnamespace
+            WHERE con.contype = 'f' AND con.confrelid = cl.oid
+          ) child) AS referenced_by
+FROM pg_catalog.pg_class cl
+JOIN pg_catalog.pg_namespace ns ON ns.oid = cl.relnamespace
+LEFT JOIN pg_catalog.pg_stat_user_tables st ON st.relid = cl.oid
+WHERE ns.nspname = %s AND cl.relname = %s;
+"""
+
 # Health — composite UNIQUE that NULL slips through.
 #
 # `UNIQUE (email, tenant_id)` は、tenant_id が NULL の行同士を**別物**として扱う。

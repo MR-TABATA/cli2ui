@@ -53,6 +53,7 @@ from .base import (
     TableSize,
     UnusedIndex,
     VacuumStat,
+    WriteImpact,
 )
 
 # Catalog / stat query text lives in pg_sql.py; the engine methods below
@@ -85,6 +86,7 @@ from .pg_sql import (
     TABLE_SIZES_SQL,
     INVALID_INDEXES_SQL,
     NULL_SLIP_RESOLVE_SQL,
+    WRITE_IMPACT_SQL,
     NULL_SLIP_SQL_LEGACY,
     NULL_SLIP_SQL_PG15,
     UNUSED_INDEXES_SQL,
@@ -1369,6 +1371,25 @@ class PostgresEngine(Engine):
                                  bytes=row[6], size=row[7])
                     for row in cur.fetchall()
                 ]
+
+    def write_impact(self, schema: str, table: str) -> WriteImpact:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(WRITE_IMPACT_SQL, (schema, table))
+                row = cur.fetchone()
+        if row is None:
+            raise EngineError(_("That table no longer exists."))
+        rows, last_analyze, last_autoanalyze, referenced_by = row
+        analyzed = max(filter(None, (last_analyze, last_autoanalyze)), default=None)
+        # reltuples = -1 は「まだ ANALYZE していない」（PG14+）。それ以前は 0 が
+        # 同じ意味を持ちうるので、統計時刻が無いことと併せて「不明」にする。
+        unknown = rows is None or rows < 0 or (rows == 0 and analyzed is None)
+        return WriteImpact(
+            rows=None if unknown else rows,
+            estimated=True,
+            analyzed=analyzed.date().isoformat() if analyzed else None,
+            referenced_by=referenced_by or [],
+        )
 
     def null_slips(self) -> list[NullSlip]:
         with self._connect() as conn:

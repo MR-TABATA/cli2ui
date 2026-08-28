@@ -28,6 +28,7 @@ from core.engines.base import (
     NullSlipCount,
     Setting, Standby, Table, build_block_forest, build_dependency_graph,
     SqlPreview,
+    WriteImpact,
 )
 from core.engines.postgres import (
     DDL_LOCK_TIMEOUT,
@@ -552,6 +553,35 @@ class SqlPreviewTests(SimpleTestCase):
     def test_text_joins_statements_in_order(self):
         p = SqlPreview(statements=["SET lock_timeout = '3s'", 'DROP SCHEMA "x" CASCADE'])
         self.assertEqual(p.text, "SET lock_timeout = '3s';\nDROP SCHEMA \"x\" CASCADE;")
+
+
+class WriteImpactTests(SimpleTestCase):
+    """TRUNCATE / DROP が持っていくもの。**推定を断言に見せない**のが要点。"""
+
+    def test_never_analyzed_is_unknown_not_zero(self):
+        # 統計が無いテーブルの reltuples は -1（PG14+）。これを 0 行と出すと、
+        # 「空だから消していい」と読ませてしまう。
+        self.assertTrue(WriteImpact(rows=None, estimated=True, analyzed=None,
+                                    referenced_by=[]).unknown)
+        self.assertFalse(WriteImpact(rows=0, estimated=True, analyzed="2026-08-28",
+                                     referenced_by=[]).unknown)
+
+    def test_the_query_reads_statistics_and_never_counts(self):
+        # count(*) を書いた瞬間、確認ダイアログを開くだけで 10 億行を走査する。
+        from core.engines.pg_sql import WRITE_IMPACT_SQL as q
+        self.assertIn("reltuples", q)
+        self.assertNotIn("count(*)", q.lower())
+
+    def test_the_query_also_answers_who_points_at_this_table(self):
+        # TRUNCATE は FK に参照されていると CASCADE 無しで失敗する。押してから
+        # 知るのでは遅い。
+        from core.engines.pg_sql import WRITE_IMPACT_SQL as q
+        self.assertIn("con.contype = 'f'", q)
+        self.assertIn("con.confrelid = cl.oid", q)
+
+    def test_mysql_declares_write_impact_not_applicable(self):
+        from core.engines.mysql import MysqlEngine
+        self.assertIn("write_impact", MysqlEngine.UNSUPPORTED)
 
 
 class SqlForFilterTests(SimpleTestCase):
