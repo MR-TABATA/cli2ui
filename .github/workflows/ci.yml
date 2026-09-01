@@ -1,0 +1,87 @@
+# テストを PR で走らせる。
+#
+# ここが無かった間、289 件が通ったことを知っているのは作者の手元だけだった。
+# 落ちる PR が無かったのではなく、落ちたかどうかを誰も見ていなかった。
+#
+# 統合テストは「サンプル DB が localhost:5433 に居なければ skip」で書いてある。
+# サービスを立てないと **96 件が黙って skip され、緑のまま何も検証しない**ので、
+# ここでは必ず立てる。skip は失敗より静かで、そのぶん質が悪い。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 同じブランチへ続けて push した時、古い実行は捨てる。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # SyncVey は単体と E2E を 2 ジョブに割っているが、こちらは全部で 30 秒なので
+  # 1 ジョブに畳む。分けると、E2E 抜きの回と E2E だけの回で同じ単体を 2 度走らせる。
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+
+    services:
+      # docker-compose.yml の sampledb と同じ版・同じ資格情報。CI だけ別の版に
+      # すると、手元で通って CI で落ちる（あるいはその逆）の説明が付かなくなる。
+      sampledb:
+        image: postgres:16
+        env:
+          POSTGRES_USER: demo
+          POSTGRES_PASSWORD: demo
+          POSTGRES_DB: shop
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U demo -d shop"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      # services: はチェックアウトより先に起動するので、compose のように
+      # init.sql をマウントできない。取得後に自分で流す。
+      - name: Seed the sample database
+        run: psql "postgres://demo:demo@localhost:5433/shop" -f seed/init.sql
+        env:
+          PGCLIENTENCODING: UTF8
+
+      # pg_dump / pg_restore のテストは「クライアントがサーバより古ければ skip」。
+      # 黙って消えると気づけないので、両方の版をログに出しておく。
+      - name: Show PostgreSQL client / server versions
+        run: |
+          pg_dump --version
+          psql "postgres://demo:demo@localhost:5433/shop" -tAc "SHOW server_version"
+
+      - name: Check for missing migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      # E2E（LiveServerTestCase + chromium）もここで回す。入れなければ黙って
+      # skip されるだけで、緑は緑のまま。
+      - name: Install Playwright browser
+        run: playwright install --with-deps chromium
+
+      - name: Run tests
+        run: python manage.py test -v 1
