@@ -19,8 +19,11 @@ Versioning convention for this project:
 
 ## [1.6.1] - 2026-09-01
 
-A fix for a data-loss bug introduced in 1.6.0. **Upgrade before opening the
-Objects panel again**, and see below for what to check if you already have.
+Two data-loss fixes: one introduced in 1.6.0, and one that has been there since
+the backup feature first shipped (before 0.8.0) and had never once run in a test
+on the author's machine. Both were found by turning CI on. **Upgrade before
+opening the Objects panel again**, and see below for what to check if you
+already have.
 
 ### Fixed
 
