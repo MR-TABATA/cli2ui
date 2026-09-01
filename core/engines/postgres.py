@@ -1241,13 +1241,23 @@ class PostgresEngine(Engine):
         streams from an in-memory buffer)."""
         self.restore_stream(dbname, io.BytesIO(data))
 
-    def restore_stream(self, dbname: str, fileobj) -> None:
+    def restore_stream(self, dbname: str, fileobj, *,
+                       stop_on_error: bool = True) -> None:
         """Restore a dump read from a file-like object into an existing database,
         streaming it to the client tool's stdin in chunks instead of loading the
         whole dump into memory. The format is detected from the leading bytes —
         a custom-format archive starts with the 'PGDMP' marker and goes through
         pg_restore; anything else is treated as plain SQL piped through psql
-        (stopping on the first error)."""
+        (stopping on the first error).
+
+        stop_on_error=False lets a custom-format restore apply everything it can
+        and report afterwards, instead of stopping at the first thing that fails.
+        Use it only where the caller can inspect the result and decide — restoring
+        into a **brand-new** database, where a genuinely failed restore can simply
+        be dropped. A single-table snapshot always contains at least one entry it
+        cannot apply (its foreign keys point at tables the snapshot has no room
+        for), and stopping there also skips the primary key and indexes that come
+        after it in the archive."""
         head = fileobj.read(5)
         is_custom = head[:5] == b"PGDMP"
         conn = self.connection
@@ -1256,7 +1266,8 @@ class PostgresEngine(Engine):
         if is_custom:
             # --exit-on-error makes pg_restore stop and fail on the first error
             # instead of limping on and reporting a count, matching psql below.
-            argv = ["pg_restore", "--exit-on-error", *common]
+            argv = ["pg_restore", *(["--exit-on-error"] if stop_on_error else []),
+                    *common]
             tool = "pg_restore"
         else:
             # ON_ERROR_STOP makes psql exit non-zero on the first failed
@@ -1302,6 +1313,24 @@ class PostgresEngine(Engine):
             drainer.join(timeout=5)
         if proc.returncode != 0:
             raise EngineError(_tool_error(b"".join(err_chunks), "restore failed."))
+
+    def has_any_table(self, dbname: str) -> bool:
+        """Whether the named database (not necessarily this connection's) holds
+        at least one user table. The question a failed restore has to answer:
+        did anything actually land? Asking the database is language-independent —
+        pg_restore's message arrives translated by the server, so reading it to
+        decide would break the moment someone runs a non-English server."""
+        with self._connect(dbname=dbname) as conn:
+            with conn.cursor() as cur:
+                try:
+                    cur.execute(
+                        "SELECT EXISTS (SELECT 1 FROM pg_class c "
+                        "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                        "WHERE c.relkind IN ('r', 'p') "
+                        "AND n.nspname NOT IN ('pg_catalog', 'information_schema'))")
+                    return bool(cur.fetchone()[0])
+                except psycopg2.Error as exc:
+                    raise EngineError(_clean(exc)) from exc
 
     def _execute(self, statement, *,
                  lock_timeout: str | None = DDL_LOCK_TIMEOUT) -> None:

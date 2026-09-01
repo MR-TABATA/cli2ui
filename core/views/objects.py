@@ -88,11 +88,25 @@ def database_dump(request, pk):
 
 def _restore_into_new_db(connection, name, stream):
     """Create a brand-new database (from the pristine template0) and restore the
-    dump (a file-like object, streamed) into it. If the restore fails, drop the
-    just-made database so a failed attempt leaves nothing behind. Returns an
-    error string, or None on success."""
+    dump (a file-like object, streamed) into it. Returns `(error, warning)`:
+    an error means nothing was created, a warning means the data is there but
+    part of the snapshot could not be applied.
+
+    **A table snapshot always has an unapplicable part.** The automatic safety
+    snapshot taken before a destructive table operation is a single-table dump,
+    and a table's foreign keys point at tables the dump has no room for — so the
+    restore hits "relation does not exist" for every one of them. Treating that
+    as total failure meant dropping the database we had just successfully filled
+    with the rows the snapshot existed to protect: the safety net threw away what
+    it had caught. Most tables have a foreign key, so that was the common case,
+    not the corner one.
+
+    So restore leniently here (we can drop the whole database if it turns out to
+    be empty, which is the safety the strict mode was buying) and then **ask the
+    database what landed** rather than reading the tool's message, which the
+    server writes in its own language."""
     if not name:
-        return _("Provide a new database name.")
+        return _("Provide a new database name."), None
     engine = get_engine(connection)
     # template0 gives Postgres a pristine starting point; MySQL has no
     # CREATE DATABASE … TEMPLATE, so it creates the database empty instead.
@@ -100,14 +114,23 @@ def _restore_into_new_db(connection, name, stream):
     try:
         engine.create_database(name, template=template)
     except EngineError as exc:
-        return str(exc)
+        return str(exc), None
     try:
-        engine.restore_stream(name, stream)
+        engine.restore_stream(name, stream, stop_on_error=False)
     except EngineError as exc:
+        landed = False
         with contextlib.suppress(EngineError):
-            engine.drop_database(name, force=True)
-        return _("Restore failed — database not created. %(err)s") % {"err": exc}
-    return None
+            landed = engine.has_any_table(name)
+        if not landed:
+            with contextlib.suppress(EngineError):
+                engine.drop_database(name, force=True)
+            return _("Restore failed — database not created. %(err)s") % {"err": exc}, None
+        return None, _(
+            "⚠ Restored, but part of the snapshot could not be applied — it "
+            "refers to objects the snapshot does not contain (a single-table "
+            "snapshot has no room for what its foreign keys point at). The "
+            "tables and rows are there. %(err)s") % {"err": exc}
+    return None, None
 
 
 def _restore_into_existing_db(connection, name, stream):
@@ -145,8 +168,8 @@ def database_restore(request, pk):
         err = _restore_into_existing_db(connection, name, upload)
         notice = _("Restored into existing database “%(name)s”.") % {"name": name}
     else:
-        err = _restore_into_new_db(connection, name, upload)
-        notice = _("Restored into new database “%(name)s”.") % {"name": name}
+        err, warning = _restore_into_new_db(connection, name, upload)
+        notice = warning or _("Restored into new database “%(name)s”.") % {"name": name}
     if err:
         return _render_objects(request, connection, error=err)
     return _render_objects(request, connection, notice=notice)
@@ -200,12 +223,13 @@ def backup_restore(request, pk):
     connection = get_object_or_404(Connection, pk=pk)
     backup = get_object_or_404(Backup, pk=request.POST.get("id"), connection=connection)
     name = (request.POST.get("name") or "").strip()
-    err = _restore_into_new_db(connection, name, io.BytesIO(bytes(backup.data)))
+    err, warning = _restore_into_new_db(
+        connection, name, io.BytesIO(bytes(backup.data)))
     if err:
         return _render_backups(request, connection, error=err)
     return _render_backups(
         request, connection,
-        notice=_("Restored “%(target)s” into new database “%(name)s”.") % {"target": backup.target, "name": name})
+        notice=warning or _("Restored “%(target)s” into new database “%(name)s”.") % {"target": backup.target, "name": name})
 
 
 def schema_create(request, pk):

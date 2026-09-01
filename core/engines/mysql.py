@@ -312,6 +312,21 @@ class MysqlEngine(Engine):
 
     # --- browsing --------------------------------------------------------
 
+    def has_any_table(self, dbname: str) -> bool:
+        """Whether the named database (not necessarily this connection's) holds
+        at least one table. See the PostgreSQL engine for why a failed restore
+        asks the database instead of reading the tool's message."""
+        with self._connect(dbname=dbname) as conn:
+            with conn.cursor() as cur:
+                try:
+                    cur.execute(
+                        "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
+                        "WHERE table_schema = %s AND table_type = 'BASE TABLE')",
+                        (dbname,))
+                    return bool(cur.fetchone()[0])
+                except pymysql.Error as exc:
+                    raise EngineError(_clean(exc)) from exc
+
     def list_tables(self) -> list[Table]:
         with self._connect() as conn:
             with conn.cursor() as cur:
@@ -944,11 +959,17 @@ class MysqlEngine(Engine):
         """Restore dump bytes into an existing database (in-memory convenience)."""
         self.restore_stream(dbname, io.BytesIO(data))
 
-    def restore_stream(self, dbname: str, fileobj) -> None:
+    def restore_stream(self, dbname: str, fileobj, *,
+                       stop_on_error: bool = True) -> None:
         """Restore a mysqldump SQL dump (a file-like object) into an existing
         database by streaming it to the `mysql` client's stdin in chunks rather
         than loading the whole dump into memory. The client runs in batch mode,
-        which stops and exits non-zero on the first failed statement."""
+        which stops and exits non-zero on the first failed statement.
+
+        stop_on_error is accepted for signature parity and ignored: the batch
+        client always stops at the first error, and there is no MySQL equivalent
+        of pg_restore's "apply what you can". A caller that asked for the lenient
+        behaviour simply gets the strict one, which is the safe direction."""
         conn = self.connection
         argv = ["mysql", "-h", conn.host, "-P", str(conn.port),
                 "-u", conn.user, dbname]

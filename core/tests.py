@@ -51,6 +51,7 @@ from core.models import Backup, Connection, PlanSnapshot
 from core.plan_diff import diff_plans, node_from_dict, node_to_dict, to_text
 from core.views.runner import RUNNER_LOCK_TIMEOUT
 from core.views._shared import _prune_old_backups
+from core.views.objects import _restore_into_new_db
 
 
 def node(node_type, *, relation=None, index=None, rows=0.0, cost=0.0,
@@ -3181,6 +3182,33 @@ class BackupPanelTests(TestCase):
             conn = SimpleNamespace(kind="postgres", host="localhost", port=5433,
                                    dbname=name, user="demo", password="demo")
             self.assertIn("orders", {t.name for t in get_engine(conn).list_tables()})
+        finally:
+            with contextlib.suppress(EngineError):
+                self.engine.drop_database(name, force=True)
+
+    @unittest.skipUnless(_restore_compatible(),
+                         "restore round-trip needs pg client major <= server major")
+    def test_restoring_a_table_snapshot_keeps_what_it_recovered(self):
+        # orders は customers を参照しているが、テーブル 1 枚のスナップショットに
+        # customers は入らない。**外部キーを持つテーブルなら必ずこうなる**ので、
+        # これを全体の失敗として DB ごと捨てると、安全網が今まさに救い出した行を
+        # 自分で捨てることになる（v1.6.0 の挙動）。
+        # 期待するのは「残す・でも黙って成功にはしない」。
+        name = "cli2ui_backup_restore_fk"
+        if name in {d.name for d in self.engine.list_databases()}:
+            self.engine.drop_database(name, force=True)
+        try:
+            err, warning = _restore_into_new_db(
+                self.conn, name, io.BytesIO(bytes(self.backup.data)))
+            self.assertIsNone(err)
+            # 警告は出す。何事も無かったことにはしない。
+            self.assertTrue(warning)
+            self.assertIn("⚠", warning)
+            self.assertIn(name, {d.name for d in self.engine.list_databases()})
+            restored = SimpleNamespace(kind="postgres", host="localhost", port=5433,
+                                       dbname=name, user="demo", password="demo")
+            rows = get_engine(restored).run_query("SELECT count(*) FROM orders")
+            self.assertGreater(rows.rows[0][0], 0)
         finally:
             with contextlib.suppress(EngineError):
                 self.engine.drop_database(name, force=True)
