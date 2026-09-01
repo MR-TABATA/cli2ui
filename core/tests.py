@@ -51,6 +51,7 @@ from core.models import Backup, Connection, PlanSnapshot
 from core.plan_diff import diff_plans, node_from_dict, node_to_dict, to_text
 from core.views.runner import RUNNER_LOCK_TIMEOUT
 from core.views._shared import _prune_old_backups
+from core.views.objects import _restore_into_new_db
 
 
 def node(node_type, *, relation=None, index=None, rows=0.0, cost=0.0,
@@ -518,6 +519,42 @@ class SqlPreviewTests(SimpleTestCase):
                 engine.drop_schema("reporting", cascade=True)
             cur.execute.assert_not_called()
             self.assertFalse(captured.empty)
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_preview_does_not_execute_any_drop_the_panel_previews(self, connect):
+        # v1.6.0 は `_execute` だけを塞いで出荷し、**2 本目の執行経路**である
+        # `_execute_admin` が素通しのままだった。データベース単位の文はそちらを
+        # 通るので、DROP DATABASE の下見が本物の DROP になり、Objects パネルは
+        # 一覧の全行を下見する ＝ **開くだけで全部消えた**。
+        # 1 つが安全でも他が安全とは限らないので、代表ではなく全部を見る。
+        with self._rendering():
+            cur = connect.return_value.cursor.return_value.__enter__.return_value
+            engine = self._engine()
+            drops = {
+                "database": lambda: engine.drop_database("victim"),
+                "schema": lambda: engine.drop_schema("reporting", cascade=True),
+                "role": lambda: engine.drop_role("intern"),
+            }
+            for kind, call in drops.items():
+                with self.subTest(kind=kind):
+                    cur.execute.reset_mock()
+                    with engine.preview() as captured:
+                        call()
+                    cur.execute.assert_not_called()
+                    self.assertFalse(captured.empty)
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_preview_of_a_database_write_ends_with_the_block(self, connect):
+        # 塞いだ側が漏れて実行を止め続けると、ボタンが黙って効かなくなる。
+        # `_execute` 側と同じ性質を、`_execute_admin` 側でも確かめる。
+        with self._rendering():
+            cur = connect.return_value.cursor.return_value.__enter__.return_value
+            engine = self._engine()
+            with engine.preview():
+                engine.drop_database("a")
+            cur.execute.reset_mock()
+            engine.drop_database("b")
+            self.assertTrue(cur.execute.called)
 
     @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
     def test_preview_shows_the_lock_guard_too(self, connect):
@@ -2182,6 +2219,28 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
         """Create a throwaway table for write tests; caller drops it in finally."""
         self.engine.run_query(ddl, read_only=False)
 
+    def test_previewing_a_database_drop_leaves_the_database_there(self):
+        # 本物のサーバで確かめる版。モックは「execute を呼ばなかった」しか言えず、
+        # v1.6.0 のときはその execute が別のメソッドの中にあった。
+        name = "cli2ui_test_preview_db"
+        if name in [d.name for d in self.engine.list_databases()]:
+            self.engine.drop_database(name, force=True)   # 前回の残骸
+        self.engine.create_database(name)
+        try:
+            with self.engine.preview() as captured:
+                self.engine.drop_database(name)
+            self.assertIn(name, [d.name for d in self.engine.list_databases()])
+            self.assertIn("DROP DATABASE", captured.text)
+        finally:
+            self.engine.drop_database(name, force=True)
+
+    def test_previewing_a_database_create_creates_nothing(self):
+        name = "cli2ui_test_preview_new_db"
+        with self.engine.preview() as captured:
+            self.engine.create_database(name)
+        self.assertNotIn(name, [d.name for d in self.engine.list_databases()])
+        self.assertIn("CREATE DATABASE", captured.text)
+
     def test_ddl_gives_up_rather_than_queueing_behind_a_lock(self):
         # The outage this guards against, against a real server: an ALTER TABLE
         # wants ACCESS EXCLUSIVE, so it waits behind any open transaction that
@@ -3123,6 +3182,33 @@ class BackupPanelTests(TestCase):
             conn = SimpleNamespace(kind="postgres", host="localhost", port=5433,
                                    dbname=name, user="demo", password="demo")
             self.assertIn("orders", {t.name for t in get_engine(conn).list_tables()})
+        finally:
+            with contextlib.suppress(EngineError):
+                self.engine.drop_database(name, force=True)
+
+    @unittest.skipUnless(_restore_compatible(),
+                         "restore round-trip needs pg client major <= server major")
+    def test_restoring_a_table_snapshot_keeps_what_it_recovered(self):
+        # orders は customers を参照しているが、テーブル 1 枚のスナップショットに
+        # customers は入らない。**外部キーを持つテーブルなら必ずこうなる**ので、
+        # これを全体の失敗として DB ごと捨てると、安全網が今まさに救い出した行を
+        # 自分で捨てることになる（v1.6.0 の挙動）。
+        # 期待するのは「残す・でも黙って成功にはしない」。
+        name = "cli2ui_backup_restore_fk"
+        if name in {d.name for d in self.engine.list_databases()}:
+            self.engine.drop_database(name, force=True)
+        try:
+            err, warning = _restore_into_new_db(
+                self.conn, name, io.BytesIO(bytes(self.backup.data)))
+            self.assertIsNone(err)
+            # 警告は出す。何事も無かったことにはしない。
+            self.assertTrue(warning)
+            self.assertIn("⚠", warning)
+            self.assertIn(name, {d.name for d in self.engine.list_databases()})
+            restored = SimpleNamespace(kind="postgres", host="localhost", port=5433,
+                                       dbname=name, user="demo", password="demo")
+            rows = get_engine(restored).run_query("SELECT count(*) FROM orders")
+            self.assertGreater(rows.rows[0][0], 0)
         finally:
             with contextlib.suppress(EngineError):
                 self.engine.drop_database(name, force=True)

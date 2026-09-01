@@ -17,6 +17,72 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-09-01
+
+A fix for a data-loss bug introduced in 1.6.0. **Upgrade before opening the
+Objects panel again**, and see below for what to check if you already have.
+
+### Fixed
+
+- **Opening the Objects panel dropped databases.** Not on a click, not on a
+  confirmation — on rendering the panel.
+
+  1.6.0 added "the SQL a button is about to run, shown in its confirmation". It
+  works by calling the *same* method the button would call, inside
+  `engine.preview()`, and capturing what the executor composed instead of
+  sending it. The Objects panel does that for every row it lists, so it can show
+  each row's `DROP` before you press.
+
+  The capture was implemented in `_execute`. Database-level statements do not go
+  through `_execute` — they need a connection to a *different* database, so they
+  take a second path, `_execute_admin`, and that path had no capture. Previewing
+  a `DROP DATABASE` therefore ran it.
+
+  The blast radius was every database on the server that the connection was
+  allowed to drop: the connected database refuses to drop itself, and the
+  maintenance database (`postgres`) fails because it is in use, so those two
+  survived. Everything else went, silently, at render time.
+
+  PostgreSQL only. MySQL's `drop_database` goes through `_execute` and was never
+  affected. Schemas and roles were never affected either, for the same reason.
+
+  **If you ran 1.6.0 against a server with databases you care about**, check
+  whether they are still there before doing anything else. They were dropped
+  without `WITH (FORCE)`, so a database with an open connection at that moment
+  survived; anything idle did not. cli2ui's own auto-backup does not cover this
+  path — the drop came from the preview, which takes no snapshot.
+
+  Both execution paths are now guarded, and the tests cover every drop the panel
+  previews rather than one representative of them. The 1.6.0 test suite did
+  contain the failing end-to-end test that would have caught this; there was no
+  CI running it.
+
+- **Restoring a table snapshot threw away what it had just recovered.** The
+  automatic safety snapshot taken before a destructive table operation is a
+  single-table dump. A table's foreign keys point at tables such a dump has no
+  room for, so restoring it always hit "relation does not exist" — and the
+  restore was strict, so one unapplicable constraint failed the whole operation
+  and the database, already filled with the rows the snapshot existed to
+  protect, was dropped again.
+
+  Most tables have a foreign key. This was the common case, not the corner one:
+  the safety net worked right up until you needed it.
+
+  Restoring into a *brand-new* database is now lenient — it applies everything
+  it can, which also recovers the primary key and indexes that sat after the
+  failing constraint in the archive — and then **asks the database what landed**
+  rather than reading the tool's message, which the server writes in its own
+  language. An empty database still means failure and is still dropped. A
+  database with tables in it is kept, with a warning saying which parts could
+  not be applied. Restoring into an *existing* database is unchanged and still
+  all-or-nothing.
+
+  This was covered by a test the whole time. It never ran on the author's
+  machine: the round trip is skipped when the local `pg_dump` is newer than the
+  server, which it always was. CI, on a version-matched pair, ran it on the
+  first try.
+
+
 ## [1.6.0] - 2026-08-28
 
 Press it and find out — that was the whole confirmation dialog. Now the button
