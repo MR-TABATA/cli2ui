@@ -520,6 +520,42 @@ class SqlPreviewTests(SimpleTestCase):
             self.assertFalse(captured.empty)
 
     @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_preview_does_not_execute_any_drop_the_panel_previews(self, connect):
+        # v1.6.0 は `_execute` だけを塞いで出荷し、**2 本目の執行経路**である
+        # `_execute_admin` が素通しのままだった。データベース単位の文はそちらを
+        # 通るので、DROP DATABASE の下見が本物の DROP になり、Objects パネルは
+        # 一覧の全行を下見する ＝ **開くだけで全部消えた**。
+        # 1 つが安全でも他が安全とは限らないので、代表ではなく全部を見る。
+        with self._rendering():
+            cur = connect.return_value.cursor.return_value.__enter__.return_value
+            engine = self._engine()
+            drops = {
+                "database": lambda: engine.drop_database("victim"),
+                "schema": lambda: engine.drop_schema("reporting", cascade=True),
+                "role": lambda: engine.drop_role("intern"),
+            }
+            for kind, call in drops.items():
+                with self.subTest(kind=kind):
+                    cur.execute.reset_mock()
+                    with engine.preview() as captured:
+                        call()
+                    cur.execute.assert_not_called()
+                    self.assertFalse(captured.empty)
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
+    def test_preview_of_a_database_write_ends_with_the_block(self, connect):
+        # 塞いだ側が漏れて実行を止め続けると、ボタンが黙って効かなくなる。
+        # `_execute` 側と同じ性質を、`_execute_admin` 側でも確かめる。
+        with self._rendering():
+            cur = connect.return_value.cursor.return_value.__enter__.return_value
+            engine = self._engine()
+            with engine.preview():
+                engine.drop_database("a")
+            cur.execute.reset_mock()
+            engine.drop_database("b")
+            self.assertTrue(cur.execute.called)
+
+    @unittest.mock.patch("core.engines.postgres.psycopg2.connect")
     def test_preview_shows_the_lock_guard_too(self, connect):
         with self._rendering():
             # 破壊的 DDL の前に必ず流れる SET lock_timeout も、ボタンがやることの一部。
@@ -2181,6 +2217,28 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
     def _scratch_table(self, ddl):
         """Create a throwaway table for write tests; caller drops it in finally."""
         self.engine.run_query(ddl, read_only=False)
+
+    def test_previewing_a_database_drop_leaves_the_database_there(self):
+        # 本物のサーバで確かめる版。モックは「execute を呼ばなかった」しか言えず、
+        # v1.6.0 のときはその execute が別のメソッドの中にあった。
+        name = "cli2ui_test_preview_db"
+        if name in [d.name for d in self.engine.list_databases()]:
+            self.engine.drop_database(name, force=True)   # 前回の残骸
+        self.engine.create_database(name)
+        try:
+            with self.engine.preview() as captured:
+                self.engine.drop_database(name)
+            self.assertIn(name, [d.name for d in self.engine.list_databases()])
+            self.assertIn("DROP DATABASE", captured.text)
+        finally:
+            self.engine.drop_database(name, force=True)
+
+    def test_previewing_a_database_create_creates_nothing(self):
+        name = "cli2ui_test_preview_new_db"
+        with self.engine.preview() as captured:
+            self.engine.create_database(name)
+        self.assertNotIn(name, [d.name for d in self.engine.list_databases()])
+        self.assertIn("CREATE DATABASE", captured.text)
 
     def test_ddl_gives_up_rather_than_queueing_behind_a_lock(self):
         # The outage this guards against, against a real server: an ALTER TABLE

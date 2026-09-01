@@ -1036,7 +1036,23 @@ class PostgresEngine(Engine):
 
         No lock_timeout, unlike _execute: CREATE / DROP / ALTER DATABASE take no
         table lock, so they can't build a queue in front of other queries — they
-        just fail outright when someone else is connected."""
+        just fail outright when someone else is connected.
+
+        Inside engine.preview() nothing is sent — the same rule as _execute, and
+        the reason this is not a copy of a comment but a guard: this is the
+        *second* execution path, and v1.6.0 only guarded the first. Every
+        database-level write goes through here, so previewing a DROP DATABASE
+        dropped the database. The Objects panel previews the drop of every row it
+        lists, which made rendering that panel destroy every database on the
+        server it was allowed to touch. Any new execution path added later needs
+        this guard on the day it is added, not after."""
+        if getattr(self, "_preview", None) is not None:
+            # Rendering needs a connection (identifier quoting is the server's
+            # business), but nothing is executed on it.
+            with self._connect(dbname=self._maintenance_dbname()) as conn:
+                self._preview.statements.append(statement.as_string(conn))
+            return
+
         with self._connect(dbname=self._maintenance_dbname()) as conn:
             with conn.cursor() as cur:
                 try:
