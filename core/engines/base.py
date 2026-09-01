@@ -8,8 +8,17 @@ from graphlib import CycleError, TopologicalSorter
 class EngineError(Exception):
     """Raised when connecting to or querying the target database fails.
 
-    Carries a message that is safe to show in the UI.
+    Carries a message that is safe to show in the UI and, when the driver gave
+    us one, the SQLSTATE behind it. The code matters wherever a failure is an
+    *answer* rather than a fault: the DDL rehearsal reads "canceled by
+    statement_timeout" (57014) and "lock not available" (55P03) as results, and
+    matching on the message text would break on a server running in another
+    language. Callers that only show the message ignore it.
     """
+
+    def __init__(self, message, *, sqlstate: str | None = None):
+        super().__init__(message)
+        self.sqlstate = sqlstate
 
 
 def _human_seconds(secs: float | None) -> str | None:

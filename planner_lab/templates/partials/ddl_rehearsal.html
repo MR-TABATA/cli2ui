@@ -1,0 +1,37 @@
+{% load i18n %}{% if error %}
+  <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-2.5 text-sm text-red-200/90 mono">{{ error }}</div>
+{% else %}
+  <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 space-y-3">
+    <!-- The headline. A timeout is a result, not a failure, so only "would not
+         run at all" gets the red tone. -->
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="px-2.5 py-1 rounded text-sm font-medium
+        {% if verdict.tone == 'good' %}bg-emerald-500/15 text-emerald-300
+        {% elif verdict.tone == 'warn' %}bg-amber-500/15 text-amber-300
+        {% else %}bg-red-500/15 text-red-300{% endif %}">{{ verdict.label }}</span>
+      <span class="text-xs text-zinc-500">{% blocktrans with budget=rehearsal.budget_ms wait=rehearsal.lock_timeout %}budget {{ budget }} ms · lock wait {{ wait }}{% endblocktrans %}</span>
+    </div>
+
+    {% if rehearsal.outcome == 'error' %}
+      <p class="text-sm text-red-200/90 mono break-all">{{ rehearsal.message }}</p>
+      <p class="text-xs text-zinc-500">{% trans "Found here instead of in production, and nothing was changed." %}</p>
+    {% elif rehearsal.over_budget %}
+      {% if rehearsal.limit == 'lock' %}
+        <p class="text-xs text-zinc-400">{% trans "The statement never reached the table — another transaction is holding it. That is what the real change would hit too. Check the Locks panel, then try again." %}</p>
+      {% else %}
+        <p class="text-xs text-zinc-400">{% trans "The statement was still working when the budget ran out. Running it for real would hold ACCESS EXCLUSIVE at least this long, and every reader would queue behind it." %}</p>
+      {% endif %}
+    {% else %}
+      <p class="text-xs text-zinc-400">{% trans "Measured, not estimated: the statement really ran. The real button sends it as one autocommit statement, so this is how long the table is locked." %}</p>
+    {% endif %}
+
+    {% if rehearsal.ddl %}
+      <div>
+        <div class="text-[10px] uppercase tracking-wide text-zinc-400 mb-1">{% trans "Statement" %}</div>
+        <code class="block text-xs mono text-zinc-300 break-all">{{ rehearsal.ddl }}</code>
+      </div>
+    {% endif %}
+
+    <p class="text-xs text-zinc-500">{% trans "Rolled back — the column is unchanged." %}</p>
+  </div>
+{% endif %}

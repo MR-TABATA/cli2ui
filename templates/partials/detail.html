@@ -365,15 +365,35 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
           </div>
         </form>
 
-        <form hx-post="{% url 'column_set_null' connection.pk %}" hx-target="#detail" hx-swap="innerHTML" class="space-y-2">
-          <input type="hidden" name="schema" value="{{ schema }}">
-          <input type="hidden" name="table" value="{{ table }}">
-          <input type="hidden" name="column" :value="ctx.column">
-          <input type="hidden" name="nullable" :value="ctx.nullable ? '0' : '1'">
+        <div class="space-y-2">
           <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "Nullability" %}</label>
-          <button type="submit" class="btn btn-sm btn-neutral"
-                  x-text="ctx.nullable ? '{% trans 'set NOT NULL' %}' : '{% trans 'drop NOT NULL' %}'"></button>
-        </form>
+          <div class="flex flex-wrap items-center gap-2">
+            <form hx-post="{% url 'column_set_null' connection.pk %}" hx-target="#detail" hx-swap="innerHTML">
+              <input type="hidden" name="schema" value="{{ schema }}">
+              <input type="hidden" name="table" value="{{ table }}">
+              <input type="hidden" name="column" :value="ctx.column">
+              <input type="hidden" name="nullable" :value="ctx.nullable ? '0' : '1'">
+              <button type="submit" class="btn btn-sm btn-neutral"
+                      x-text="ctx.nullable ? '{% trans 'set NOT NULL' %}' : '{% trans 'drop NOT NULL' %}'"></button>
+            </form>
+            {% if 'planner_lab' in enabled_features and connection.kind == 'postgres' %}
+            <!-- Rehearse it first. Only for SET NOT NULL: dropping the constraint
+                 is catalog-only, so there is nothing to time. -->
+            <form x-show="ctx.nullable" hx-post="{% url 'ddl_rehearsal' connection.pk %}"
+                  hx-target="#ddl-rehearsal" hx-swap="innerHTML"
+                  hx-disabled-elt="find button[type=submit]">
+              <input type="hidden" name="schema" value="{{ schema }}">
+              <input type="hidden" name="table" value="{{ table }}">
+              <input type="hidden" name="column" :value="ctx.column">
+              <button type="submit" class="btn btn-sm btn-neutral">{% trans "Rehearse it" %}</button>
+            </form>
+            {% endif %}
+          </div>
+          {% if 'planner_lab' in enabled_features and connection.kind == 'postgres' %}
+            <p x-show="ctx.nullable" class="text-xs text-zinc-500">{% trans "Runs the real statement and rolls it back. It takes a real ACCESS EXCLUSIVE lock while it runs, so readers queue behind it — briefly, but for real." %}</p>
+            <div id="ddl-rehearsal"></div>
+          {% endif %}
+        </div>
 
         <form hx-post="{% url 'column_set_default' connection.pk %}" hx-target="#detail" hx-swap="innerHTML" class="space-y-2">
           <input type="hidden" name="schema" value="{{ schema }}">

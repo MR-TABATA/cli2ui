@@ -10,4 +10,5 @@ urlpatterns = [
     path("c/<int:pk>/scale", views.scale_run, name="scale_run"),
     path("c/<int:pk>/lab", views.index_lab, name="index_lab"),
     path("c/<int:pk>/lab/preview", views.index_lab_preview, name="index_lab_preview"),
+    path("c/<int:pk>/rehearse", views.ddl_rehearsal, name="ddl_rehearsal"),
 ]
