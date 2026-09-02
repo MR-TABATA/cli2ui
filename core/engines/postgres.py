@@ -190,6 +190,21 @@ def build_create_index_sql(schema, table, columns, *, method="btree",
     return sql.SQL(" ").join(parts)
 
 
+def build_set_null_sql(schema, table, column, *, nullable: bool):
+    """Compose the ALTER TABLE ... ALTER COLUMN ... SET/DROP NOT NULL statement.
+
+    Shared by the real change and the v1.7 DDL rehearsal, which runs this very
+    statement inside a transaction that is always rolled back. Sharing it is the
+    whole point: a rehearsal of a statement the button would not send measures
+    nothing. Identifiers go through sql.Identifier; the only raw SQL is the
+    fixed action word, chosen here rather than passed in.
+    """
+    action = sql.SQL("DROP NOT NULL") if nullable else sql.SQL("SET NOT NULL")
+    return sql.SQL("ALTER TABLE {}.{} ALTER COLUMN {} {}").format(
+        sql.Identifier(schema), sql.Identifier(table),
+        sql.Identifier(column), action)
+
+
 def _json_type(v) -> str:
     """The jsonb_typeof label for an already-parsed Python value. bool is checked
     before int/float because in Python `True` is also an `int`."""
@@ -333,7 +348,10 @@ class PostgresEngine(Engine):
                     cur.execute("SET LOCAL lock_timeout = %s", [lock_timeout])
                     yield cur
             except psycopg2.Error as exc:
-                raise EngineError(_clean(exc)) from exc
+                # Carry the SQLSTATE: the DDL rehearsal needs to tell "did not
+                # fit in the budget" (an answer) from "would not run" (a fault),
+                # and the message text is localized by the server.
+                raise EngineError(_clean(exc), sqlstate=exc.pgcode) from exc
             finally:
                 conn.rollback()  # the what-if is never persisted
 
@@ -1168,10 +1186,7 @@ class PostgresEngine(Engine):
     def set_column_null(self, schema: str, table: str, name: str, *,
                         nullable: bool) -> None:
         self._require_column(schema, table, name)
-        action = sql.SQL("DROP NOT NULL") if nullable else sql.SQL("SET NOT NULL")
-        self._execute(sql.SQL("ALTER TABLE {}.{} ALTER COLUMN {} {}").format(
-            sql.Identifier(schema), sql.Identifier(table),
-            sql.Identifier(name), action))
+        self._execute(build_set_null_sql(schema, table, name, nullable=nullable))
 
     def set_column_default(self, schema: str, table: str, name: str,
                            default: str | None) -> None:

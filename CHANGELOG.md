@@ -17,6 +17,46 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Added
+
+- **Rehearse an `ALTER`, then throw it away.** v1.6.0 showed you the statement
+  before you pressed. This runs it — for real, against your table, inside a
+  transaction that is always rolled back — and tells you what happened.
+
+  `ALTER` is the only destructive operation that can be rehearsed at all:
+  PostgreSQL can roll back DDL. `DROP` cannot be tried and undone, which is why
+  everything else in this family stops at showing you what it would take with
+  it.
+
+  Three answers come back, and all three are answers:
+
+  - **It fits** — with the measured time the statement held ACCESS EXCLUSIVE.
+    Measured, not estimated: the real button sends the statement as a single
+    autocommit statement, so the statement's duration is the hold.
+  - **It does not fit** — the budget ran out while it was still working. This
+    is not an error. "It does not finish in 3 seconds on this table" is what
+    you came to find out, and the timeout is treated as the result rather than
+    as a failure. When the bound that stopped it was the lock wait rather than
+    the work, it says so: somebody else is holding the table, which is exactly
+    what the real change would have hit.
+  - **It would not run at all** — existing NULLs, a column that is not there.
+    Found in a second, at no cost, instead of in production.
+
+  What it costs is said out loud, before you press: the rehearsal takes a real
+  ACCESS EXCLUSIVE lock for as long as it runs, so readers really do queue
+  behind it. Briefly, but for real. A simulation would have cost nothing and
+  told you nothing.
+
+  The rehearsal composes the statement with the *same* builder the real change
+  uses, so it cannot drift into measuring something the button would not send —
+  the same rule the v1.6.0 preview follows.
+
+  `SET NOT NULL` only, for now. `ALTER COLUMN TYPE` rewrites the table, and a
+  rewrite burns WAL and temporary disk for real even when the transaction is
+  rolled back; that needs a size gatekeeper first.
+
+  PostgreSQL only. MySQL commits DDL implicitly, so there is nothing to roll
+  back and no rehearsal to offer.
 ## [1.6.1] - 2026-09-01
 
 Two data-loss fixes: one introduced in 1.6.0, and one that has been there since

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-01 08:54-0500\n"
+"POT-Creation-Date: 2026-09-01 09:06-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -23,23 +23,24 @@ msgid "Unsupported database kind: %(kind)s"
 msgstr "未対応のデータベース種別: %(kind)s"
 
 #: core/engines/mysql.py:438 core/engines/mysql.py:845
-#: core/engines/mysql.py:851 core/engines/postgres.py:416
-#: core/engines/postgres.py:517 core/engines/postgres.py:1190
+#: core/engines/mysql.py:851 core/engines/postgres.py:434
+#: core/engines/postgres.py:535 core/engines/postgres.py:1205
+#: planner_lab/rehearsal.py:86
 #, python-format
 msgid "No such column: %(name)s"
 msgstr "存在しない列: %(name)s"
 
-#: core/engines/mysql.py:440 core/engines/postgres.py:519
+#: core/engines/mysql.py:440 core/engines/postgres.py:537
 #, python-format
 msgid "Unknown filter operator: %(op)s"
 msgstr "不明なフィルタ演算子: %(op)s"
 
 #: core/engines/mysql.py:485 core/engines/mysql.py:490
-#: core/engines/postgres.py:569
+#: core/engines/postgres.py:587
 msgid "The CSV file is empty."
 msgstr "CSV ファイルが空です。"
 
-#: core/engines/mysql.py:495 core/engines/postgres.py:576
+#: core/engines/mysql.py:495 core/engines/postgres.py:594
 #, python-format
 msgid "CSV header has columns not in %(table)s: %(cols)s"
 msgstr "%(table)s に無い列が CSV ヘッダにあります: %(cols)s"
@@ -96,7 +97,7 @@ msgstr "未対応のインデックス方式: %(method)s"
 msgid "Select at least one column to index."
 msgstr "インデックス対象の列を1つ以上選んでください。"
 
-#: core/engines/mysql.py:742 core/engines/postgres.py:1085
+#: core/engines/mysql.py:742 core/engines/postgres.py:1103
 #: planner_lab/whatif.py:115
 #, python-format
 msgid "No such column(s): %(cols)s"
@@ -119,7 +120,7 @@ msgstr "孤児行チェックはここでは PostgreSQL の機能です。"
 msgid "mysqldump timed out."
 msgstr "mysqldump がタイムアウトしました。"
 
-#: core/engines/mysql.py:1001 core/engines/postgres.py:1307
+#: core/engines/mysql.py:1001 core/engines/postgres.py:1322
 msgid "restore timed out."
 msgstr "リストアがタイムアウトしました。"
 
@@ -137,7 +138,7 @@ msgstr ""
 "MySQL にレプリケーションスロットはありません — 削除するものはありません。"
 
 #: core/engines/mysql.py:1184 core/engines/mysql.py:1189
-#: core/engines/mysql.py:1199 core/engines/postgres.py:1705
+#: core/engines/mysql.py:1199 core/engines/postgres.py:1720
 #, python-format
 msgid "Unknown setting: %(name)s"
 msgstr "不明な設定: %(name)s"
@@ -153,25 +154,25 @@ msgstr ""
 "クションが保持しています。変更は行われていません。保持者は「ロック」パネルで"
 "確認し、解放されてから再実行してください。"
 
-#: core/engines/postgres.py:419
+#: core/engines/postgres.py:437
 #, python-format
 msgid "%(name)s is not a JSON column."
 msgstr "%(name)s は JSON 列ではありません。"
 
-#: core/engines/postgres.py:1214
+#: core/engines/postgres.py:1229
 #, python-format
 msgid "Unknown dump format: %(fmt)s"
 msgstr "不明なダンプ形式: %(fmt)s"
 
-#: core/engines/postgres.py:1232
+#: core/engines/postgres.py:1247
 msgid "pg_dump timed out."
 msgstr "pg_dump がタイムアウトしました。"
 
-#: core/engines/postgres.py:1427
+#: core/engines/postgres.py:1442
 msgid "That table no longer exists."
 msgstr ""
 
-#: core/engines/postgres.py:1473
+#: core/engines/postgres.py:1488
 msgid ""
 "This index no longer looks like a composite UNIQUE with a nullable column — "
 "it may have changed since the panel loaded."
@@ -180,11 +181,11 @@ msgstr ""
 "てから作り替えられた可能性があります。この参照はもう単一の親に解決できません "
 "— パネルを開いてから変わった可能性があります。"
 
-#: core/engines/postgres.py:1582
+#: core/engines/postgres.py:1597
 msgid "No relationship to check was given."
 msgstr "チェックする関係が指定されていません。"
 
-#: core/engines/postgres.py:1595
+#: core/engines/postgres.py:1610
 msgid ""
 "This reference no longer resolves to a single parent — it may have changed "
 "since the panel loaded."
@@ -192,7 +193,7 @@ msgstr ""
 "この参照はもう単一の親に解決できません — パネルを開いてから変わった可能性があ"
 "ります。"
 
-#: core/engines/postgres.py:1790
+#: core/engines/postgres.py:1805
 #, python-format
 msgid ""
 "Gave up after waiting %(timeout)s for a lock on this object — another "
@@ -203,7 +204,7 @@ msgstr ""
 "クションが保持しています。変更は行われていません。保持者は「ロック」パネルで"
 "確認し、解放されてから再実行してください。"
 
-#: core/engines/postgres.py:1799
+#: core/engines/postgres.py:1814
 #, python-format
 msgid ""
 "Gave up after waiting %(timeout)s to measure table sizes — another "
@@ -255,9 +256,9 @@ msgid ""
 "objects the snapshot does not contain (a single-table snapshot has no room "
 "for what its foreign keys point at). The tables and rows are there. %(err)s"
 msgstr ""
-"⚠ 復元しましたが、スナップショットの一部は適用できませんでした。中に入っていな"
-"いものを参照しているためです（テーブル 1 枚のスナップショットには、その外部キー"
-"が指す先を入れる余地がありません）。テーブルと行は入っています。%(err)s"
+"⚠ 復元しましたが、スナップショットの一部は適用できませんでした。中に入ってい"
+"ないものを参照しているためです（テーブル 1 枚のスナップショットには、その外部"
+"キーが指す先を入れる余地がありません）。テーブルと行は入っています。%(err)s"
 
 #: core/views/objects.py:141
 msgid "Provide the database name."
@@ -336,6 +337,51 @@ msgstr "列名を入力してください。"
 msgid "Enter a new column name."
 msgstr "新しい列名を入力してください。"
 
+#: planner_lab/templates/partials/ddl_rehearsal.html:12
+#, python-format
+msgid "budget %(budget)s ms · lock wait %(wait)s"
+msgstr "予算 %(budget)s ms ・ ロック待ち %(wait)s"
+
+#: planner_lab/templates/partials/ddl_rehearsal.html:17
+msgid "Found here instead of in production, and nothing was changed."
+msgstr "本番ではなく、ここで見つかった。何も変わっていない。"
+
+#: planner_lab/templates/partials/ddl_rehearsal.html:20
+msgid ""
+"The statement never reached the table — another transaction is holding it. "
+"That is what the real change would hit too. Check the Locks panel, then try "
+"again."
+msgstr ""
+"文はテーブルに届いていない。別のトランザクションが掴んでいる。本番で実行しても"
+"同じところで止まる。ロックのパネルを見てから、もう一度。"
+
+#: planner_lab/templates/partials/ddl_rehearsal.html:22
+msgid ""
+"The statement was still working when the budget ran out. Running it for real "
+"would hold ACCESS EXCLUSIVE at least this long, and every reader would queue "
+"behind it."
+msgstr ""
+"予算が尽きた時点で、文はまだ動いていた。本番で実行すれば ACCESS EXCLUSIVE を"
+"最低でもこの長さ握り、読み取りは全部その後ろに並ぶ。"
+
+#: planner_lab/templates/partials/ddl_rehearsal.html:25
+msgid ""
+"Measured, not estimated: the statement really ran. The real button sends it "
+"as one autocommit statement, so this is how long the table is locked."
+msgstr ""
+"見積もりではなく実測。文は本当に実行された。本番のボタンは autocommit の 1 文で"
+"送るので、これがテーブルを止める長さそのもの。"
+
+#: planner_lab/templates/partials/ddl_rehearsal.html:30
+#: planner_lab/templates/partials/index_lab_result.html:40
+#: templates/partials/history.html:27
+msgid "Statement"
+msgstr "ステートメント"
+
+#: planner_lab/templates/partials/ddl_rehearsal.html:35
+msgid "Rolled back — the column is unchanged."
+msgstr "ロールバック済み。列は変わっていない。"
+
 #: planner_lab/templates/partials/index_lab.html:4
 #: templates/partials/_bento.html:23 templates/workspace.html:37
 msgid "Index lab"
@@ -374,7 +420,7 @@ msgid "— click columns in order"
 msgstr "— 列を順にクリック"
 
 #: planner_lab/templates/partials/index_lab.html:64
-#: templates/partials/detail.html:151 templates/partials/detail.html:424
+#: templates/partials/detail.html:151 templates/partials/detail.html:444
 msgid "unique"
 msgstr "ユニーク"
 
@@ -424,11 +470,6 @@ msgstr "計画が変化"
 #: planner_lab/templates/partials/scale_result.html:38
 msgid "same shape"
 msgstr "同じ形"
-
-#: planner_lab/templates/partials/index_lab_result.html:40
-#: templates/partials/history.html:27
-msgid "Statement"
-msgstr "ステートメント"
 
 #: planner_lab/templates/partials/index_lab_result.html:45
 msgid "Create this index for real (CONCURRENTLY)? This one persists."
@@ -483,9 +524,32 @@ msgstr ""
 "実際の実行時間ではなく計画の<em>形</em>を示します。選択性は一定（均一な増"
 "加）。スーパーユーザー接続が必要です。"
 
-#: planner_lab/views.py:90
+#: planner_lab/views.py:92
 msgid "Pick a target query and at least one column."
 msgstr "対象クエリと列を1つ以上選んでください。"
+
+#: planner_lab/views.py:139
+msgid "Pick a column to rehearse."
+msgstr "リハーサルする列を選ぶ。"
+
+#: planner_lab/views.py:161
+#, python-format
+msgid "fits — holds ACCESS EXCLUSIVE for %(ms)s ms"
+msgstr "収まる — ACCESS EXCLUSIVE を %(ms)s ms 握る"
+
+#: planner_lab/views.py:167
+#, python-format
+msgid "never got the table — somebody else holds it (waited %(wait)s)"
+msgstr "テーブルを取れなかった — 誰かが掴んでいる（%(wait)s 待った）"
+
+#: planner_lab/views.py:173
+#, python-format
+msgid "does not fit — still running at %(ms)s ms"
+msgstr "収まらない — %(ms)s ms でもまだ動いている"
+
+#: planner_lab/views.py:177
+msgid "would not run at all"
+msgstr "そもそも通らない"
 
 #: planner_lab/whatif.py:159
 msgid "Scale simulation needs a superuser connection (it edits pg_class)."
@@ -513,7 +577,7 @@ msgstr "種別"
 
 #: templates/index.html:17 templates/partials/detail.html:69
 #: templates/partials/detail.html:138 templates/partials/detail.html:322
-#: templates/partials/detail.html:415 templates/partials/extensions.html:28
+#: templates/partials/detail.html:435 templates/partials/extensions.html:28
 #: templates/partials/extensions.html:64 templates/partials/objects.html:34
 #: templates/partials/objects.html:95 templates/partials/objects.html:184
 #: templates/partials/objects.html:252 templates/partials/objects.html:263
@@ -523,7 +587,7 @@ msgid "Name"
 msgstr "名前"
 
 #: templates/index.html:17 templates/partials/detail.html:332
-#: templates/partials/detail.html:415 templates/partials/objects.html:188
+#: templates/partials/detail.html:435 templates/partials/objects.html:188
 #: templates/partials/objects.html:283 templates/partials/objects.html:310
 msgid "(optional)"
 msgstr "（任意）"
@@ -1039,7 +1103,7 @@ msgid "Nullable"
 msgstr "NULL 許容"
 
 #: templates/partials/detail.html:72 templates/partials/detail.html:332
-#: templates/partials/detail.html:383
+#: templates/partials/detail.html:403
 msgid "Default"
 msgstr "デフォルト"
 
@@ -1091,11 +1155,11 @@ msgstr "本番作成の前にインデックスを試して計測します"
 msgid "Try an index"
 msgstr "インデックスを試す"
 
-#: templates/partials/detail.html:131 templates/partials/detail.html:425
+#: templates/partials/detail.html:131 templates/partials/detail.html:445
 msgid "+ Create index"
 msgstr "+ インデックスを作成"
 
-#: templates/partials/detail.html:140 templates/partials/detail.html:419
+#: templates/partials/detail.html:140 templates/partials/detail.html:439
 msgid "Method"
 msgstr "方式"
 
@@ -1289,35 +1353,47 @@ msgstr "（現在）"
 msgid "Change"
 msgstr "変更"
 
-#: templates/partials/detail.html:374
+#: templates/partials/detail.html:370
 msgid "Nullability"
 msgstr "NULL許可"
 
-#: templates/partials/detail.html:376
+#: templates/partials/detail.html:378
 msgid "set NOT NULL"
 msgstr "NOT NULL を設定"
 
-#: templates/partials/detail.html:376
+#: templates/partials/detail.html:378
 msgid "drop NOT NULL"
 msgstr "NOT NULL を解除"
 
-#: templates/partials/detail.html:383
+#: templates/partials/detail.html:389
+msgid "Rehearse it"
+msgstr "リハーサル"
+
+#: templates/partials/detail.html:394
+msgid ""
+"Runs the real statement and rolls it back. It takes a real ACCESS EXCLUSIVE "
+"lock while it runs, so readers queue behind it — briefly, but for real."
+msgstr ""
+"本物の文を実行して、ロールバックする。実行中は本物の ACCESS EXCLUSIVE ロックを"
+"取るので、読み取りはその後ろに並ぶ。短いが、本物。"
+
+#: templates/partials/detail.html:403
 msgid "(empty drops it)"
 msgstr "（空で解除）"
 
-#: templates/partials/detail.html:386 templates/partials/settings_row.html:42
+#: templates/partials/detail.html:406 templates/partials/settings_row.html:42
 msgid "Set"
 msgstr "設定"
 
-#: templates/partials/detail.html:402
+#: templates/partials/detail.html:422
 msgid "Click columns in the order you want them indexed."
 msgstr "インデックスしたい順に列をクリックしてください。"
 
-#: templates/partials/detail.html:416
+#: templates/partials/detail.html:436
 msgid "index name"
 msgstr "インデックス名"
 
-#: templates/partials/detail.html:426
+#: templates/partials/detail.html:446
 msgid "built CONCURRENTLY"
 msgstr "CONCURRENTLY で作成"
 

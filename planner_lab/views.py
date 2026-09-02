@@ -1,5 +1,6 @@
-"""The planner workbench panels: the scale simulation and the what-if index lab.
-Split out of core so the whole feature is one removable app."""
+"""The planner workbench panels: the scale simulation, the what-if index lab and
+the DDL rehearsal. Split out of core so the whole feature is one removable app —
+all three ride the same primitive, a transaction that is always rolled back."""
 from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext as _
 
@@ -8,6 +9,7 @@ from core.engines.postgres import INDEX_METHODS
 from core.models import Connection
 from core.plan_diff import diff_plans
 
+from .rehearsal import rehearse_set_not_null
 from .whatif import preview_index, simulate_scale
 
 # Row-count multipliers for the scale simulation: now, 100×, 10000×. Enough
@@ -119,3 +121,57 @@ def _index_verdict(preview):
     if s and s <= 0.67:
         return {"label": f"▲ {1 / s:.1f}× slower", "tone": "bad"}
     return {"label": "≈ no measurable change", "tone": "muted"}
+
+
+def ddl_rehearsal(request, pk):
+    """Rehearse a SET NOT NULL: run the real statement inside the always-rolled-
+    back transaction and report which of the three answers came back — it fits,
+    it does not fit in the budget, or it would not run at all.
+
+    The pair to v1.6.0's "show it before you press": ALTER is the one destructive
+    operation PostgreSQL lets you actually try and throw away."""
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    column = request.POST.get("column", "")
+    if not (schema and table and column):
+        return render(request, "partials/ddl_rehearsal.html",
+                      {"error": _("Pick a column to rehearse.")})
+    try:
+        rehearsal = rehearse_set_not_null(
+            get_engine(connection), schema, table, column)
+    except EngineError as exc:
+        return render(request, "partials/ddl_rehearsal.html", {"error": str(exc)})
+    return render(
+        request,
+        "partials/ddl_rehearsal.html",
+        {
+            "connection": connection, "rehearsal": rehearsal,
+            "schema": schema, "table": table, "column": column,
+            "verdict": _rehearsal_verdict(rehearsal),
+        },
+    )
+
+
+def _rehearsal_verdict(rehearsal):
+    """A plain-language headline. All three outcomes are answers, so only the
+    one that says "this would not run" is toned as bad."""
+    if rehearsal.completed:
+        return {
+            "label": _("fits — holds ACCESS EXCLUSIVE for %(ms)s ms")
+                     % {"ms": f"{rehearsal.ran_ms:.0f}"},
+            "tone": "good",
+        }
+    if rehearsal.limit == "lock":
+        return {
+            "label": _("never got the table — somebody else holds it (waited %(wait)s)")
+                     % {"wait": rehearsal.lock_timeout},
+            "tone": "warn",
+        }
+    if rehearsal.over_budget:
+        return {
+            "label": _("does not fit — still running at %(ms)s ms")
+                     % {"ms": rehearsal.budget_ms},
+            "tone": "warn",
+        }
+    return {"label": _("would not run at all"), "tone": "bad"}
