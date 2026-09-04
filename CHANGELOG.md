@@ -42,6 +42,20 @@ Versioning convention for this project:
   statistics, and that NULL is now carried through instead of being flattened
   to `0`.
 
+### Changed
+
+- **Counts are written with thousand separators.** `2,360,335` rather than
+  `2360335`: past six digits, an unseparated number has to be counted rather
+  than read, and 2.3 million and 230 thousand look alike at a glance. This
+  covers the table list, the row counts in the TRUNCATE and DROP
+  confirmations, query and filter results, the orphan-row and NULL-slip
+  checks, and the overview tiles.
+
+  **Values read out of your database are still printed exactly as they came.**
+  A `bigint` column holding `1048576` shows as `1048576`, because rewriting it
+  would be the same thing the timezone fix above just stopped doing. Numbers
+  this tool counted are formatted; numbers your database holds are not.
+
 
 ## [1.7.0] - 2026-09-04
 

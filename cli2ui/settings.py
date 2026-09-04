@@ -20,6 +20,9 @@ ALLOWED_HOSTS = ["*"]
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.staticfiles",
+    # intcomma だけのために入れている。行数が 7 桁になると、区切りが無い数字は
+    # 桁を数えないと読めない ── 236 万行と 23 万行を見間違える。
+    "django.contrib.humanize",
     "core",
     # Optional feature app: the planner what-if tools (scale simulation + index
     # lab), kept as a self-contained, removable unit. Remove this line to drop the

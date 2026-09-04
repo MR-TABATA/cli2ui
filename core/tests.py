@@ -628,6 +628,37 @@ class TableRowCountTests(SimpleTestCase):
         self.assertIn("NULL", LIST_TABLES_SQL)
 
 
+class ThousandSeparatorTests(SimpleTestCase):
+    """**アプリが数えた数は区切る。利用者のデータは区切らない。**
+
+    7 桁になると、区切りの無い数字は桁を数えないと読めない ── 236 万行と
+    23 万行を見間違える。一方で、データベースの列に入っている `1048576` を
+    `1,048,576` と書き換えるのは、`cell` filter で禁じたのと同じ「画面が
+    データを書き換える」行為になる。**どちらの数かで扱いが逆になる。**
+    """
+
+    @staticmethod
+    def _render(src, value):
+        from django.template import Context, Template
+
+        return Template(src).render(Context({"v": value}))
+
+    def test_counts_get_separators(self):
+        out = self._render("{% load humanize %}{{ v|intcomma }}", 2360335)
+        self.assertEqual(out, "2,360,335")
+
+    def test_data_cells_do_not(self):
+        # 利用者のデータ。psql が出すのと同じ形のままにする。
+        out = self._render("{% load dbvalue %}{{ v|cell }}", 1048576)
+        self.assertEqual(out, "1048576")
+
+    def test_humanize_is_installed(self):
+        # intcomma だけのために入れている。抜くとテンプレートが黙って落ちる。
+        from django.conf import settings
+
+        self.assertIn("django.contrib.humanize", settings.INSTALLED_APPS)
+
+
 class DbValueCellTests(SimpleTestCase):
     """行データの 1 マスは、**データベースが返したまま**出す。
 

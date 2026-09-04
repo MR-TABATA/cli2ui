@@ -1,14 +1,14 @@
-{% load i18n dbvalue %}{% if error %}
+{% load i18n dbvalue humanize %}{% if error %}
   <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-3">
     <p class="text-sm font-medium text-red-300 mb-1">{% trans "Filter error" %}</p>
     <p class="text-sm text-red-200/80 mono whitespace-pre-wrap">{{ error }}</p>
   </div>
 {% else %}
   <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm mb-3">
-    <span class="text-zinc-200 font-medium">{% blocktrans count n=result.rowcount %}{{ n }} row{% plural %}{{ n }} rows{% endblocktrans %}</span>
+    <span class="text-zinc-200 font-medium">{% blocktrans count c=result.rowcount with n=result.rowcount|intcomma %}{{ n }} row{% plural %}{{ n }} rows{% endblocktrans %}</span>
     <span class="text-zinc-500">·</span><span class="text-zinc-400">{% blocktrans with ms=result.duration_ms %}ran in {{ ms }} ms{% endblocktrans %}</span>
     {% if result.truncated %}
-      <span class="text-zinc-500">·</span><span class="text-amber-400">{% blocktrans with n=result.rowcount %}capped at {{ n }} — narrow the filter or export the table for all rows{% endblocktrans %}</span>
+      <span class="text-zinc-500">·</span><span class="text-amber-400">{% blocktrans with n=result.rowcount|intcomma %}capped at {{ n }} — narrow the filter or export the table for all rows{% endblocktrans %}</span>
     {% endif %}
   </div>
   <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">

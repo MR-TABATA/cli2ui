@@ -1,4 +1,4 @@
-{% load i18n dbvalue %}{% if empty %}
+{% load i18n dbvalue humanize %}{% if empty %}
   <p class="text-sm text-zinc-400">{% trans "Enter a query and hit Run." %}</p>
 {% else %}
   {% if notice %}
@@ -12,15 +12,15 @@
 {% else %}
   <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm mb-3">
     {% if result.columns %}
-      <span class="text-zinc-200 font-medium">{% blocktrans count n=result.rowcount %}{{ n }} row returned{% plural %}{{ n }} rows returned{% endblocktrans %}</span>
+      <span class="text-zinc-200 font-medium">{% blocktrans count c=result.rowcount with n=result.rowcount|intcomma %}{{ n }} row returned{% plural %}{{ n }} rows returned{% endblocktrans %}</span>
     {% elif wrote %}
-      <span class="text-amber-400 font-medium">{% blocktrans count n=result.rowcount %}{{ n }} row affected · committed{% plural %}{{ n }} rows affected · committed{% endblocktrans %}</span>
+      <span class="text-amber-400 font-medium">{% blocktrans count c=result.rowcount with n=result.rowcount|intcomma %}{{ n }} row affected · committed{% plural %}{{ n }} rows affected · committed{% endblocktrans %}</span>
     {% else %}
       <span class="text-emerald-400 font-medium">{% trans "statement executed" %}</span>
     {% endif %}
     <span class="text-zinc-500">·</span><span class="text-zinc-400">{% blocktrans with ms=result.duration_ms %}ran in {{ ms }} ms{% endblocktrans %}</span>
     {% if result.truncated %}
-      <span class="text-zinc-500">·</span><span class="text-amber-400">{% blocktrans with n=result.rowcount %}capped at {{ n }} — add a LIMIT to see more, or export below for all rows{% endblocktrans %}</span>
+      <span class="text-zinc-500">·</span><span class="text-amber-400">{% blocktrans with n=result.rowcount|intcomma %}capped at {{ n }} — add a LIMIT to see more, or export below for all rows{% endblocktrans %}</span>
     {% endif %}
     {% if result.columns and sql %}
       <span class="text-zinc-500">·</span>
