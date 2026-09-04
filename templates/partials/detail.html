@@ -230,7 +230,11 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
     {% if preview %}
     <!-- ページ送り。行数は数えない（count(*) は毎回の全走査）ので、統計の推定を
          「約」と断って出す。順序が決まっていないテーブルではそれも言う。 -->
-    <div class="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
+    {% comment %}ページャはグリッドの上に貼り付ける。グリッドだけがスクロールする
+    ので流れはしないが、1000 行を送った先で「いま何ページ目か」を見に戻るのに
+    上まで戻る必要はない。{% endcomment %}
+    <div class="sticky top-14 z-10 -mx-1 px-1 py-1.5 bg-zinc-950/95 backdrop-blur
+                flex flex-wrap items-center gap-3 text-xs text-zinc-400">
       <span>
         {% blocktrans with a=preview.first_row|intcomma b=preview.last_row|intcomma %}rows {{ a }}–{{ b }}{% endblocktrans %}
         {% if preview.estimated_rows is not None %}
@@ -277,9 +281,12 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
     <div id="filter-result">
       <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
         {% if preview_rows %}
-          <div class="overflow-x-auto">
+          {% comment %}グリッドだけが縦にスクロールする。1000 行あるので、ページ全体が
+          動くと列名もページ送りも画面の外へ流れてしまう。SQL ランナーと絞り込みの
+          結果は既にこうなっていて、ここだけ揃っていなかった。{% endcomment %}
+          <div class="overflow-auto max-h-[60vh]">
             <table class="w-full text-sm">
-              <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+              <thead class="text-left text-xs uppercase tracking-wide text-zinc-400 sticky top-0 bg-zinc-900">
                 <tr class="border-b border-zinc-800">
                   {% for c in preview_columns %}<th class="px-4 py-2 font-medium mono whitespace-nowrap">{{ c }}</th>{% endfor %}
                 </tr>
