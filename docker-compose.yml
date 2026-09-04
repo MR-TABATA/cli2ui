@@ -13,6 +13,12 @@ services:
       # source tree mounted it would sit inside the container and disappear the
       # next time the container is recreated, so put it on a named volume.
       CLI2UI_DB_PATH: /data/db.sqlite3
+      # Timezone the app shows its own timestamps in (backups, snapshots). The
+      # container is UTC unless told otherwise, so pass the host's if you want
+      # local time: TZ=Asia/Tokyo docker compose up, or set TZ in .env.
+      # Values read out of your database are never converted — they are shown
+      # exactly as the database returned them, offset included.
+      TZ: ${TZ:-UTC}
     volumes:
       - cli2ui-data:/data
     # Lets you reach a database running elsewhere on the host (another container

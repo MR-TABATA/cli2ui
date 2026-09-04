@@ -87,6 +87,31 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 USE_TZ = True
 
+# **The timezone the app displays its own timestamps in.**
+#
+# Django's default when this is unset is `America/Chicago`, which is wrong for
+# everyone who did not choose it — and it does not stop at the app's own clock.
+# The template engine converts *any* aware datetime it renders, including the
+# rows this tool reads out of your database: a `timestamptz` holding
+# 2026-09-04 00:10 UTC came out on screen as 2026-09-03 19:10. The number the
+# database gave us was correct; the screen quietly changed it.
+#
+# For a tool whose whole job is to show what the database actually holds, that
+# is the worst class of bug there is, so this is now explicit. UTC is the
+# default because it is the one answer that is never quietly wrong: it matches
+# what `psql` prints against a UTC server, and it is unambiguous when you are
+# lining these timestamps up against server logs. Set `TZ` (docker compose
+# passes the host's) to see them in your own.
+#
+# Raw database values are a separate matter and are not converted at all — see
+# `{% localtime off %}` in the row grids.
+TIME_ZONE = os.environ.get("TZ", "UTC")
+
+# ISO 8601 for the app's own default-formatted datetimes, so a timestamp is
+# never ambiguous about which end is the day and which is the month.
+DATETIME_FORMAT = "Y-m-d H:i:s"
+DATE_FORMAT = "Y-m-d"
+
 # Internationalization. UI ships in English; the header toggle (set_language)
 # switches to Japanese and persists it in a cookie. New visitors with no cookie
 # get their browser's Accept-Language. Compiled catalogs live in locale/.
