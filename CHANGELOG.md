@@ -17,6 +17,11 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-04
+
+Click a table and you see what is in it — a thousand rows at a time, with counts that no longer say 0 when they mean "not counted".
+
+
 ### Changed
 
 - **Clicking a table now shows its rows, not its column list.** You wrote the
