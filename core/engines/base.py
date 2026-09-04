@@ -122,8 +122,63 @@ class JsonbShape:
 
 @dataclass
 class Preview:
+    """テーブルの中身、1 ページぶん。
+
+    行数は数えない ── `count(*)` は 236 万行のテーブルで毎回全走査になる。
+    プランナ統計の推定を使い、**推定であることを画面でも言う**
+    （TRUNCATE / DROP の確認と同じ規則）。
+    """
+
     columns: list[str]
     rows: list[tuple]
+    # 何行目から返したか（0 始まり）と、1 ページの大きさ。
+    offset: int = 0
+    page_size: int = 1000
+    # テーブル全体の推定行数。統計がまだ無ければ None ＝「不明」。
+    estimated_rows: int | None = None
+    # 並び順に使った列。**空なら順序は保証されない** ── 主キーが無いテーブルでは
+    # ページをめくると行が重複したり飛んだりしうるので、そう言う。
+    ordered_by: list[str] = field(default_factory=list)
+
+    @property
+    def page(self) -> int:
+        """1 始まりのページ番号。"""
+        return self.offset // self.page_size + 1
+
+    @property
+    def first_row(self) -> int:
+        """このページの先頭が、テーブル全体の何行目か（1 始まり）。"""
+        return self.offset + 1 if self.rows else 0
+
+    @property
+    def last_row(self) -> int:
+        """このページの末尾が、テーブル全体の何行目か。"""
+        return self.offset + len(self.rows)
+
+    @property
+    def stable(self) -> bool:
+        """ページ送りが安定しているか（＝並び順が決まっているか）。"""
+        return bool(self.ordered_by)
+
+    @property
+    def has_previous(self) -> bool:
+        return self.offset > 0
+
+    @property
+    def has_next(self) -> bool:
+        """次のページがあるか。
+
+        推定に頼らず、**返ってきた行数で判断する** ── 統計は古いことがあり、
+        「次へ」が空振りするのは、行数が少し違うより体験として悪い。
+        取れた行がページ一杯なら、次があると見なす。
+        """
+        return len(self.rows) == self.page_size
+
+    @property
+    def estimated_pages(self) -> int | None:
+        if self.estimated_rows is None:
+            return None
+        return max(1, -(-self.estimated_rows // self.page_size))
 
 
 @dataclass
@@ -1034,8 +1089,13 @@ class Engine:
         empty; the caller checks supports() first."""
         raise NotImplementedError
 
-    def preview_rows(self, schema: str, table: str, limit: int = 50) -> Preview:
-        """First rows of a table. The Web equivalent of `SELECT * ... LIMIT n`."""
+    def preview_rows(self, schema: str, table: str, limit: int = 1000,
+                     offset: int = 0) -> Preview:
+        """テーブルの中身を 1 ページぶん。`SELECT * … ORDER BY 主キー LIMIT n OFFSET m`。
+
+        並び順を決めないとページ送りで行が重複・欠落するので、主キーがあれば必ず
+        それで並べる。行数は数えず、統計の推定を返す。詳細は PostgresEngine 側に。
+        """
         raise NotImplementedError
 
     def run_query(self, sql: str, *, max_rows: int = 1000,

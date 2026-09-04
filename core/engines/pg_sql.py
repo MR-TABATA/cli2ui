@@ -750,3 +750,25 @@ FROM (
 ORDER BY wasted_bytes DESC
 LIMIT {limit};
 """
+
+# 主キーの列を定義順で。ページ送りの並び順に使う ── 順序を指定しないと
+# PostgreSQL は行の順序を約束せず、ページをめくると重複や欠落が起きる。
+PRIMARY_KEY_COLUMNS_SQL = """
+SELECT a.attname
+FROM pg_catalog.pg_index i
+JOIN pg_catalog.pg_class c      ON c.oid = i.indrelid
+JOIN pg_catalog.pg_namespace n  ON n.oid = c.relnamespace
+JOIN pg_catalog.pg_attribute a  ON a.attrelid = c.oid
+                               AND a.attnum = ANY(i.indkey)
+WHERE n.nspname = %s AND c.relname = %s AND i.indisprimary
+ORDER BY array_position(i.indkey, a.attnum);
+"""
+
+# 1 テーブルの推定行数。count(*) は全走査になるので使わない。
+# -1 は「まだ ANALYZE していない」で、0 行とは違うので NULL にして返す。
+ESTIMATED_ROWS_SQL = """
+SELECT CASE WHEN c.reltuples < 0 THEN NULL ELSE c.reltuples::bigint END
+FROM pg_catalog.pg_class c
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = %s AND c.relname = %s;
+"""

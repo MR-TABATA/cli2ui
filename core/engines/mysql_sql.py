@@ -197,3 +197,19 @@ FROM sys.schema_unused_indexes
 WHERE object_schema = %s
 ORDER BY object_name, index_name;
 """
+
+
+# 主キーの列を定義順で。ページ送りの並び順に使う。
+PRIMARY_KEY_COLUMNS_SQL = """
+SELECT COLUMN_NAME
+FROM information_schema.KEY_COLUMN_USAGE
+WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND CONSTRAINT_NAME = 'PRIMARY'
+ORDER BY ORDINAL_POSITION;
+"""
+
+# 1 テーブルの推定行数。InnoDB では統計からの推定で、無ければ NULL。
+ESTIMATED_ROWS_SQL = """
+SELECT TABLE_ROWS
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s;
+"""

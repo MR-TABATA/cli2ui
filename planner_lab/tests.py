@@ -256,6 +256,9 @@ class DdlRehearsalSmokeE2E(_BrowserE2E):
         page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
         page.locator(f'button[hx-get$="table={self.TBL}"]').click()
         page.locator("#detail h2").wait_for()
+        # 既定タブは Data（テーブル名を押した人が見たいのは中身）。
+        # 列を触るテストは、まず Columns へ移る。
+        page.get_by_role("button", name="Columns", exact=True).click()
 
         page.locator("#detail tbody tr", has_text="x").get_by_role(
             "button", name="edit").click()

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-04 13:25+0000\n"
+"POT-Creation-Date: 2026-09-04 13:40+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,30 +22,30 @@ msgstr ""
 msgid "Unsupported database kind: %(kind)s"
 msgstr "未対応のデータベース種別: %(kind)s"
 
-#: core/engines/mysql.py:439 core/engines/mysql.py:846
-#: core/engines/mysql.py:852 core/engines/postgres.py:434
-#: core/engines/postgres.py:535 core/engines/postgres.py:1205
+#: core/engines/mysql.py:460 core/engines/mysql.py:867
+#: core/engines/mysql.py:873 core/engines/postgres.py:436
+#: core/engines/postgres.py:567 core/engines/postgres.py:1237
 #: planner_lab/rehearsal.py:86
 #, python-format
 msgid "No such column: %(name)s"
 msgstr "存在しない列: %(name)s"
 
-#: core/engines/mysql.py:441 core/engines/postgres.py:537
+#: core/engines/mysql.py:462 core/engines/postgres.py:569
 #, python-format
 msgid "Unknown filter operator: %(op)s"
 msgstr "不明なフィルタ演算子: %(op)s"
 
-#: core/engines/mysql.py:486 core/engines/mysql.py:491
-#: core/engines/postgres.py:587
+#: core/engines/mysql.py:507 core/engines/mysql.py:512
+#: core/engines/postgres.py:619
 msgid "The CSV file is empty."
 msgstr "CSV ファイルが空です。"
 
-#: core/engines/mysql.py:496 core/engines/postgres.py:594
+#: core/engines/mysql.py:517 core/engines/postgres.py:626
 #, python-format
 msgid "CSV header has columns not in %(table)s: %(cols)s"
 msgstr "%(table)s に無い列が CSV ヘッダにあります: %(cols)s"
 
-#: core/engines/mysql.py:655
+#: core/engines/mysql.py:676
 msgid ""
 "Can't check for lock waits: the MySQL performance_schema is disabled on this "
 "server, so blocking can't be detected. Enable it (performance_schema=ON) to "
@@ -55,7 +55,7 @@ msgstr ""
 "効なため、ブロッキングを検出できません。このパネルを使うには有効化してくださ"
 "い (performance_schema=ON)。"
 
-#: core/engines/mysql.py:665
+#: core/engines/mysql.py:686
 msgid ""
 "Can't check for lock waits: this needs MySQL 8.0+ "
 "(performance_schema.data_lock_waits is unavailable here)."
@@ -63,7 +63,7 @@ msgstr ""
 "ロック待ちを確認できません: これには MySQL 8.0 以降が必要です "
 "(performance_schema.data_lock_waits がここでは利用できません)。"
 
-#: core/engines/mysql.py:700
+#: core/engines/mysql.py:721
 msgid ""
 "MySQL can't create a database from a template (no TEMPLATE/CREATE DATABASE … "
 "LIKE). Create it empty, then load a dump."
@@ -71,7 +71,7 @@ msgstr ""
 "MySQL はテンプレートからデータベースを作成できません (TEMPLATE/CREATE "
 "DATABASE … LIKE は非対応)。空で作成してからダンプを読み込んでください。"
 
-#: core/engines/mysql.py:713
+#: core/engines/mysql.py:734
 msgid ""
 "Can't drop the database this connection is using — connect to another "
 "database first."
@@ -79,7 +79,7 @@ msgstr ""
 "この接続が使用中のデータベースは削除できません — 先に別のデータベースに接続し"
 "てください。"
 
-#: core/engines/mysql.py:719
+#: core/engines/mysql.py:740
 msgid ""
 "MySQL doesn't support renaming a database. Create the new one and move the "
 "tables (RENAME TABLE), or dump and reload."
@@ -87,44 +87,44 @@ msgstr ""
 "MySQL はデータベースのリネームに対応していません。新しいデータベースを作成し"
 "てテーブルを移動する (RENAME TABLE) か、ダンプして再読み込みしてください。"
 
-#: core/engines/mysql.py:734 core/engines/postgres.py:174
+#: core/engines/mysql.py:755 core/engines/postgres.py:176
 #, python-format
 msgid "Unsupported index method: %(method)s"
 msgstr "未対応のインデックス方式: %(method)s"
 
-#: core/engines/mysql.py:736 core/engines/postgres.py:176
-#: core/views/tables.py:192
+#: core/engines/mysql.py:757 core/engines/postgres.py:178
+#: core/views/tables.py:223
 msgid "Select at least one column to index."
 msgstr "インデックス対象の列を1つ以上選んでください。"
 
-#: core/engines/mysql.py:743 core/engines/postgres.py:1103
+#: core/engines/mysql.py:764 core/engines/postgres.py:1135
 #: planner_lab/whatif.py:115
 #, python-format
 msgid "No such column(s): %(cols)s"
 msgstr "存在しない列: %(cols)s"
 
-#: core/engines/mysql.py:756
+#: core/engines/mysql.py:777
 msgid "Dropping an index needs the table it's on."
 msgstr "インデックスの削除には、対象のテーブルが必要です。"
 
-#: core/engines/mysql.py:779 core/engines/mysql.py:808
+#: core/engines/mysql.py:800 core/engines/mysql.py:829
 #, python-format
 msgid "Unsupported column type: %(t)s. Pick one of the listed types."
 msgstr "未対応の列型です: %(t)s。一覧の型から選んでください。"
 
-#: core/engines/mysql.py:894
+#: core/engines/mysql.py:915
 msgid "Orphan-row checks are a PostgreSQL feature here."
 msgstr "孤児行チェックはここでは PostgreSQL の機能です。"
 
-#: core/engines/mysql.py:952
+#: core/engines/mysql.py:973
 msgid "mysqldump timed out."
 msgstr "mysqldump がタイムアウトしました。"
 
-#: core/engines/mysql.py:1002 core/engines/postgres.py:1322
+#: core/engines/mysql.py:1023 core/engines/postgres.py:1354
 msgid "restore timed out."
 msgstr "リストアがタイムアウトしました。"
 
-#: core/engines/mysql.py:1091
+#: core/engines/mysql.py:1112
 msgid ""
 "MySQL has no replication slots — it streams the binary log directly, so "
 "there's nothing to create."
@@ -132,18 +132,18 @@ msgstr ""
 "MySQL にレプリケーションスロットはありません — バイナリログを直接ストリーミン"
 "グするため、作成するものはありません。"
 
-#: core/engines/mysql.py:1095
+#: core/engines/mysql.py:1116
 msgid "MySQL has no replication slots — nothing to drop."
 msgstr ""
 "MySQL にレプリケーションスロットはありません — 削除するものはありません。"
 
-#: core/engines/mysql.py:1185 core/engines/mysql.py:1190
-#: core/engines/mysql.py:1200 core/engines/postgres.py:1720
+#: core/engines/mysql.py:1206 core/engines/mysql.py:1211
+#: core/engines/mysql.py:1221 core/engines/postgres.py:1752
 #, python-format
 msgid "Unknown setting: %(name)s"
 msgstr "不明な設定: %(name)s"
 
-#: core/engines/mysql.py:1392
+#: core/engines/mysql.py:1413
 #, python-format
 msgid ""
 "Gave up after waiting %(secs)ss for a lock on this object — another "
@@ -154,25 +154,25 @@ msgstr ""
 "クションが保持しています。変更は行われていません。保持者は「ロック」パネルで"
 "確認し、解放されてから再実行してください。"
 
-#: core/engines/postgres.py:437
+#: core/engines/postgres.py:439
 #, python-format
 msgid "%(name)s is not a JSON column."
 msgstr "%(name)s は JSON 列ではありません。"
 
-#: core/engines/postgres.py:1229
+#: core/engines/postgres.py:1261
 #, python-format
 msgid "Unknown dump format: %(fmt)s"
 msgstr "不明なダンプ形式: %(fmt)s"
 
-#: core/engines/postgres.py:1247
+#: core/engines/postgres.py:1279
 msgid "pg_dump timed out."
 msgstr "pg_dump がタイムアウトしました。"
 
-#: core/engines/postgres.py:1442
+#: core/engines/postgres.py:1474
 msgid "That table no longer exists."
 msgstr "そのテーブルはもうありません。"
 
-#: core/engines/postgres.py:1488
+#: core/engines/postgres.py:1520
 msgid ""
 "This index no longer looks like a composite UNIQUE with a nullable column — "
 "it may have changed since the panel loaded."
@@ -181,11 +181,11 @@ msgstr ""
 "てから作り替えられた可能性があります。この参照はもう単一の親に解決できません "
 "— パネルを開いてから変わった可能性があります。"
 
-#: core/engines/postgres.py:1597
+#: core/engines/postgres.py:1629
 msgid "No relationship to check was given."
 msgstr "チェックする関係が指定されていません。"
 
-#: core/engines/postgres.py:1610
+#: core/engines/postgres.py:1642
 msgid ""
 "This reference no longer resolves to a single parent — it may have changed "
 "since the panel loaded."
@@ -193,7 +193,7 @@ msgstr ""
 "この参照はもう単一の親に解決できません — パネルを開いてから変わった可能性があ"
 "ります。"
 
-#: core/engines/postgres.py:1805
+#: core/engines/postgres.py:1837
 #, python-format
 msgid ""
 "Gave up after waiting %(timeout)s for a lock on this object — another "
@@ -204,7 +204,7 @@ msgstr ""
 "クションが保持しています。変更は行われていません。保持者は「ロック」パネルで"
 "確認し、解放されてから再実行してください。"
 
-#: core/engines/postgres.py:1814
+#: core/engines/postgres.py:1846
 #, python-format
 msgid ""
 "Gave up after waiting %(timeout)s to measure table sizes — another "
@@ -316,24 +316,24 @@ msgstr "エクスポートする結果がありません — 先にクエリを�
 msgid "No table specified."
 msgstr "テーブルが指定されていません。"
 
-#: core/views/tables.py:152
+#: core/views/tables.py:183
 msgid "Choose a CSV file to import."
 msgstr "インポートする CSV ファイルを選んでください。"
 
-#: core/views/tables.py:160
+#: core/views/tables.py:191
 #, python-format
 msgid "Imported %(n)s row(s) from %(name)s."
 msgstr "%(name)s から %(n)s 行をインポートしました。"
 
-#: core/views/tables.py:226
+#: core/views/tables.py:257
 msgid "Enter a new table name."
 msgstr "新しいテーブル名を入力してください。"
 
-#: core/views/tables.py:277
+#: core/views/tables.py:308
 msgid "Enter a column name."
 msgstr "列名を入力してください。"
 
-#: core/views/tables.py:297
+#: core/views/tables.py:328
 msgid "Enter a new column name."
 msgstr "新しい列名を入力してください。"
 
@@ -420,7 +420,7 @@ msgid "— click columns in order"
 msgstr "— 列を順にクリック"
 
 #: planner_lab/templates/partials/index_lab.html:64
-#: templates/partials/detail.html:151 templates/partials/detail.html:444
+#: templates/partials/detail.html:151 templates/partials/detail.html:490
 msgid "unique"
 msgstr "ユニーク"
 
@@ -570,14 +570,14 @@ msgid "Defaults point at the bundled sample DB."
 msgstr "初期値は同梱のサンプルDBを指しています。"
 
 #: templates/index.html:16 templates/partials/detail.html:70
-#: templates/partials/detail.html:326 templates/partials/detail.html:359
+#: templates/partials/detail.html:372 templates/partials/detail.html:405
 #: templates/partials/replication.html:172
 msgid "Type"
 msgstr "種別"
 
 #: templates/index.html:17 templates/partials/detail.html:69
-#: templates/partials/detail.html:138 templates/partials/detail.html:322
-#: templates/partials/detail.html:435 templates/partials/extensions.html:28
+#: templates/partials/detail.html:138 templates/partials/detail.html:368
+#: templates/partials/detail.html:481 templates/partials/extensions.html:28
 #: templates/partials/extensions.html:64 templates/partials/objects.html:34
 #: templates/partials/objects.html:95 templates/partials/objects.html:184
 #: templates/partials/objects.html:252 templates/partials/objects.html:263
@@ -586,8 +586,8 @@ msgstr "種別"
 msgid "Name"
 msgstr "名前"
 
-#: templates/index.html:17 templates/partials/detail.html:332
-#: templates/partials/detail.html:435 templates/partials/objects.html:188
+#: templates/index.html:17 templates/partials/detail.html:378
+#: templates/partials/detail.html:481 templates/partials/objects.html:188
 #: templates/partials/objects.html:283 templates/partials/objects.html:310
 msgid "(optional)"
 msgstr "（任意）"
@@ -1094,7 +1094,7 @@ msgstr "データ"
 msgid "Danger"
 msgstr "危険"
 
-#: templates/partials/detail.html:63 templates/partials/detail.html:336
+#: templates/partials/detail.html:63 templates/partials/detail.html:382
 msgid "+ Add column"
 msgstr "+ 列を追加"
 
@@ -1102,8 +1102,8 @@ msgstr "+ 列を追加"
 msgid "Nullable"
 msgstr "NULL 許容"
 
-#: templates/partials/detail.html:72 templates/partials/detail.html:332
-#: templates/partials/detail.html:403
+#: templates/partials/detail.html:72 templates/partials/detail.html:378
+#: templates/partials/detail.html:449
 msgid "Default"
 msgstr "デフォルト"
 
@@ -1155,11 +1155,11 @@ msgstr "本番作成の前にインデックスを試して計測します"
 msgid "Try an index"
 msgstr "インデックスを試す"
 
-#: templates/partials/detail.html:131 templates/partials/detail.html:445
+#: templates/partials/detail.html:131 templates/partials/detail.html:491
 msgid "+ Create index"
 msgstr "+ インデックスを作成"
 
-#: templates/partials/detail.html:140 templates/partials/detail.html:439
+#: templates/partials/detail.html:140 templates/partials/detail.html:485
 msgid "Method"
 msgstr "方式"
 
@@ -1228,19 +1228,74 @@ msgstr "フィルタを適用"
 msgid "All conditions are ANDed · read-only"
 msgstr "全条件は AND 結合・読み取り専用"
 
-#: templates/partials/detail.html:241
+#: templates/partials/detail.html:223
+#, fuzzy, python-format
+#| msgid "rows %(n)s"
+msgid "rows %(a)s–%(b)s"
+msgstr "行 %(n)s"
+
+#: templates/partials/detail.html:225
+#, fuzzy, python-format
+#| msgid "Rows: about %(n)s (estimated from statistics, last analyzed %(d)s)"
+msgid "of about %(n)s (estimated from statistics)"
+msgstr "行数: 約 %(n)s（統計からの推定・最終 ANALYZE %(d)s）"
+
+#: templates/partials/detail.html:227
+#, fuzzy
+#| msgid "Rows: unknown (this table has never been analyzed)"
+msgid "of an unknown total — this table has never been analyzed"
+msgstr "行数: 不明（このテーブルはまだ ANALYZE されていません）"
+
+#: templates/partials/detail.html:232
+msgid ""
+"A table with no primary key has no defined row order, so paging can repeat "
+"or skip rows."
+msgstr ""
+"主キーの無いテーブルには決まった行の順序がないので、ページをめくると同じ行が"
+"二度出たり、どこにも出ない行ができることがあります。"
+
+#: templates/partials/detail.html:233
+msgid "⚠ No primary key — row order is not guaranteed between pages"
+msgstr "⚠ 主キーが無いため、ページ間で行の順序は保証されません"
+
+#: templates/partials/detail.html:240
+msgid "← Prev"
+msgstr "← 前"
+
+#: templates/partials/detail.html:244
+#, python-format
+msgid "page %(p)s of about %(t)s"
+msgstr "%(p)s / 約 %(t)s ページ"
+
+#: templates/partials/detail.html:246
+#, python-format
+msgid "page %(p)s"
+msgstr "%(p)s ページ"
+
+#: templates/partials/detail.html:251
+msgid "Next →"
+msgstr "次 →"
+
+#: templates/partials/detail.html:257
+#, fuzzy, python-format
+#| msgid "%(n)s row"
+#| msgid_plural "%(n)s rows"
+msgid "%(n)s rows"
+msgstr "%(n)s 行"
+
+#: templates/partials/detail.html:287
 msgid "This table is empty."
 msgstr "このテーブルは空です。"
 
-#: templates/partials/detail.html:252
+#: templates/partials/detail.html:298
 msgid "Truncate table"
 msgstr "テーブルを truncate"
 
-#: templates/partials/detail.html:253
+#: templates/partials/detail.html:299
 msgid "Delete every row. A safety snapshot is taken first."
 msgstr "全行を削除します。先に安全スナップショットを取得します。"
 
-#: templates/partials/detail.html:256
+#: templates/partials/detail.html:302
 #, python-format
 msgid ""
 "Truncate &quot;%(schema)s.%(table)s&quot;? This permanently deletes every "
@@ -1249,81 +1304,81 @@ msgstr ""
 "&quot;%(schema)s.%(table)s&quot; を truncate しますか？全行が完全に削除されま"
 "す。"
 
-#: templates/partials/detail.html:256 templates/partials/detail.html:268
+#: templates/partials/detail.html:302 templates/partials/detail.html:314
 #: templates/partials/objects.html:67 templates/partials/objects.html:110
 #: templates/partials/objects.html:154
 msgid "This runs:"
 msgstr "実行される SQL:"
 
-#: templates/partials/detail.html:256 templates/partials/detail.html:268
+#: templates/partials/detail.html:302 templates/partials/detail.html:314
 msgid "Rows: unknown (this table has never been analyzed)"
 msgstr "行数: 不明（このテーブルはまだ ANALYZE されていません）"
 
-#: templates/partials/detail.html:256 templates/partials/detail.html:268
+#: templates/partials/detail.html:302 templates/partials/detail.html:314
 #, python-format
 msgid "Rows: about %(n)s (estimated from statistics, last analyzed %(d)s)"
 msgstr "行数: 約 %(n)s（統計からの推定・最終 ANALYZE %(d)s）"
 
-#: templates/partials/detail.html:256 templates/partials/detail.html:268
+#: templates/partials/detail.html:302 templates/partials/detail.html:314
 msgid "Referenced by:"
 msgstr "参照しているテーブル:"
 
-#: templates/partials/detail.html:256 templates/partials/detail.html:268
+#: templates/partials/detail.html:302 templates/partials/detail.html:314
 msgid "A DROP … CASCADE would also drop:"
 msgstr "DROP … CASCADE で一緒に消えるもの:"
 
-#: templates/partials/detail.html:259
+#: templates/partials/detail.html:305
 msgid "Truncate"
 msgstr "Truncate"
 
-#: templates/partials/detail.html:264 templates/partials/detail.html:271
+#: templates/partials/detail.html:310 templates/partials/detail.html:317
 msgid "Drop table"
 msgstr "テーブルを削除"
 
-#: templates/partials/detail.html:265
+#: templates/partials/detail.html:311
 msgid "Remove the table and all its data. A safety snapshot is taken first."
 msgstr "テーブルと全データを削除します。先に安全スナップショットを取得します。"
 
-#: templates/partials/detail.html:268
+#: templates/partials/detail.html:314
 #, python-format
 msgid "Drop table &quot;%(schema)s.%(table)s&quot;? This cannot be undone."
 msgstr ""
 "テーブル &quot;%(schema)s.%(table)s&quot; を削除しますか？元に戻せません。"
 
-#: templates/partials/detail.html:282
+#: templates/partials/detail.html:328
 msgid "Rename table"
 msgstr "テーブルをリネーム"
 
-#: templates/partials/detail.html:282
+#: templates/partials/detail.html:328
 msgid "Add column"
 msgstr "列を追加"
 
-#: templates/partials/detail.html:283
+#: templates/partials/detail.html:329
 msgid "Edit column"
 msgstr "列を編集"
 
-#: templates/partials/detail.html:283
+#: templates/partials/detail.html:329
 msgid "Create index"
 msgstr "インデックスを作成"
 
-#: templates/partials/detail.html:284 templates/partials/detail.html:312
+#: templates/partials/detail.html:330 templates/partials/detail.html:358
 msgid "Import CSV"
 msgstr "CSV インポート"
 
-#: templates/partials/detail.html:295 templates/partials/objects.html:201
+#: templates/partials/detail.html:341 templates/partials/objects.html:201
 msgid "New name"
 msgstr "新しい名前"
 
-#: templates/partials/detail.html:297 templates/partials/detail.html:350
+#: templates/partials/detail.html:343 templates/partials/detail.html:396
 #: templates/partials/objects.html:203
 msgid "Rename"
 msgstr "リネーム"
 
-#: templates/partials/detail.html:306
+#: templates/partials/detail.html:352
 msgid "CSV file"
 msgstr "CSV ファイル"
 
-#: templates/partials/detail.html:310
+#: templates/partials/detail.html:356
 msgid ""
 "The first row must be a header; columns are matched to the table by name. "
 "Rows are appended in one transaction — if any row's types don't fit, the "
@@ -1333,43 +1388,43 @@ msgstr ""
 "は1つのトランザクションで追加され、いずれかの行の型が合わない場合はインポート"
 "全体がロールバックされます。事前に安全のためのスナップショットを取得します。"
 
-#: templates/partials/detail.html:323
+#: templates/partials/detail.html:369
 msgid "column name"
 msgstr "列名"
 
-#: templates/partials/detail.html:335
+#: templates/partials/detail.html:381
 msgid "not null"
 msgstr "not null"
 
-#: templates/partials/detail.html:347
+#: templates/partials/detail.html:393
 msgid "Rename to"
 msgstr "リネーム先"
 
-#: templates/partials/detail.html:362
+#: templates/partials/detail.html:408
 msgid "(current)"
 msgstr "（現在）"
 
-#: templates/partials/detail.html:365
+#: templates/partials/detail.html:411
 msgid "Change"
 msgstr "変更"
 
-#: templates/partials/detail.html:370
+#: templates/partials/detail.html:416
 msgid "Nullability"
 msgstr "NULL許可"
 
-#: templates/partials/detail.html:378
+#: templates/partials/detail.html:424
 msgid "set NOT NULL"
 msgstr "NOT NULL を設定"
 
-#: templates/partials/detail.html:378
+#: templates/partials/detail.html:424
 msgid "drop NOT NULL"
 msgstr "NOT NULL を解除"
 
-#: templates/partials/detail.html:389
+#: templates/partials/detail.html:435
 msgid "Rehearse it"
 msgstr "リハーサル"
 
-#: templates/partials/detail.html:394
+#: templates/partials/detail.html:440
 msgid ""
 "Runs the real statement and rolls it back. It takes a real ACCESS EXCLUSIVE "
 "lock while it runs, so readers queue behind it — briefly, but for real."
@@ -1377,23 +1432,23 @@ msgstr ""
 "本物の文を実行して、ロールバックする。実行中は本物の ACCESS EXCLUSIVE ロック"
 "を取るので、読み取りはその後ろに並ぶ。短いが、本物。"
 
-#: templates/partials/detail.html:403
+#: templates/partials/detail.html:449
 msgid "(empty drops it)"
 msgstr "（空で解除）"
 
-#: templates/partials/detail.html:406 templates/partials/settings_row.html:42
+#: templates/partials/detail.html:452 templates/partials/settings_row.html:42
 msgid "Set"
 msgstr "設定"
 
-#: templates/partials/detail.html:422
+#: templates/partials/detail.html:468
 msgid "Click columns in the order you want them indexed."
 msgstr "インデックスしたい順に列をクリックしてください。"
 
-#: templates/partials/detail.html:436
+#: templates/partials/detail.html:482
 msgid "index name"
 msgstr "インデックス名"
 
-#: templates/partials/detail.html:446
+#: templates/partials/detail.html:492
 msgid "built CONCURRENTLY"
 msgstr "CONCURRENTLY で作成"
 
@@ -1575,11 +1630,11 @@ msgid ""
 "DISTINCT</span> closes it; those indexes are not listed. Counting reads the "
 "table, read-only."
 msgstr ""
-"NULL は別の NULL と等しくないので、キーに NULL を含む行は索引から見ると全部"
-"別物になります。制約は効いていて、NULL 許容の列の形に穴が開いているだけです。"
+"NULL は別の NULL と等しくないので、キーに NULL を含む行は索引から見ると全部別"
+"物になります。制約は効いていて、NULL 許容の列の形に穴が開いているだけです。"
 "PostgreSQL 15 の <span class=\"mono\">NULLS NOT DISTINCT</span> で塞げます"
-"（そう作られた索引はここに出ません）。数えるときはテーブルを読みますが、"
-"読み取りのみです。"
+"（そう作られた索引はここに出ません）。数えるときはテーブルを読みますが、読み"
+"取りのみです。"
 
 #: templates/partials/health.html:143
 msgid "No composite UNIQUE has a nullable column — no hole to fit through. 🎉"
@@ -2938,7 +2993,8 @@ msgstr "テーブルを絞り込み…"
 
 #: templates/partials/table_list.html:17
 msgid "Statistics have never been collected for this table — run ANALYZE"
-msgstr "このテーブルの統計がまだ集められていません（ANALYZE を実行してください）"
+msgstr ""
+"このテーブルの統計がまだ集められていません（ANALYZE を実行してください）"
 
 #: templates/partials/table_list.html:17
 msgid "unknown"
