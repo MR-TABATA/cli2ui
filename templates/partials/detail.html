@@ -3,7 +3,7 @@ panel a clean read-only view; every mutation happens in the shared right drawer
 or, for one-click destructive ops, behind an hx-confirm. `drawer` holds the open
 form's kind; `ctx` carries the row the drawer is acting on. Submits target
 #detail, so the whole panel (drawer included) re-renders and resets.{% endcomment %}
-<div class="space-y-5" {# 既定タブは Data ── テーブル名を押した人が見たいのは中身で、列の構成は
+<div class="space-y-3" {# 既定タブは Data ── テーブル名を押した人が見たいのは中身で、列の構成は
    自分で書いたので知っている。
 
    ただし**同じテーブルの中で操作したときは、いま見ていたタブに留まる**。
@@ -20,11 +20,7 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
   <div class="flex items-start justify-between gap-3">
     <div>
       <h2 class="text-lg font-semibold mono">{{ schema }}.{{ table }}</h2>
-      <p class="text-xs text-zinc-400">
-        {% blocktrans count nc=columns|length %}{{ nc }} column{% plural %}{{ nc }} columns{% endblocktrans %} ·
-        {% blocktrans count nr=preview_rows|length %}previewing up to {{ nr }} row{% plural %}previewing up to {{ nr }} rows{% endblocktrans %}
-      </p>
-      {% if table_comment %}<p class="mt-1 text-xs text-zinc-500 max-w-prose whitespace-normal">{{ table_comment }}</p>{% endif %}
+      {% if table_comment %}<p class="text-xs text-zinc-500 max-w-prose whitespace-normal">{{ table_comment }}</p>{% endif %}
     </div>
     <div class="shrink-0 flex items-center gap-1.5">
       <button hx-get="{% url 'query' connection.pk %}?sql={{ query_sql|urlencode }}"
@@ -62,8 +58,8 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
 
   <!-- Subtabs -->
   <nav class="flex items-center gap-1 border-b border-zinc-800 pb-2">
-    <button class="subtab" :class="tab === 'columns' && 'subtab-on'" @click="tab = 'columns'">{% trans "Columns" %}</button>
-    <button class="subtab" :class="tab === 'indexes' && 'subtab-on'" @click="tab = 'indexes'">{% trans "Indexes" %}</button>
+    <button class="subtab" :class="tab === 'columns' && 'subtab-on'" @click="tab = 'columns'">{% trans "Columns" %} <span class="text-zinc-600 tabular-nums">{{ columns|length|intcomma }}</span></button>
+    <button class="subtab" :class="tab === 'indexes' && 'subtab-on'" @click="tab = 'indexes'">{% trans "Indexes" %} <span class="text-zinc-600 tabular-nums">{{ indexes|length|intcomma }}</span></button>
     <button class="subtab" :class="tab === 'data' && 'subtab-on'" @click="tab = 'data'">{% trans "Data" %}</button>
     <button class="subtab ml-auto" :class="tab === 'danger' && 'subtab-on text-red-300'"
             @click="tab = 'danger'">{% trans "Danger" %}</button>

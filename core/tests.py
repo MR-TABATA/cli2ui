@@ -3541,7 +3541,7 @@ class IndexManagementSmokeE2E(_BrowserE2E):
         page.locator("#detail h2").wait_for()
 
         # Indexes subtab → open the Create index drawer.
-        page.get_by_role("button", name="Indexes", exact=True).click()
+        page.locator(".subtab", has_text="Indexes").click()
         page.get_by_role("button", name="+ Create index").first.click()
         create = page.locator('form[hx-post*="indexes/create"]')
         create.wait_for(state="visible")
@@ -3556,7 +3556,7 @@ class IndexManagementSmokeE2E(_BrowserE2E):
 
         # The swap resets the panel to Columns; reopen Indexes to see the row,
         # with its columns in the chosen order.
-        page.get_by_role("button", name="Indexes", exact=True).click()
+        page.locator(".subtab", has_text="Indexes").click()
         row = page.locator("#detail tr", has_text=self.IDX)
         expect(row).to_contain_text("total, customer_id")
 
@@ -3738,7 +3738,7 @@ class ColumnManagementSmokeE2E(_BrowserE2E):
         page.locator("#detail h2").wait_for()
         # 既定タブは Data（テーブル名を押した人が見たいのは中身）。
         # 列を触るテストは、まず Columns へ移る。
-        page.get_by_role("button", name="Columns", exact=True).click()
+        page.locator(".subtab", has_text="Columns").click()
 
         # Add a column via the drawer.
         page.get_by_role("button", name="+ Add column").first.click()
@@ -3792,7 +3792,7 @@ class ColumnAlterSmokeE2E(_BrowserE2E):
         page.locator("#detail h2").wait_for()
         # 既定タブは Data（テーブル名を押した人が見たいのは中身）。
         # 列を触るテストは、まず Columns へ移る。
-        page.get_by_role("button", name="Columns", exact=True).click()
+        page.locator(".subtab", has_text="Columns").click()
 
         # Open the edit drawer and change text → integer.
         self._amount_row().get_by_role("button", name="edit").click()
