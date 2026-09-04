@@ -17,6 +17,32 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Fixed
+
+- **The table list showed 0 rows for tables that were not empty.** The bundled
+  Airlines demo has 2,360,335 rows in `ticket_flights`; the sidebar said `0`.
+
+  Row counts came from `pg_stat_user_tables.n_live_tup`, which counts writes
+  *this server has observed since it started* — so a database restored from a
+  dump reports zero for everything, forever, until something writes to it. The
+  planner statistics were right there and correct the whole time.
+
+  The list now reads `reltuples`, like the TRUNCATE/DROP confirmations already
+  did. **And it distinguishes "no rows" from "not counted yet":** a table that
+  has never been analyzed says **unknown**, not `0`. That rule was already in
+  place before a destructive button — writing `0` reads as "empty, safe to
+  drop" — but the table list had been saying `0` all along. Same rule, both
+  places now.
+
+  The workspace total no longer folds unknown tables in as zeroes either;
+  summing what you do not know produces a total that looks authoritative and
+  is not.
+
+  MySQL gets the same treatment: `TABLE_ROWS` is NULL until InnoDB has
+  statistics, and that NULL is now carried through instead of being flattened
+  to `0`.
+
+
 ## [1.7.0] - 2026-09-04
 
 Try the ALTER before you run it — and stop the screen from arguing with your database.

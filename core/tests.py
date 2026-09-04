@@ -593,6 +593,41 @@ class SqlPreviewTests(SimpleTestCase):
         self.assertEqual(p.text, "SET lock_timeout = '3s';\nDROP SCHEMA \"x\" CASCADE;")
 
 
+class TableRowCountTests(SimpleTestCase):
+    """テーブル一覧の行数。**「0 行」と「まだ数えていない」を混ぜない。**
+
+    2026-09-04 の実害: Airlines のデモ（`pg_restore` で入れたもの）で、236 万行の
+    `ticket_flights` が「0」と表示されていた。行数を
+    `pg_stat_user_tables.n_live_tup` から取っていたのが原因で、あれは *このサーバが
+    起動してから観測した書き込みの累積*なので、復元しただけのテーブルでは 0 のまま。
+    TRUNCATE / DROP の確認では既に「0 とは言わない」と決めてあったのに、
+    一覧だけが 0 と言っていた。
+    """
+
+    def test_unknown_is_not_zero_rows(self):
+        from core.engines.base import Table
+
+        self.assertTrue(Table(schema="public", name="t", rows=None).unknown)
+        # 本当に空のテーブルは「不明」ではない。ここを混ぜると、
+        # 空だと分かっているものまで「分からない」と言い出す。
+        self.assertFalse(Table(schema="public", name="t", rows=0).unknown)
+
+    def test_list_tables_sql_reads_planner_statistics(self):
+        # n_live_tup に戻すと、ダンプから復元した DB がまた 0 になる。
+        from core.engines.pg_sql import LIST_TABLES_SQL
+
+        self.assertIn("reltuples", LIST_TABLES_SQL)
+        self.assertNotIn("n_live_tup", LIST_TABLES_SQL)
+
+    def test_never_analyzed_becomes_none_not_minus_one(self):
+        # PostgreSQL は「まだ ANALYZE していない」を -1 で表す。素通しすると
+        # 画面に -1 と出るし、0 に潰すと空に見える。どちらでもなく NULL にする。
+        from core.engines.pg_sql import LIST_TABLES_SQL
+
+        self.assertIn("reltuples < 0", LIST_TABLES_SQL)
+        self.assertIn("NULL", LIST_TABLES_SQL)
+
+
 class DbValueCellTests(SimpleTestCase):
     """行データの 1 マスは、**データベースが返したまま**出す。
 

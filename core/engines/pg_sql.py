@@ -8,15 +8,26 @@ postgres.py, next to the code that uses them.
 
 # The Web equivalent of `\dt`: every user table plus an estimated row count
 # (pg_stat lags reality but is free; an exact COUNT(*) per table would be slow).
+# 行数は **`reltuples`（プランナ統計）** から取る。
+#
+# 以前は `pg_stat_user_tables.n_live_tup` を見ていたが、あれは *このサーバが
+# 起動してから観測した書き込みの累積*で、**ダンプから復元しただけのテーブルでは
+# 0 のまま**になる。実際 Airlines のデモ（`pg_restore` で入れたもの）では
+# 236 万行の `ticket_flights` が「0」と表示されていた。
+#
+# `-1` は「まだ ANALYZE されていない」を表す PostgreSQL の値で、0 行とは違う。
+# NULL にして返し、画面には「不明」と出す ── **0 と書くと「空だから消していい」に
+# 読める**（TRUNCATE / DROP の確認では既にそう扱っている。同じ規則をここにも）。
 LIST_TABLES_SQL = """
-SELECT t.schemaname,
-       t.tablename,
-       COALESCE(s.n_live_tup, 0) AS rows
-FROM pg_catalog.pg_tables t
-LEFT JOIN pg_catalog.pg_stat_user_tables s
-       ON s.schemaname = t.schemaname AND s.relname = t.tablename
-WHERE t.schemaname NOT IN ('pg_catalog', 'information_schema')
-ORDER BY t.schemaname, t.tablename;
+SELECT n.nspname AS schemaname,
+       c.relname AS tablename,
+       CASE WHEN c.reltuples < 0 THEN NULL
+            ELSE c.reltuples::bigint END AS rows
+FROM pg_catalog.pg_class c
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relkind IN ('r', 'p')
+  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+ORDER BY n.nspname, c.relname;
 """
 
 # The table's own COMMENT — the description psql prints at the foot of
