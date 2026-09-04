@@ -7,6 +7,7 @@ no DB. The catalog-touching simulate_scale() itself is verified by hand against
 the sample DB (see project notes); here we test the machinery it feeds.
 """
 import contextlib
+import datetime
 import io
 import json
 import os
@@ -590,6 +591,56 @@ class SqlPreviewTests(SimpleTestCase):
     def test_text_joins_statements_in_order(self):
         p = SqlPreview(statements=["SET lock_timeout = '3s'", 'DROP SCHEMA "x" CASCADE'])
         self.assertEqual(p.text, "SET lock_timeout = '3s';\nDROP SCHEMA \"x\" CASCADE;")
+
+
+class DbValueCellTests(SimpleTestCase):
+    """行データの 1 マスは、**データベースが返したまま**出す。
+
+    2026-09-04 の実害: `timestamptz` の 2026-09-04 00:10 UTC が画面では
+    2026年9月3日19:10 と出ていた。`TIME_ZONE` 未設定で Django の既定
+    `America/Chicago` が効き、そこへ `Accept-Language: ja` の書式が重なっていた。
+    **データベースの値は正しく、画面だけが嘘をついていた。**
+    """
+
+    @staticmethod
+    def _render(value, lang):
+        from django.template import Context, Template
+        from django.utils import translation
+
+        with translation.override(lang):
+            return Template("{% load dbvalue %}{{ v|cell }}").render(Context({"v": value}))
+
+    def test_aware_datetime_keeps_its_own_offset(self):
+        # 変換しない。オフセットまで見せる ── 見せないと、読む側が自分の
+        # タイムゾーンだと思い込む余地が残る。
+        v = datetime.datetime(2026, 9, 4, 0, 10, tzinfo=datetime.timezone.utc)
+        self.assertEqual(self._render(v, "en"), "2026-09-04 00:10:00+00:00")
+
+    def test_language_does_not_change_the_data(self):
+        # 表示言語で**値の見え方が変わってはいけない**。UI の言葉は訳すが、
+        # 利用者のデータは訳す対象ではない。
+        v = datetime.datetime(2026, 9, 4, 0, 10, tzinfo=datetime.timezone.utc)
+        self.assertEqual(self._render(v, "ja"), self._render(v, "en"))
+
+    def test_naive_datetime_and_date_pass_through(self):
+        self.assertEqual(
+            self._render(datetime.datetime(2026, 9, 4, 0, 10), "ja"), "2026-09-04 00:10:00")
+        self.assertEqual(self._render(datetime.date(2026, 9, 4), "ja"), "2026-09-04")
+
+    def test_other_types_are_untouched(self):
+        # 日付以外に手を出さない。数値をここで整形すると、こんどは数値が嘘になる。
+        for value, expected in [(1048576, "1048576"), ("hello", "hello"), (None, "None")]:
+            with self.subTest(value=value):
+                self.assertEqual(self._render(value, "ja"), expected)
+
+
+class TimeZoneSettingTests(SimpleTestCase):
+    def test_time_zone_is_explicit(self):
+        # 未設定だと Django は America/Chicago を使う。選んでいない既定が
+        # 利用者のデータを書き換えていた、というのが今回の事故だった。
+        from django.conf import settings
+
+        self.assertNotEqual(settings.TIME_ZONE, "America/Chicago")
 
 
 class WriteImpactTests(SimpleTestCase):

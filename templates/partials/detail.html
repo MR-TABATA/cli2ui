@@ -1,4 +1,4 @@
-{% load i18n %}{% comment %}Table detail. Subtabs (Columns | Indexes | Data | Danger) keep the
+{% load i18n dbvalue %}{% comment %}Table detail. Subtabs (Columns | Indexes | Data | Danger) keep the
 panel a clean read-only view; every mutation happens in the shared right drawer
 or, for one-click destructive ops, behind an hx-confirm. `drawer` holds the open
 form's kind; `ctx` carries the row the drawer is acting on. Submits target
@@ -229,7 +229,7 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
                 {% for row in preview_rows %}
                   <tr class="border-b border-zinc-800/60 hover:bg-zinc-800/40">
                     {% for v in row %}
-                      <td class="px-4 py-2 mono text-zinc-300 max-w-[260px] truncate whitespace-nowrap">{{ v }}</td>
+                      <td class="px-4 py-2 mono text-zinc-300 max-w-[260px] truncate whitespace-nowrap">{{ v|cell }}</td>
                     {% endfor %}
                   </tr>
                 {% endfor %}

@@ -17,6 +17,33 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Fixed
+
+- **The screen was rewriting the timestamps your database returned.** A
+  `timestamptz` holding `2026-09-04 00:10 UTC` was displayed as
+  `2026-09-03 19:10`. The value in the database was correct; the page was not.
+
+  Two things stacked up. `TIME_ZONE` was never set, so Django's default —
+  `America/Chicago` — silently applied to every aware datetime the templates
+  rendered, including rows read out of *your* database. On top of that,
+  `LocaleMiddleware` picked up `Accept-Language: ja` and formatted the result in
+  Japanese, so the same row read differently depending on the browser.
+
+  For a tool whose entire job is to show what a database actually holds, a
+  display that quietly disagrees with it is the worst thing it can do — so the
+  fix is in two parts:
+
+  - **`TIME_ZONE` is now explicit**, defaulting to UTC rather than a city nobody
+    chose. `docker compose` passes the host's `TZ` through, so
+    `TZ=Asia/Tokyo docker compose up` shows the app's own timestamps (backups,
+    snapshots) in local time.
+  - **Values read out of your database are no longer converted or reformatted at
+    all.** They render exactly as the database returned them, offset included —
+    `2026-09-04 00:10:00+00:00`, the same string `psql` prints. The display no
+    longer changes when you switch the interface language: the UI is translated,
+    your data is not.
+
+
 ### Added
 
 - **Rehearse an `ALTER`, then throw it away.** v1.6.0 showed you the statement
