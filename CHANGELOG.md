@@ -17,6 +17,11 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-04
+
+Try the ALTER before you run it — and stop the screen from arguing with your database.
+
+
 ### Fixed
 
 - **The screen was rewriting the timestamps your database returned.** A
