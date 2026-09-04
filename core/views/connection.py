@@ -97,7 +97,9 @@ def _overview_summary(connection):
 
     def _tables():
         ts = engine.list_tables()
-        return {"count": len(ts), "rows": sum(t.rows for t in ts)}
+        # 統計の無いテーブルは足さない ── 不明を 0 として合算すると、
+        # 合計だけがそれらしい顔で嘘をつく。
+        return {"count": len(ts), "rows": sum(t.rows for t in ts if t.rows is not None)}
 
     def _activity():
         acts = [a for a in engine.list_activity() if not a.is_self]

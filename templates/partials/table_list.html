@@ -1,4 +1,4 @@
-{% load i18n %}<div id="table-list"{% if oob %} hx-swap-oob="true"{% endif %}
+{% load i18n humanize %}<div id="table-list"{% if oob %} hx-swap-oob="true"{% endif %}
      class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
   <div class="px-3 py-2.5 border-b border-zinc-800">
     <input type="text" x-model="q" placeholder="{% trans 'Filter tables…' %}"
@@ -14,7 +14,7 @@
                 :class="sel === '{{ t.qualified|escapejs }}' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-300'"
                 class="w-full text-left px-3.5 py-1.5 text-sm flex items-center justify-between gap-2 hover:bg-zinc-800/60 transition">
           <span class="mono truncate">{{ t.name }}</span>
-          <span class="text-xs text-zinc-400 shrink-0">{{ t.rows }}</span>
+          <span class="text-xs text-zinc-400 shrink-0">{% if t.unknown %}<span title="{% trans 'Statistics have never been collected for this table — run ANALYZE' %}">{% trans "unknown" %}</span>{% else %}{{ t.rows|intcomma }}{% endif %}</span>
         </button>
       </li>
     {% endfor %}

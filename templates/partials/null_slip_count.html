@@ -1,4 +1,4 @@
-{% load i18n %}<div class="my-2 rounded-lg border px-4 py-2.5 text-sm
+{% load i18n humanize %}<div class="my-2 rounded-lg border px-4 py-2.5 text-sm
   {% if error or unsupported %}border-zinc-800 bg-zinc-900/60 text-zinc-400
   {% elif result.clean %}border-emerald-500/25 bg-emerald-500/10
   {% else %}border-red-500/25 bg-red-500/10{% endif %}">
@@ -8,10 +8,10 @@
     <span class="text-amber-300">{{ error }}</span>
   {% elif result.clean %}
     <span class="text-emerald-300">✓ {% trans "Nothing has slipped through yet" %}</span>
-    <span class="text-zinc-500 mono">· {% blocktrans count n=result.checked %}{{ n }} row has a NULL in the key{% plural %}{{ n }} rows have a NULL in the key{% endblocktrans %}</span>
+    <span class="text-zinc-500 mono">· {% blocktrans count c=result.checked with n=result.checked|intcomma %}{{ n }} row has a NULL in the key{% plural %}{{ n }} rows have a NULL in the key{% endblocktrans %}</span>
   {% else %}
-    <span class="text-red-300 mono tabular-nums font-semibold">{{ result.extra }}</span>
+    <span class="text-red-300 mono tabular-nums font-semibold">{{ result.extra|intcomma }}</span>
     <span class="text-red-200">{% blocktrans count n=result.extra %}duplicate row the constraint did not stop{% plural %}duplicate rows the constraint did not stop{% endblocktrans %}</span>
-    <span class="text-zinc-500 mono">· {% blocktrans count n=result.groups %}in {{ n }} key combination{% plural %}in {{ n }} key combinations{% endblocktrans %} · {% blocktrans count n=result.checked %}of {{ n }} row with a NULL in the key{% plural %}of {{ n }} rows with a NULL in the key{% endblocktrans %}</span>
+    <span class="text-zinc-500 mono">· {% blocktrans count c=result.groups with n=result.groups|intcomma %}in {{ n }} key combination{% plural %}in {{ n }} key combinations{% endblocktrans %} · {% blocktrans count c=result.checked with n=result.checked|intcomma %}of {{ n }} row with a NULL in the key{% plural %}of {{ n }} rows with a NULL in the key{% endblocktrans %}</span>
   {% endif %}
 </div>

@@ -1,4 +1,4 @@
-{% load i18n %}<div class="my-2 rounded-lg border px-4 py-2.5 text-sm
+{% load i18n humanize %}<div class="my-2 rounded-lg border px-4 py-2.5 text-sm
   {% if error or unsupported %}border-zinc-800 bg-zinc-900/60 text-zinc-400
   {% elif result.clean %}border-emerald-500/25 bg-emerald-500/10
   {% else %}border-red-500/25 bg-red-500/10{% endif %}">
@@ -8,10 +8,10 @@
     <span class="text-amber-300">{{ error }}</span>
   {% elif result.clean %}
     <span class="text-emerald-300">✓ {% trans "No orphan rows" %}</span>
-    <span class="text-zinc-500 mono">· {% blocktrans count n=result.checked %}{{ n }} row checked{% plural %}{{ n }} rows checked{% endblocktrans %}</span>
+    <span class="text-zinc-500 mono">· {% blocktrans count c=result.checked with n=result.checked|intcomma %}{{ n }} row checked{% plural %}{{ n }} rows checked{% endblocktrans %}</span>
   {% else %}
-    <span class="text-red-300 mono tabular-nums font-semibold">{{ result.orphans }}</span>
+    <span class="text-red-300 mono tabular-nums font-semibold">{{ result.orphans|intcomma }}</span>
     <span class="text-red-200">{% blocktrans count n=result.orphans %}orphan row{% plural %}orphan rows{% endblocktrans %}</span>
-    <span class="text-zinc-500 mono">· {% blocktrans count n=result.checked %}of {{ n }} row with a non-null reference{% plural %}of {{ n }} rows with a non-null reference{% endblocktrans %}</span>
+    <span class="text-zinc-500 mono">· {% blocktrans count c=result.checked with n=result.checked|intcomma %}of {{ n }} row with a non-null reference{% plural %}of {{ n }} rows with a non-null reference{% endblocktrans %}</span>
   {% endif %}
 </div>

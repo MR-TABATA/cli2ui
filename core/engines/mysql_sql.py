@@ -13,8 +13,11 @@ so the rest of the app — which is written around (schema, table) — keeps wor
 # The Web equivalent of `SHOW TABLES`: base tables in one database plus an
 # estimated row count. TABLE_ROWS is an estimate for InnoDB (like Postgres'
 # n_live_tup — cheap, lags reality; an exact COUNT(*) per table would be slow).
+# `TABLE_ROWS` は InnoDB では推定値で、統計がまだ無ければ NULL が返る。
+# **NULL のまま渡す** ── 0 に潰すと「空だから消していい」に読める
+# （PostgreSQL 側の LIST_TABLES_SQL と同じ規則）。
 LIST_TABLES_SQL = """
-SELECT TABLE_SCHEMA, TABLE_NAME, COALESCE(TABLE_ROWS, 0) AS row_estimate
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_ROWS AS row_estimate
 FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = %s AND TABLE_TYPE = 'BASE TABLE'
 ORDER BY TABLE_NAME;

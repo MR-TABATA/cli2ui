@@ -46,11 +46,19 @@ class Dump:
 class Table:
     schema: str
     name: str
-    rows: int  # estimated live row count (approximate, from stats)
+    # 推定の行数（プランナ統計）。**None は「まだ統計が無い」で、0 行とは違う。**
+    # 0 と書くと「空だから消していい」に読めるので、画面には「不明」と出す
+    # ── WriteImpact.unknown と同じ規則。
+    rows: int | None
 
     @property
     def qualified(self) -> str:
         return f"{self.schema}.{self.name}"
+
+    @property
+    def unknown(self) -> bool:
+        """統計が無い。**「0 行」ではなく「不明」と言う。**"""
+        return self.rows is None
 
 
 @dataclass

@@ -332,7 +332,8 @@ class MysqlEngine(Engine):
             with conn.cursor() as cur:
                 cur.execute(LIST_TABLES_SQL, (self.connection.dbname,))
                 return [
-                    Table(schema=row[0], name=row[1], rows=int(row[2] or 0))
+                    Table(schema=row[0], name=row[1],
+                          rows=None if row[2] is None else int(row[2]))
                     for row in cur.fetchall()
                 ]
 
