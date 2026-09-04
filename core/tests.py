@@ -628,6 +628,34 @@ class TableRowCountTests(SimpleTestCase):
         self.assertIn("NULL", LIST_TABLES_SQL)
 
 
+class TemplateCommentPlacementTests(SimpleTestCase):
+    """注釈がタグの属性の中に無いこと。
+
+    2026-09-04 の実害: `<div class="…" {# … #} x-data="…">` と書いたら、Django は
+    属性の中の `{#…#}` を注釈として解釈せず、**そのまま画面に出た**。2 か所やった。
+    ヘッダの真ん中に説明文が表示されていた。
+
+    タグの外に置くか、`{% comment %}` を使えば起きない。目で見張るものではないので
+    機械に見せる。
+    """
+
+    def test_no_comment_inside_a_tag(self):
+        import pathlib
+        import re
+
+        root = pathlib.Path(__file__).resolve().parent.parent / "templates"
+        offenders = []
+        for path in sorted(root.rglob("*.html")):
+            text = path.read_text(encoding="utf-8")
+            # `<` から `>` までの間に `{#` があれば、それは属性の中。
+            for m in re.finditer(r"<[a-zA-Z][^>]*?\{#", text, re.S):
+                line = text[: m.start()].count("\n") + 1
+                offenders.append(f"{path.name}:{line}")
+        self.assertEqual(
+            offenders, [],
+            "タグの中に {# #} がある（画面にそのまま出る）: " + ", ".join(offenders))
+
+
 class PreviewPagingTests(SimpleTestCase):
     """テーブルの中身のページ送り。
 
