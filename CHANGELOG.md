@@ -17,6 +17,33 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Changed
+
+- **Clicking a table now shows its rows, not its column list.** You wrote the
+  migration; you know what the columns are. What you clicked the table to see
+  is what is in it. Columns and Indexes are one click away, and the tab you are
+  on now survives an edit — changing a column used to throw you back to the
+  first tab every time the panel re-rendered.
+
+- **The row grid is paged: 1,000 rows at a time, and you can change that**
+  (100 / 500 / 1,000 / 5,000). It used to show the first 50 rows and stop, with
+  no way to see row 51.
+
+  **Pages are ordered by the primary key.** `LIMIT`/`OFFSET` without an
+  `ORDER BY` is faster, but PostgreSQL does not promise an order, so paging
+  through would show some rows twice and never show others — a pager that
+  lies. Measured on the bundled Airlines demo (2,360,335 rows): the first page
+  takes 7 ms ordered, the last 878 ms; unordered it is 50 ms and wrong. On a
+  table with no primary key there is nothing to order by, and the pager says
+  so rather than pretending.
+
+  **The total is the statistics estimate, labelled as one** — `count(*)` would
+  scan the whole table every time you opened it. Whether a *next* page exists
+  is decided by how many rows actually came back, not by the estimate: stale
+  statistics make a "next" that lands on nothing, which is worse than a total
+  that is slightly off.
+
+
 ### Fixed
 
 - **The table list showed 0 rows for tables that were not empty.** The bundled

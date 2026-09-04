@@ -71,7 +71,15 @@ main pane) and `q` (the table filter).{% endcomment %}
 
     </div>
   </div>
-  <span class="text-xs text-zinc-500 ml-1 hidden sm:inline">{% trans "— hover for the section menu" %}</span>
+
+  {% comment %}バーの右側。いま何を見ているかを置く ── #detail は htmx で丸ごと
+  入れ替わり、ブラウザの履歴にも残らないので、そうでないと現在地がタイトルにしか
+  無い。テーブルを開いたときだけ出す（サイドバーの選択 sel を見ている。ここは
+  htmx の差し替え範囲の外なので、サーバ往復も OOB swap も要らない）。{% endcomment %}
+  <span x-show="sel" x-cloak class="ml-3 flex items-center gap-1.5 text-xs text-zinc-500 min-w-0">
+    <span class="text-zinc-700">/</span>
+    <span class="mono truncate text-zinc-300" x-text="sel"></span>
+  </span>
 </nav>
 {% endblock %}
 

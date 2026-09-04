@@ -628,6 +628,125 @@ class TableRowCountTests(SimpleTestCase):
         self.assertIn("NULL", LIST_TABLES_SQL)
 
 
+class TemplateCommentPlacementTests(SimpleTestCase):
+    """注釈がタグの属性の中に無いこと。
+
+    2026-09-04 の実害: `<div class="…" {# … #} x-data="…">` と書いたら、Django は
+    属性の中の `{#…#}` を注釈として解釈せず、**そのまま画面に出た**。2 か所やった。
+    ヘッダの真ん中に説明文が表示されていた。
+
+    タグの外に置くか、`{% comment %}` を使えば起きない。目で見張るものではないので
+    機械に見せる。
+    """
+
+    def test_no_comment_inside_a_tag(self):
+        import pathlib
+        import re
+
+        root = pathlib.Path(__file__).resolve().parent.parent / "templates"
+        offenders = []
+        for path in sorted(root.rglob("*.html")):
+            text = path.read_text(encoding="utf-8")
+            # `<` から `>` までの間に `{#` があれば、それは属性の中。
+            for m in re.finditer(r"<[a-zA-Z][^>]*?\{#", text, re.S):
+                line = text[: m.start()].count("\n") + 1
+                offenders.append(f"{path.name}:{line}")
+        self.assertEqual(
+            offenders, [],
+            "タグの中に {# #} がある（画面にそのまま出る）: " + ", ".join(offenders))
+
+
+class PreviewPagingTests(SimpleTestCase):
+    """テーブルの中身のページ送り。
+
+    **並び順を決めずに OFFSET を使わない。** PostgreSQL は行の順序を約束しないので、
+    ページをめくると同じ行が二度出たり、どこにも出ない行ができる ── ページャの
+    体裁で嘘をつくことになる。実測（Airlines・236 万行）: 主キー順の OFFSET は
+    先頭 7 ms、最深部 878 ms。順序なしなら 50 ms だが、そちらは正しくない。
+    """
+
+    @staticmethod
+    def _preview(**kw):
+        from core.engines.base import Preview
+
+        kw.setdefault("columns", ["a"])
+        kw.setdefault("rows", [(1,)] * kw.get("page_size", 1000))
+        return Preview(**kw)
+
+    def test_page_number_is_one_based(self):
+        self.assertEqual(self._preview(offset=0, page_size=1000).page, 1)
+        self.assertEqual(self._preview(offset=1000, page_size=1000).page, 2)
+        self.assertEqual(self._preview(offset=2359000, page_size=1000).page, 2360)
+
+    def test_row_range_counts_from_one(self):
+        p = self._preview(offset=1000, page_size=1000)
+        self.assertEqual((p.first_row, p.last_row), (1001, 2000))
+
+    def test_empty_page_has_no_range(self):
+        # 0–0 行目、とは出さない。
+        p = self._preview(offset=0, page_size=1000, rows=[])
+        self.assertEqual((p.first_row, p.last_row), (0, 0))
+
+    def test_next_page_is_decided_by_rows_returned_not_the_estimate(self):
+        # 統計は古いことがある。「次へ」が空振りするのは、行数が少し違うより悪い。
+        full = self._preview(page_size=1000, estimated_rows=5)
+        self.assertTrue(full.has_next)
+        partial = self._preview(page_size=1000, rows=[(1,)] * 3,
+                                estimated_rows=1_000_000)
+        self.assertFalse(partial.has_next)
+
+    def test_unknown_total_means_no_page_count(self):
+        # 統計が無ければページ数も出さない。0 ページとは言わない。
+        self.assertIsNone(self._preview(estimated_rows=None).estimated_pages)
+        self.assertEqual(self._preview(estimated_rows=2360335, page_size=1000)
+                         .estimated_pages, 2361)
+
+    def test_no_primary_key_means_paging_is_not_stable(self):
+        self.assertFalse(self._preview().stable)
+        self.assertTrue(self._preview(ordered_by=["id"]).stable)
+
+    def test_preview_sql_orders_by_the_primary_key(self):
+        # 順序なしの LIMIT/OFFSET に戻すと、ページ送りが静かに壊れる。
+        import inspect
+
+        from core.engines.postgres import PostgresEngine
+
+        src = inspect.getsource(PostgresEngine.preview_rows)
+        self.assertIn("ORDER BY", src)
+        self.assertIn("_primary_key_columns", src)
+
+
+class PagingParameterTests(SimpleTestCase):
+    """`?page=` と `?rows=` の受け取り。**画面から来た数を LIMIT に直接渡さない。**"""
+
+    @staticmethod
+    def _paging(**params):
+        from django.test import RequestFactory
+
+        from core.views.tables import _paging
+
+        return _paging(RequestFactory().get("/", params))
+
+    def test_defaults(self):
+        from core.views.tables import DEFAULT_PAGE_SIZE
+
+        self.assertEqual(self._paging(), (DEFAULT_PAGE_SIZE, 0))
+
+    def test_offset_follows_the_page(self):
+        self.assertEqual(self._paging(page="3", rows="100"), (100, 200))
+
+    def test_junk_falls_back_quietly(self):
+        # ここでエラーを出しても、利用者にできることが無い。
+        from core.views.tables import DEFAULT_PAGE_SIZE
+
+        for params in [{"page": "abc"}, {"page": "-5"}, {"rows": "99999"},
+                       {"rows": "0"}, {"rows": "; DROP TABLE x"}]:
+            with self.subTest(params=params):
+                size, offset = self._paging(**params)
+                self.assertIn(size, (DEFAULT_PAGE_SIZE, 100, 500, 1000, 5000))
+                self.assertGreaterEqual(offset, 0)
+
+
 class ThousandSeparatorTests(SimpleTestCase):
     """**アプリが数えた数は区切る。利用者のデータは区切らない。**
 
@@ -3450,7 +3569,7 @@ class IndexManagementSmokeE2E(_BrowserE2E):
         page.locator("#detail h2").wait_for()
 
         # Indexes subtab → open the Create index drawer.
-        page.get_by_role("button", name="Indexes", exact=True).click()
+        page.locator(".subtab", has_text="Indexes").click()
         page.get_by_role("button", name="+ Create index").first.click()
         create = page.locator('form[hx-post*="indexes/create"]')
         create.wait_for(state="visible")
@@ -3465,7 +3584,7 @@ class IndexManagementSmokeE2E(_BrowserE2E):
 
         # The swap resets the panel to Columns; reopen Indexes to see the row,
         # with its columns in the chosen order.
-        page.get_by_role("button", name="Indexes", exact=True).click()
+        page.locator(".subtab", has_text="Indexes").click()
         row = page.locator("#detail tr", has_text=self.IDX)
         expect(row).to_contain_text("total, customer_id")
 
@@ -3645,6 +3764,9 @@ class ColumnManagementSmokeE2E(_BrowserE2E):
         page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
         page.locator(f'button[hx-get$="table={self.TBL}"]').click()
         page.locator("#detail h2").wait_for()
+        # 既定タブは Data（テーブル名を押した人が見たいのは中身）。
+        # 列を触るテストは、まず Columns へ移る。
+        page.locator(".subtab", has_text="Columns").click()
 
         # Add a column via the drawer.
         page.get_by_role("button", name="+ Add column").first.click()
@@ -3696,6 +3818,9 @@ class ColumnAlterSmokeE2E(_BrowserE2E):
         page.goto(f"{self.live_server_url}/c/{self.conn.pk}/")
         page.locator(f'button[hx-get$="table={self.TBL}"]').click()
         page.locator("#detail h2").wait_for()
+        # 既定タブは Data（テーブル名を押した人が見たいのは中身）。
+        # 列を触るテストは、まず Columns へ移る。
+        page.locator(".subtab", has_text="Columns").click()
 
         # Open the edit drawer and change text → integer.
         self._amount_row().get_by_role("button", name="edit").click()

@@ -11,12 +11,40 @@ from ._shared import _auto_backup
 from .connection import overview
 
 
+# 1 ページに出す行数。既定は 1000 ── テーブル名を押した人が見たいのは中身で、
+# 50 行では「入っているものを見た」ことにならない。選べる値は固定の allow-list に
+# する（画面から来た数をそのまま LIMIT に渡さないため）。
+PAGE_SIZES = (100, 500, 1000, 5000)
+DEFAULT_PAGE_SIZE = 1000
+
+
+def _paging(request):
+    """`?page=` と `?rows=` を、範囲の決まった (page_size, offset) に直す。
+
+    壊れた値・負の値・一覧に無い大きさは、黙って既定へ落とす ── ここで
+    エラーを出しても、利用者にできることが無い。
+    """
+    try:
+        size = int(request.GET.get("rows", DEFAULT_PAGE_SIZE))
+    except (TypeError, ValueError):
+        size = DEFAULT_PAGE_SIZE
+    if size not in PAGE_SIZES:
+        size = DEFAULT_PAGE_SIZE
+    try:
+        page = max(1, int(request.GET.get("page", 1)))
+    except (TypeError, ValueError):
+        page = 1
+    return size, (page - 1) * size
+
+
 def table_detail(request, pk):
-    """Columns + a row preview for one table (htmx partial into the main pane)."""
+    """Columns + a page of rows for one table (htmx partial into the main pane)."""
     connection = get_object_or_404(Connection, pk=pk)
     schema = request.GET.get("schema", "")
     table = request.GET.get("table", "")
-    return _render_detail(request, connection, schema, table)
+    size, offset = _paging(request)
+    return _render_detail(request, connection, schema, table,
+                          page_size=size, offset=offset)
 
 
 def jsonb_shape(request, pk):
@@ -63,7 +91,8 @@ def _write_previews(engine, schema, table):
     return out
 
 
-def _render_detail(request, connection, schema, table, error=None, notice=None):
+def _render_detail(request, connection, schema, table, error=None, notice=None,
+                   page_size=DEFAULT_PAGE_SIZE, offset=0):
     """Render the table-detail panel: columns, indexes and a row preview.
 
     A connection-level failure falls back to the error partial; a per-action
@@ -73,7 +102,7 @@ def _render_detail(request, connection, schema, table, error=None, notice=None):
         engine = get_engine(connection)
         columns = engine.list_columns(schema, table)
         indexes = engine.list_indexes(schema, table)
-        preview = engine.preview_rows(schema, table)
+        preview = engine.preview_rows(schema, table, limit=page_size, offset=offset)
         comment = engine.table_comment(schema, table)
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
@@ -104,6 +133,8 @@ def _render_detail(request, connection, schema, table, error=None, notice=None):
             "column_types": COLUMN_TYPES,
             "preview_columns": preview.columns,
             "preview_rows": rows,
+            "preview": preview,
+            "page_sizes": PAGE_SIZES,
             # Display-only: prefilled into the SQL editor as a starting point,
             # never executed server-side. The run path (run_query) is read-only
             # enforced by the DB. nosec B608 — not a query we build and execute.

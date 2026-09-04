@@ -77,6 +77,8 @@ from .pg_sql import (
     LIST_ROLES_SQL,
     LIST_SCHEMAS_SQL,
     LIST_TABLES_SQL,
+    PRIMARY_KEY_COLUMNS_SQL,
+    ESTIMATED_ROWS_SQL,
     NOT_VALID_FK_SQL,
     REPLICATION_STATUS_SQL,
     SETTINGS_SELECT,
@@ -459,18 +461,48 @@ class PostgresEngine(Engine):
         return JsonbShape(column=column, sampled=len(docs), root_types=root_types,
                           keys=keys, max_depth=max_depth, gin_indexes=gin)
 
-    def preview_rows(self, schema: str, table: str, limit: int = 50) -> Preview:
+    def preview_rows(self, schema: str, table: str, limit: int = 1000,
+                     offset: int = 0) -> Preview:
+        """テーブルの中身を 1 ページぶん。**主キー順**で返す。
+
+        並び順を指定しない `LIMIT/OFFSET` は速いが、PostgreSQL は行の順序を
+        約束しないので、**ページをめくると同じ行が二度出たり、どこにも出ない行が
+        できる**。ページャの体裁で嘘をつくことになるので、主キーがあれば必ずそれで
+        並べる。実測（Airlines・236 万行）: 主キー順の OFFSET は先頭 7 ms、
+        最深部でも 878 ms。順序なしなら 50 ms だが、そちらは正しくない。
+
+        主キーが無いテーブルでは並べようがないので、`ordered_by` を空で返す
+        ── 画面はそれを見て「順序は保証されない」と断る。
+
+        行数は数えない。`count(*)` は毎回の全走査になるので、プランナ統計の推定を
+        使い、推定だと言う（TRUNCATE / DROP の確認と同じ規則）。
+        """
         # Identifiers come from the schema, but compose them safely anyway so a
         # table named `users; DROP …` can never break out of the query.
-        query = sql.SQL("SELECT * FROM {}.{} LIMIT %s").format(
-            sql.Identifier(schema), sql.Identifier(table)
-        )
+        order_cols = self._primary_key_columns(schema, table)
+        query = sql.SQL("SELECT * FROM {}.{}").format(
+            sql.Identifier(schema), sql.Identifier(table))
+        if order_cols:
+            query = query + sql.SQL(" ORDER BY ") + sql.SQL(", ").join(
+                sql.Identifier(c) for c in order_cols)
+        query = query + sql.SQL(" LIMIT %s OFFSET %s")
         with self._connect() as conn:
             with conn.cursor() as cur:
-                cur.execute(query, (limit,))
+                cur.execute(query, (limit, offset))
                 columns = [d.name for d in cur.description]
                 rows = cur.fetchall()
-        return Preview(columns=columns, rows=rows)
+                cur.execute(ESTIMATED_ROWS_SQL, (schema, table))
+                row = cur.fetchone()
+                estimated = row[0] if row else None
+        return Preview(columns=columns, rows=rows, offset=offset, page_size=limit,
+                       estimated_rows=estimated, ordered_by=order_cols)
+
+    def _primary_key_columns(self, schema: str, table: str) -> list[str]:
+        """主キーの列を、定義順で。無ければ空。"""
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(PRIMARY_KEY_COLUMNS_SQL, (schema, table))
+                return [r[0] for r in cur.fetchall()]
 
     def run_query(self, sql_text: str, *, max_rows: int = 1000,
                   timeout_ms: int = 15000, read_only: bool = True,

@@ -68,6 +68,8 @@ from .mysql_sql import (
     LIST_INDEXES_SQL,
     LIST_ROLES_SQL,
     LIST_TABLES_SQL,
+    PRIMARY_KEY_COLUMNS_SQL,
+    ESTIMATED_ROWS_SQL,
     TABLE_COMMENT_SQL,
     TABLE_SIZES_SQL,
     UNUSED_INDEXES_SQL,
@@ -365,14 +367,33 @@ class MysqlEngine(Engine):
                 # MySQL returns '' (not NULL) for no comment; normalise.
                 return (row[0] or None) if row else None
 
-    def preview_rows(self, schema: str, table: str, limit: int = 50) -> Preview:
-        query = f"SELECT * FROM {_ident(schema)}.{_ident(table)} LIMIT %s"  # nosec B608 — identifiers go through _ident (backtick-quoted); limit is bound as %s
+    def preview_rows(self, schema: str, table: str, limit: int = 1000,
+                     offset: int = 0) -> Preview:
+        """PostgreSQL 側と同じ規則 ── 主キー順、行数は推定。理由はそちらに。"""
+        order_cols = self._primary_key_columns(schema, table)
+        order = ""
+        if order_cols:
+            order = " ORDER BY " + ", ".join(_ident(c) for c in order_cols)
+        query = (f"SELECT * FROM {_ident(schema)}.{_ident(table)}"  # nosec B608 — identifiers go through _ident (backtick-quoted); limit/offset are bound as %s
+                 f"{order} LIMIT %s OFFSET %s")
         with self._connect() as conn:
             with conn.cursor() as cur:
-                cur.execute(query, (limit,))
+                cur.execute(query, (limit, offset))
                 columns = [d[0] for d in cur.description]
                 rows = cur.fetchall()
-        return Preview(columns=columns, rows=list(rows))
+                cur.execute(ESTIMATED_ROWS_SQL, (schema, table))
+                row = cur.fetchone()
+                estimated = None if not row or row[0] is None else int(row[0])
+        return Preview(columns=columns, rows=list(rows), offset=offset,
+                       page_size=limit, estimated_rows=estimated,
+                       ordered_by=order_cols)
+
+    def _primary_key_columns(self, schema: str, table: str) -> list[str]:
+        """主キーの列を、定義順で。無ければ空。"""
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(PRIMARY_KEY_COLUMNS_SQL, (schema, table))
+                return [r[0] for r in cur.fetchall()]
 
     # --- ad-hoc queries --------------------------------------------------
 

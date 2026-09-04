@@ -3,15 +3,28 @@ panel a clean read-only view; every mutation happens in the shared right drawer
 or, for one-click destructive ops, behind an hx-confirm. `drawer` holds the open
 form's kind; `ctx` carries the row the drawer is acting on. Submits target
 #detail, so the whole panel (drawer included) re-renders and resets.{% endcomment %}
-<div class="space-y-5" x-data="{ tab: 'columns', drawer: null, ctx: {} }">
+{% comment %}既定タブは Data ── テーブル名を押した人が見たいのは中身で、列の構成は
+自分で書いたので知っている。
+
+ただし**同じテーブルの中で操作したときは、いま見ていたタブに留まる**。この panel は
+htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すたびに Data へ弾き飛ばされる。
+直前に見ていたタブをテーブル名つきで覚えておき、同じテーブルなら戻す（別のテーブルへ
+移ったら Data から始める）。
+
+⚠️ 注釈は**タグの外**に置くこと。属性の中に書いた `{#…#}` は Django に解釈されず、
+そのまま画面へ出る（2026-09-04 に 2 か所やらかした）。{% endcomment %}
+<div class="space-y-3"
+        x-data="{
+          tab: (window.__cli2uiTab && window.__cli2uiTab.of === '{{ schema|escapejs }}.{{ table|escapejs }}')
+                 ? window.__cli2uiTab.tab : 'data',
+          drawer: null, ctx: {},
+          init() { this.$watch('tab', v => window.__cli2uiTab = { of: '{{ schema|escapejs }}.{{ table|escapejs }}', tab: v });
+                   window.__cli2uiTab = { of: '{{ schema|escapejs }}.{{ table|escapejs }}', tab: this.tab }; }
+        }">
   <div class="flex items-start justify-between gap-3">
     <div>
       <h2 class="text-lg font-semibold mono">{{ schema }}.{{ table }}</h2>
-      <p class="text-xs text-zinc-400">
-        {% blocktrans count nc=columns|length %}{{ nc }} column{% plural %}{{ nc }} columns{% endblocktrans %} ·
-        {% blocktrans count nr=preview_rows|length %}previewing up to {{ nr }} row{% plural %}previewing up to {{ nr }} rows{% endblocktrans %}
-      </p>
-      {% if table_comment %}<p class="mt-1 text-xs text-zinc-500 max-w-prose whitespace-normal">{{ table_comment }}</p>{% endif %}
+      {% if table_comment %}<p class="text-xs text-zinc-500 max-w-prose whitespace-normal">{{ table_comment }}</p>{% endif %}
     </div>
     <div class="shrink-0 flex items-center gap-1.5">
       <button hx-get="{% url 'query' connection.pk %}?sql={{ query_sql|urlencode }}"
@@ -49,8 +62,8 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
 
   <!-- Subtabs -->
   <nav class="flex items-center gap-1 border-b border-zinc-800 pb-2">
-    <button class="subtab" :class="tab === 'columns' && 'subtab-on'" @click="tab = 'columns'">{% trans "Columns" %}</button>
-    <button class="subtab" :class="tab === 'indexes' && 'subtab-on'" @click="tab = 'indexes'">{% trans "Indexes" %}</button>
+    <button class="subtab" :class="tab === 'columns' && 'subtab-on'" @click="tab = 'columns'">{% trans "Columns" %} <span class="text-zinc-600 tabular-nums">{{ columns|length|intcomma }}</span></button>
+    <button class="subtab" :class="tab === 'indexes' && 'subtab-on'" @click="tab = 'indexes'">{% trans "Indexes" %} <span class="text-zinc-600 tabular-nums">{{ indexes|length|intcomma }}</span></button>
     <button class="subtab" :class="tab === 'data' && 'subtab-on'" @click="tab = 'data'">{% trans "Data" %}</button>
     <button class="subtab ml-auto" :class="tab === 'danger' && 'subtab-on text-red-300'"
             @click="tab = 'danger'">{% trans "Danger" %}</button>
@@ -214,13 +227,66 @@ form's kind; `ctx` carries the row the drawer is acting on. Submits target
       </div>
     </form>
 
+    {% if preview %}
+    <!-- ページ送り。行数は数えない（count(*) は毎回の全走査）ので、統計の推定を
+         「約」と断って出す。順序が決まっていないテーブルではそれも言う。 -->
+    {% comment %}ページャはグリッドの上に貼り付ける。グリッドだけがスクロールする
+    ので流れはしないが、1000 行を送った先で「いま何ページ目か」を見に戻るのに
+    上まで戻る必要はない。{% endcomment %}
+    <div class="sticky top-14 z-10 -mx-1 px-1 py-1.5 bg-zinc-950/95 backdrop-blur
+                flex flex-wrap items-center gap-3 text-xs text-zinc-400">
+      <span>
+        {% blocktrans with a=preview.first_row|intcomma b=preview.last_row|intcomma %}rows {{ a }}–{{ b }}{% endblocktrans %}
+        {% if preview.estimated_rows is not None %}
+          <span class="text-zinc-500">/ {% blocktrans with n=preview.estimated_rows|intcomma %}of about {{ n }} (estimated from statistics){% endblocktrans %}</span>
+        {% else %}
+          <span class="text-zinc-500">/ {% trans "of an unknown total — this table has never been analyzed" %}</span>
+        {% endif %}
+      </span>
+
+      {% if not preview.stable %}
+        <span class="text-amber-400" title="{% trans 'A table with no primary key has no defined row order, so paging can repeat or skip rows.' %}">
+          {% trans "⚠ No primary key — row order is not guaranteed between pages" %}
+        </span>
+      {% endif %}
+
+      <span class="ml-auto flex items-center gap-1">
+        {% if preview.has_previous %}
+          <button class="btn btn-sm btn-neutral" hx-get="{% url 'table_detail' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&rows={{ preview.page_size }}&page={{ preview.page|add:-1 }}"
+                  hx-target="#detail" hx-swap="innerHTML">{% trans "← Prev" %}</button>
+        {% endif %}
+        <span class="px-2 tabular-nums">
+          {% if preview.estimated_pages %}
+            {% blocktrans with p=preview.page|intcomma t=preview.estimated_pages|intcomma %}page {{ p }} of about {{ t }}{% endblocktrans %}
+          {% else %}
+            {% blocktrans with p=preview.page|intcomma %}page {{ p }}{% endblocktrans %}
+          {% endif %}
+        </span>
+        {% if preview.has_next %}
+          <button class="btn btn-sm btn-neutral" hx-get="{% url 'table_detail' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&rows={{ preview.page_size }}&page={{ preview.page|add:1 }}"
+                  hx-target="#detail" hx-swap="innerHTML">{% trans "Next →" %}</button>
+        {% endif %}
+        <select class="field field-sm ml-2"
+                hx-get="{% url 'table_detail' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}"
+                hx-target="#detail" hx-swap="innerHTML" hx-include="this" name="rows">
+          {% for n in page_sizes %}
+            <option value="{{ n }}"{% if n == preview.page_size %} selected{% endif %}>{% blocktrans with n=n|intcomma %}{{ n }} rows{% endblocktrans %}</option>
+          {% endfor %}
+        </select>
+      </span>
+    </div>
+    {% endif %}
+
     <!-- Initial content = unfiltered preview; Apply swaps in the filtered grid. -->
     <div id="filter-result">
       <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
         {% if preview_rows %}
-          <div class="overflow-x-auto">
+          {% comment %}グリッドだけが縦にスクロールする。1000 行あるので、ページ全体が
+          動くと列名もページ送りも画面の外へ流れてしまう。SQL ランナーと絞り込みの
+          結果は既にこうなっていて、ここだけ揃っていなかった。{% endcomment %}
+          <div class="overflow-auto max-h-[60vh]">
             <table class="w-full text-sm">
-              <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
+              <thead class="text-left text-xs uppercase tracking-wide text-zinc-400 sticky top-0 bg-zinc-900">
                 <tr class="border-b border-zinc-800">
                   {% for c in preview_columns %}<th class="px-4 py-2 font-medium mono whitespace-nowrap">{{ c }}</th>{% endfor %}
                 </tr>
