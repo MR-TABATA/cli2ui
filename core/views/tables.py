@@ -152,6 +152,12 @@ def _render_detail(request, connection, schema, table, error=None, notice=None,
             "index_methods": INDEX_METHODS,
             "column_types": COLUMN_TYPES,
             "preview_columns": preview.columns,
+            # 列名だけでなく型も見出しに出す（Sequel Ace と同じ）。型は
+            # Columns タブを開かないと分からない、という往復をなくす。
+            "preview_header": [
+                (name, next((c.type for c in columns if c.name == name), ""))
+                for name in preview.columns
+            ],
             "preview_rows": rows,
             "preview": preview,
             "page_sizes": PAGE_SIZES,

@@ -13,7 +13,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
 
 ⚠️ 注釈は**タグの外**に置くこと。属性の中に書いた `{#…#}` は Django に解釈されず、
 そのまま画面へ出る（2026-09-04 に 2 か所やらかした）。{% endcomment %}
-<div class="space-y-3"
+<div class="space-y-2"
         x-data="{
           tab: (window.__cli2uiTab && window.__cli2uiTab.of === '{{ schema|escapejs }}.{{ table|escapejs }}')
                  ? window.__cli2uiTab.tab : 'data',
@@ -21,47 +21,14 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
           init() { this.$watch('tab', v => window.__cli2uiTab = { of: '{{ schema|escapejs }}.{{ table|escapejs }}', tab: v });
                    window.__cli2uiTab = { of: '{{ schema|escapejs }}.{{ table|escapejs }}', tab: this.tab }; }
         }">
-  <div class="flex items-start justify-between gap-3">
-    <div>
-      <h2 class="text-lg font-semibold mono">{{ schema }}.{{ table }}</h2>
-      {% if table_comment %}<p class="text-xs text-zinc-500 max-w-prose whitespace-normal">{{ table_comment }}</p>{% endif %}
-    </div>
-    <div class="shrink-0 flex items-center gap-1.5">
-      <button hx-get="{% url 'query' connection.pk %}?sql={{ query_sql|urlencode }}"
-              hx-target="#detail" hx-swap="innerHTML" class="btn btn-sm btn-neutral">
-        <span>▷</span> {% trans "Open in SQL" %}
-      </button>
-      <!-- Backup this table (pg_dump -t). Fetched via JS for an in-page spinner. -->
-      <span x-data="dumpLinks()" class="btn btn-sm btn-neutral gap-2 cursor-default">
-        {% trans "backup" %}
-        <a href="#" @click.prevent="download('{% url 'table_dump' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=plain')"
-           :class="busy && 'opacity-40 pointer-events-none'" title="{% trans 'pg_dump this table as plain SQL' %}"
-           class="btn-link">.sql ↓</a>
-        <a href="#" @click.prevent="download('{% url 'table_dump' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=custom')"
-           :class="busy && 'opacity-40 pointer-events-none'" title="{% trans 'pg_dump this table in custom format' %}"
-           class="btn-link">.dump ↓</a>
-        <span x-show="busy" class="spinner text-sky-300"></span>
-        <span x-show="err" x-text="err" class="text-red-400/90 max-w-[160px] truncate"></span>
-      </span>
-      <!-- Export every row (read-only SELECT *, streamed). Native download links
-           like the query exporter; full table, not the preview's row cap. -->
-      <span class="btn btn-sm btn-neutral gap-2 cursor-default">
-        {% trans "export" %}
-        <a href="{% url 'table_export' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=csv"
-           title="{% trans 'Download every row as CSV' %}" class="btn-link">CSV ↓</a>
-        <a href="{% url 'table_export' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=json"
-           title="{% trans 'Download every row as JSON' %}" class="btn-link">JSON ↓</a>
-      </span>
-      <button @click="drawer = 'import-csv'" class="btn btn-sm btn-neutral"
-              title="{% trans 'Append rows from a CSV file' %}">{% trans "import" %}</button>
-      <button @click="drawer = 'rename'" class="btn btn-sm btn-neutral">{% trans "rename" %}</button>
-    </div>
-  </div>
-
   {% include "partials/_banner.html" %}
 
-  <!-- Subtabs -->
-  <nav class="flex items-center gap-1 border-b border-zinc-800 pb-2">
+  {% comment %}道具は 1 本の帯にまとめる。テーブル名・タブ・絞り込みで 3 段
+  積んでいたのを 1 段にした。グリッドは窓の底まで届かせたいので、上に積むものを
+  減らすのがそのまま行数になる。{% endcomment %}
+  <nav class="flex items-center gap-1 border-b border-zinc-800 pb-1.5">
+    <h2 class="mono text-sm font-semibold mr-3 truncate max-w-[320px]"
+        {% if table_comment %}title="{{ table_comment }}"{% endif %}>{{ schema }}.{{ table }}</h2>
     <button class="subtab" :class="tab === 'columns' && 'subtab-on'" @click="tab = 'columns'">{% trans "Columns" %} <span class="text-zinc-600 tabular-nums">{{ columns|length|intcomma }}</span></button>
     <button class="subtab" :class="tab === 'indexes' && 'subtab-on'" @click="tab = 'indexes'">{% trans "Indexes" %} <span class="text-zinc-600 tabular-nums">{{ indexes|length|intcomma }}</span></button>
     <button class="subtab" :class="tab === 'data' && 'subtab-on'" @click="tab = 'data'">{% trans "Data" %}</button>
@@ -240,61 +207,6 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
       </div>
     </form>
 
-    {% if preview %}
-    <!-- ページ送り。行数は数えない（count(*) は毎回の全走査）ので、統計の推定を
-         「約」と断って出す。順序が決まっていないテーブルではそれも言う。 -->
-    {% comment %}ページャはグリッドの上に貼り付ける。グリッドだけがスクロールする
-    ので流れはしないが、1000 行を送った先で「いま何ページ目か」を見に戻るのに
-    上まで戻る必要はない。{% endcomment %}
-    <div class="sticky top-14 z-10 -mx-1 px-1 py-1.5 bg-zinc-950/95 backdrop-blur
-                flex flex-wrap items-center gap-3 text-xs text-zinc-400">
-      <span>
-        {% blocktrans with a=preview.first_row|intcomma b=preview.last_row|intcomma %}rows {{ a }}–{{ b }}{% endblocktrans %}
-        {% if preview.estimated_rows is not None %}
-          <span class="text-zinc-500">/ {% blocktrans with n=preview.estimated_rows|intcomma %}of about {{ n }} (estimated from statistics){% endblocktrans %}</span>
-        {% else %}
-          <span class="text-zinc-500">/ {% trans "of an unknown total — this table has never been analyzed" %}</span>
-        {% endif %}
-      </span>
-
-      {% if not preview.stable %}
-        <span class="text-amber-400" title="{% trans 'A table with no primary key has no defined row order, so paging can repeat or skip rows.' %}">
-          {% trans "⚠ No primary key — row order is not guaranteed between pages" %}
-        </span>
-      {% endif %}
-
-      <span class="ml-auto flex items-center gap-1">
-        {% if preview.has_previous %}
-          <button class="btn btn-sm btn-neutral" hx-get="{% url 'table_detail' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&rows={{ mode }}&fit={{ preview.page_size }}&page={{ preview.page|add:-1 }}"
-                  hx-target="#detail" hx-swap="innerHTML">{% trans "← Prev" %}</button>
-        {% endif %}
-        <span class="px-2 tabular-nums">
-          {% if preview.estimated_pages %}
-            {% blocktrans with p=preview.page|intcomma t=preview.estimated_pages|intcomma %}page {{ p }} of about {{ t }}{% endblocktrans %}
-          {% else %}
-            {% blocktrans with p=preview.page|intcomma %}page {{ p }}{% endblocktrans %}
-          {% endif %}
-        </span>
-        {% if preview.has_next %}
-          <button class="btn btn-sm btn-neutral" hx-get="{% url 'table_detail' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&rows={{ mode }}&fit={{ preview.page_size }}&page={{ preview.page|add:1 }}"
-                  hx-target="#detail" hx-swap="innerHTML">{% trans "Next →" %}</button>
-        {% endif %}
-        {% comment %}既定は「画面に合わせる」。何行入るかはブラウザでしか
-        分からないので、選ぶたびに測って `fit=` で渡す。サーバは受け取った数を
-        範囲に丸めてから使う。{% endcomment %}
-        <select class="field field-sm ml-2" name="rows"
-                @change="$el.form ? null : null"
-                hx-get="{% url 'table_detail' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}"
-                hx-target="#detail" hx-swap="innerHTML" hx-include="this"
-                hx-vals="js:{fit: window.cli2uiFitRows()}">
-          <option value="fit"{% if fit_mode %} selected{% endif %}>{% trans "fit to window" %}</option>
-          {% for n in page_sizes %}
-            <option value="{{ n }}"{% if not fit_mode and n == preview.page_size %} selected{% endif %}>{% blocktrans with n=n|intcomma %}{{ n }} rows{% endblocktrans %}</option>
-          {% endfor %}
-        </select>
-      </span>
-    </div>
-    {% endif %}
 
     <!-- Initial content = unfiltered preview; Apply swaps in the filtered grid. -->
     <div id="filter-result">
@@ -312,7 +224,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
             <table class="w-full text-sm">
               <thead class="text-left text-xs uppercase tracking-wide text-zinc-400 sticky top-0 bg-zinc-900">
                 <tr class="border-b border-zinc-800">
-                  {% for c in preview_columns %}<th class="px-4 py-2 font-medium mono whitespace-nowrap">{{ c }}</th>{% endfor %}
+                  {% for name, type in preview_header %}<th class="px-4 py-2 font-medium mono whitespace-nowrap">{{ name }}<span class="ml-1.5 text-[10px] text-zinc-600 normal-case">{{ type }}</span></th>{% endfor %}
                 </tr>
               </thead>
               <tbody>
@@ -364,6 +276,114 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
   </section>
 
   <!-- ===== Shared drawer ===== -->
+  {% comment %}底の帯は 1 本。左が「いま何行目か」とページ送り、右がテーブル単位の
+  操作。前は行数をグリッドの上、操作をさらにその上、と 2 段積んでいた。上に積んだ
+  ものはそのぶん行数が減るので、下へ回してまとめた（Sequel Ace も底の 1 本に
+  「テーブルから 1 - 1,000 行目」と操作を並べている）。{% endcomment %}
+  <div class="border-t border-zinc-800 pt-1.5 flex flex-wrap items-center gap-3 text-xs">
+    {% if preview %}
+    <!-- ページ送り。行数は数えない（count(*) は毎回の全走査）ので、統計の推定を
+         「約」と断って出す。順序が決まっていないテーブルではそれも言う。 -->
+    <div x-show="tab === 'data'" class="flex flex-wrap items-center gap-3 text-zinc-400">
+      {% comment %}帯は 1 行に収める。折り返すとその高さぶんグリッドが縮むので、
+      説明は title に逃がして画面には数字だけ出す。{% endcomment %}
+      {% if preview.estimated_rows is not None %}
+        <span class="tabular-nums whitespace-nowrap"
+              title="{% trans 'The total is estimated from table statistics — counting every row would scan the whole table.' %}">
+          {% blocktrans with a=preview.first_row|intcomma b=preview.last_row|intcomma %}rows {{ a }}–{{ b }}{% endblocktrans %}
+          <span class="text-zinc-500">/ {% blocktrans with n=preview.estimated_rows|intcomma %}about {{ n }}{% endblocktrans %}</span>
+        </span>
+      {% else %}
+        <span class="tabular-nums whitespace-nowrap"
+              title="{% trans 'This table has never been analyzed, so there is no row-count estimate.' %}">
+          {% blocktrans with a=preview.first_row|intcomma b=preview.last_row|intcomma %}rows {{ a }}–{{ b }}{% endblocktrans %}
+          <span class="text-zinc-500">/ {% trans "total unknown" %}</span>
+        </span>
+      {% endif %}
+
+      {% if not preview.stable %}
+        <span class="text-amber-400 whitespace-nowrap"
+              title="{% trans 'A table with no primary key has no defined row order, so paging can repeat or skip rows.' %}">
+          {% trans "⚠ no primary key" %}
+        </span>
+      {% endif %}
+
+      <span class="ml-auto flex items-center gap-1">
+        {% if preview.has_previous %}
+          <button class="btn btn-sm btn-neutral" hx-get="{% url 'table_detail' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&rows={{ mode }}&fit={{ preview.page_size }}&page={{ preview.page|add:-1 }}"
+                  hx-target="#detail" hx-swap="innerHTML">{% trans "← Prev" %}</button>
+        {% endif %}
+        <span class="px-2 tabular-nums">
+          {% if preview.estimated_pages %}
+            {% blocktrans with p=preview.page|intcomma t=preview.estimated_pages|intcomma %}p. {{ p }} / ~{{ t }}{% endblocktrans %}
+          {% else %}
+            {% blocktrans with p=preview.page|intcomma %}p. {{ p }}{% endblocktrans %}
+          {% endif %}
+        </span>
+        {% if preview.has_next %}
+          <button class="btn btn-sm btn-neutral" hx-get="{% url 'table_detail' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&rows={{ mode }}&fit={{ preview.page_size }}&page={{ preview.page|add:1 }}"
+                  hx-target="#detail" hx-swap="innerHTML">{% trans "Next →" %}</button>
+        {% endif %}
+        {% comment %}既定は「画面に合わせる」。何行入るかはブラウザでしか
+        分からないので、選ぶたびに測って `fit=` で渡す。サーバは受け取った数を
+        範囲に丸めてから使う。{% endcomment %}
+        <select class="field field-sm ml-2" name="rows"
+                @change="$el.form ? null : null"
+                hx-get="{% url 'table_detail' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}"
+                hx-target="#detail" hx-swap="innerHTML" hx-include="this"
+                hx-vals="js:{fit: window.cli2uiFitRows()}">
+          <option value="fit"{% if fit_mode %} selected{% endif %}>{% trans "fit to window" %}</option>
+          {% for n in page_sizes %}
+            <option value="{{ n }}"{% if not fit_mode and n == preview.page_size %} selected{% endif %}>{% blocktrans with n=n|intcomma %}{{ n }} rows{% endblocktrans %}</option>
+          {% endfor %}
+        </select>
+      </span>
+    </div>
+    {% endif %}
+    {% comment %}帯は 1 行に収めたい。よく押す「SQL で開く」だけ出して、残りは ⋯ に
+    しまう（バックアップ・エクスポート・インポート・リネームは、開いてすぐ押すもの
+    ではない）。上へ開くのは帯が窓の底にあるため。{% endcomment %}
+    <div class="ml-auto flex items-center gap-1.5">
+      <button hx-get="{% url 'query' connection.pk %}?sql={{ query_sql|urlencode }}"
+              hx-target="#detail" hx-swap="innerHTML" class="btn btn-sm btn-neutral">
+        <span>▷</span> {% trans "Open in SQL" %}
+      </button>
+      <div class="relative" x-data="{ menu: false }">
+        <button type="button" @click="menu = !menu" @click.outside="menu = false"
+                class="btn btn-sm btn-neutral" title="{% trans 'More table actions' %}"
+                aria-haspopup="true" :aria-expanded="menu">⋯</button>
+        <div x-show="menu" x-cloak
+             class="absolute bottom-full right-0 mb-1 z-20 w-max bg-zinc-900 border border-zinc-700
+                    rounded-lg shadow-xl p-2 flex flex-col items-stretch gap-1.5">
+      <!-- Backup this table (pg_dump -t). Fetched via JS for an in-page spinner. -->
+      <span x-data="dumpLinks()" class="btn btn-sm btn-neutral gap-2 cursor-default">
+        {% trans "backup" %}
+        <a href="#" @click.prevent="download('{% url 'table_dump' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=plain')"
+           :class="busy && 'opacity-40 pointer-events-none'" title="{% trans 'pg_dump this table as plain SQL' %}"
+           class="btn-link">.sql ↓</a>
+        <a href="#" @click.prevent="download('{% url 'table_dump' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=custom')"
+           :class="busy && 'opacity-40 pointer-events-none'" title="{% trans 'pg_dump this table in custom format' %}"
+           class="btn-link">.dump ↓</a>
+        <span x-show="busy" class="spinner text-sky-300"></span>
+        <span x-show="err" x-text="err" class="text-red-400/90 max-w-[160px] truncate"></span>
+      </span>
+      <!-- Export every row (read-only SELECT *, streamed). Native download links
+           like the query exporter; full table, not the preview's row cap. -->
+      <span class="btn btn-sm btn-neutral gap-2 cursor-default">
+        {% trans "export" %}
+        <a href="{% url 'table_export' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=csv"
+           title="{% trans 'Download every row as CSV' %}" class="btn-link">CSV ↓</a>
+        <a href="{% url 'table_export' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=json"
+           title="{% trans 'Download every row as JSON' %}" class="btn-link">JSON ↓</a>
+      </span>
+      <button @click="drawer = 'import-csv'" class="btn btn-sm btn-neutral"
+              title="{% trans 'Append rows from a CSV file' %}">{% trans "import" %}</button>
+      <button @click="drawer = 'rename'" class="btn btn-sm btn-neutral">{% trans "rename" %}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div x-show="drawer" x-cloak class="drawer-backdrop" @click="drawer = null"></div>
   <aside class="drawer" :class="drawer && 'open'" x-cloak>
     <div class="drawer-head">

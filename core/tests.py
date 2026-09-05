@@ -3736,7 +3736,9 @@ class TableManagementSmokeE2E(_BrowserE2E):
         page.locator(f'button[hx-get$="table={self.TBL}"]').click()
         expect(page.locator("#detail h2")).to_have_text(f"public.{self.TBL}")
 
-        # Rename it via the header drawer; both panes update from one response.
+        # Rename it via the drawer; both panes update from one response.
+        # rename は底の帯の ⋯ の中（帯を 1 行に収めるため 2026-09-05 に移した）。
+        page.locator("#detail").get_by_role("button", name="⋯").click()
         page.locator("#detail").get_by_role("button", name="rename", exact=True).click()
         form = page.locator('form[hx-post*="table/rename"]')
         form.locator("input[name=new_name]").fill(self.TBL2)

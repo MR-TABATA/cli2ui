@@ -47,14 +47,17 @@
        前は JS に 455、テンプレートに 435 と書き分けていて、片方だけ直して
        1 行はみ出した。 */
     :root {
-      --grid-chrome: 302px;       /* グリッドより上下にあるものの合計 */
-      --grid-chrome-open: 414px;  /* 絞り込みを開いているとき */
+      --grid-chrome: 191px;       /* グリッドより上下にあるものの合計 */
+      --grid-chrome-open: 303px;  /* 絞り込みを開いているとき */
       --grid-head: 33px;          /* 列名の行 */
       --grid-row: 37px;           /* 1 行の高さ */
       /* 列名の行が 32.5px と半端なので、丸めで 1px あふれてページ側に
          スクロールバーが出る。4px 逃がしておく（行数は変わらない）。 */
       --grid-max: calc(100vh - var(--grid-chrome) - 4px);
       --grid-max-open: calc(100vh - var(--grid-chrome-open) - 4px);
+      /* サイドバーの一覧も同じ考えで伸ばす（接続の箱・絞り込み欄・件数の帯ぶんを
+         引く）。グリッドと同じ変数から作るので、上の帯を直せば一緒に付いてくる。 */
+      --list-max: calc(100vh - var(--grid-chrome) - 30px);
     }
 
     /* Top section-nav bar (the top-level section switcher, in the header). The
@@ -207,7 +210,9 @@ body の高さを画面に固定し、main を伸縮させ、動くのはデー�
         cli<span class="text-emerald-400">2</span>ui
       </a>
       <span class="mono text-xs text-zinc-500">v{{ cli2ui_version }}</span>
-      <span class="text-zinc-400 text-sm hidden sm:inline">{% trans "CLI database ops, as buttons." %}</span>
+      {% comment %}区域ナビはロゴと同じ行に置く。前は下に 1 段ぶら下げていて、
+      その 40px はグリッドの高さからそのまま引かれていた。{% endcomment %}
+      {% block topnav %}{% endblock %}
       <form action="{% url 'set_language' %}" method="post" class="ml-auto flex items-center gap-1">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.path }}">
@@ -217,7 +222,6 @@ body の高さを画面に固定し、main を伸縮させ、動くのはデー�
                 class="topnav-btn {% if LANGUAGE_CODE == 'ja' %}topnav-btn-on{% endif %}">JP</button>
       </form>
     </div>
-    {% block topnav %}{% endblock %}
   </header>
   <main class="max-w-7xl w-full mx-auto px-6 py-3 flex-1 min-h-0 overflow-y-auto">
     {% block content %}{% endblock %}

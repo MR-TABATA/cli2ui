@@ -5,7 +5,7 @@
            class="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm
                   text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
   </div>
-  <ul class="py-1 overflow-y-auto max-h-[calc(100vh-320px)]">
+  <ul class="py-1 overflow-y-auto" style="max-height: var(--list-max)">
     {% for t in tables %}
       <li x-show="q === '' || '{{ t.qualified|lower|escapejs }}'.includes(q.toLowerCase())">
         {% comment %}前に測った「画面に入る行数」を一緒に送る。2 つ目以降のテーブルは
