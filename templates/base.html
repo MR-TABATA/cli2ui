@@ -122,6 +122,11 @@
       // rows. A stable id keys the x-for so editing one row doesn't disturb the
       // others; null / not-null operators hide the value input.
       Alpine.data("filterBuilder", () => ({
+        // 既定は畳む。絞り込みは毎回使うものではないのに、常に開いていると
+        // その高さぶんグリッドが下へ押し出される。開いた状態はテーブルを
+        // またいで覚える（一度使う人は続けて使うため）。
+        open: window.__cli2uiFilterOpen === true,
+        toggle() { this.open = !this.open; window.__cli2uiFilterOpen = this.open; },
         rows: [{ id: 1, col: "", op: "eq", val: "" }],
         nextId: 2,
         add() { this.rows.push({ id: this.nextId++, col: "", op: "eq", val: "" }); },

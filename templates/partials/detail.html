@@ -191,8 +191,21 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
 
   <!-- Data tab: filter builder + result grid -->
   <section x-show="tab === 'data'" x-cloak class="space-y-3" x-data="filterBuilder()">
+    {% comment %}絞り込みは既定で畳む。毎回使うものではないのに常に開いていると、
+    その高さぶんグリッドが下へ押し出される。開いたかどうかはテーブルをまたいで
+    覚える ── 一度使う人は続けて使う。{% endcomment %}
+    <button type="button" @click="toggle()"
+            class="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition">
+      <span class="transition-transform" :class="open && 'rotate-90'">▸</span>
+      {% trans "Filter" %}
+      <span x-show="!open && rows.some(r => r.col)" x-cloak
+            class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 tabular-nums"
+            x-text="rows.filter(r => r.col).length"></span>
+    </button>
+
     <!-- Filter builder: column ▾ + operator ▾ + value rows, ANDed, run read-only. -->
-    <form hx-post="{% url 'table_filter' connection.pk %}" hx-target="#filter-result" hx-swap="innerHTML"
+    <form x-show="open" x-cloak
+          hx-post="{% url 'table_filter' connection.pk %}" hx-target="#filter-result" hx-swap="innerHTML"
           class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 space-y-2">
       <input type="hidden" name="schema" value="{{ schema }}">
       <input type="hidden" name="table" value="{{ table }}">
