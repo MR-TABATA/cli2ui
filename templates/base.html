@@ -156,6 +156,19 @@
       // 測った数は覚えておき、2 つ目以降のテーブルは最初から正しい行数で来る。
       Alpine.data("fitRows", (loaded, url) => ({
         init() {
+          this._refit = (force) => {
+            const grid = document.querySelector("#filter-result .overflow-auto");
+            if (!grid || !grid.offsetParent) return;
+            const want = window.cli2uiFitRows(grid);
+            window.__cli2uiFit = want;
+            const now = grid.querySelectorAll("tbody tr").length;
+            if (!force && Math.abs(want - now) <= 2) return;
+            htmx.ajax("GET", url + "&rows=fit&fit=" + want,
+                      { target: "#detail", swap: "innerHTML" });
+          };
+          // 絞り込みの開閉で上端が動いたら測り直す。
+          this._onRefit = () => requestAnimationFrame(() => this._refit(false));
+          document.addEventListener("cli2ui:refit", this._onRefit);
           requestAnimationFrame(() => {
             const grid = this.$root.querySelector(".overflow-auto")
                       || document.querySelector("#filter-result .overflow-auto");
@@ -168,6 +181,7 @@
                       { target: "#detail", swap: "innerHTML" });
           });
         },
+        destroy() { document.removeEventListener("cli2ui:refit", this._onRefit); },
       }));
 
       Alpine.data("fillHeight", (gap = 8) => ({
@@ -208,7 +222,15 @@
         // その高さぶんグリッドが下へ押し出される。開いた状態はテーブルを
         // またいで覚える（一度使う人は続けて使うため）。
         open: window.__cli2uiFilterOpen === true,
-        toggle() { this.open = !this.open; window.__cli2uiFilterOpen = this.open; },
+        toggle() {
+          this.open = !this.open;
+          window.__cli2uiFilterOpen = this.open;
+          // 開閉でグリッドの上端が動く ＝ 入る行数が変わる。**高さだけ直しても
+          // 行数はそのまま**なので、取り直さないとはみ出す（閉じているときの
+          // 21 行を開いた状態に置くと 79px 溢れた）。
+          requestAnimationFrame(() => document.dispatchEvent(
+            new CustomEvent("cli2ui:refit")));
+        },
         rows: [{ id: 1, col: "", op: "eq", val: "" }],
         nextId: 2,
         add() { this.rows.push({ id: this.nextId++, col: "", op: "eq", val: "" }); },
