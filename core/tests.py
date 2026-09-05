@@ -727,23 +727,37 @@ class PagingParameterTests(SimpleTestCase):
 
         return _paging(RequestFactory().get("/", params))
 
-    def test_defaults(self):
-        from core.views.tables import DEFAULT_PAGE_SIZE
+    def test_default_is_fit_to_window(self):
+        # 既定は「画面に入るぶんだけ」。JS が測る前の 1 回目は FIT_FALLBACK。
+        from core.views.tables import FIT_FALLBACK
 
-        self.assertEqual(self._paging(), (DEFAULT_PAGE_SIZE, 0))
+        self.assertEqual(self._paging(), (FIT_FALLBACK, 0))
 
-    def test_offset_follows_the_page(self):
+    def test_fit_takes_the_measured_number(self):
+        self.assertEqual(self._paging(rows="fit", fit="27"), (27, 0))
+
+    def test_fit_is_clamped(self):
+        # **ブラウザから来た数をそのまま LIMIT に渡さない。**
+        from core.views.tables import FIT_MAX, FIT_MIN
+
+        self.assertEqual(self._paging(rows="fit", fit="99999")[0], FIT_MAX)
+        self.assertEqual(self._paging(rows="fit", fit="0")[0], FIT_MIN)
+        self.assertEqual(self._paging(rows="fit", fit="-5")[0], FIT_MIN)
+
+    def test_explicit_size_still_works(self):
         self.assertEqual(self._paging(page="3", rows="100"), (100, 200))
 
     def test_junk_falls_back_quietly(self):
         # ここでエラーを出しても、利用者にできることが無い。
-        from core.views.tables import DEFAULT_PAGE_SIZE
+        from core.views.tables import FIT_FALLBACK, FIT_MAX, FIT_MIN
 
+        allowed = {FIT_FALLBACK, 100, 500, 1000, 5000}
         for params in [{"page": "abc"}, {"page": "-5"}, {"rows": "99999"},
-                       {"rows": "0"}, {"rows": "; DROP TABLE x"}]:
+                       {"rows": "0"}, {"rows": "; DROP TABLE x"},
+                       {"rows": "fit", "fit": "abc"}, {"rows": "fit", "fit": ""}]:
             with self.subTest(params=params):
                 size, offset = self._paging(**params)
-                self.assertIn(size, (DEFAULT_PAGE_SIZE, 100, 500, 1000, 5000))
+                self.assertTrue(size in allowed or FIT_MIN <= size <= FIT_MAX)
                 self.assertGreaterEqual(offset, 0)
 
 
@@ -3495,11 +3509,22 @@ class _BrowserE2E(LiveServerTestCase):
     def tearDown(self):
         self.page.close()
 
-    def open_section(self, name):
-        """Navigate to a section through the overview hover menu (the bento)."""
-        self.page.get_by_role("button", name="overview").hover()
-        self.page.locator("#nav-menu").get_by_role("button", name=name).click()
+    # どの区域がどのメニューに入っているか。2026-09-05 に 1 つのホバー
+    # メガメニューからグループごとのクリックメニューへ変えた。
+    NAV_GROUPS = {
+        "query": ("SQL runner", "Index lab", "Snapshots", "History"),
+        "ops": ("Activity", "Locks", "Health", "Replication"),
+        "catalog": ("Objects", "Dependencies", "Extensions", "Backups", "Config"),
+    }
 
+    def open_section(self, name):
+        """Navigate to a section through its group menu in the top bar."""
+        key = next((k for k, v in self.NAV_GROUPS.items() if name in v), None)
+        self.assertIsNotNone(key, f"no nav group holds {name}")
+        self.page.locator(f'button[data-navgroup="{key}"]').click()
+        panel = self.page.locator(f"#nav-menu-{key}")
+        panel.wait_for(state="visible")
+        panel.get_by_role("button", name=name).click()
 
 @unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
                      "needs playwright + chromium and a reachable sample DB")
@@ -3722,7 +3747,9 @@ class TableManagementSmokeE2E(_BrowserE2E):
         page.locator(f'button[hx-get$="table={self.TBL}"]').click()
         expect(page.locator("#detail h2")).to_have_text(f"public.{self.TBL}")
 
-        # Rename it via the header drawer; both panes update from one response.
+        # Rename it via the drawer; both panes update from one response.
+        # rename は底の帯の ⋯ の中（帯を 1 行に収めるため 2026-09-05 に移した）。
+        page.locator("#detail").get_by_role("button", name="⋯").click()
         page.locator("#detail").get_by_role("button", name="rename", exact=True).click()
         form = page.locator('form[hx-post*="table/rename"]')
         form.locator("input[name=new_name]").fill(self.TBL2)

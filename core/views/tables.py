@@ -14,22 +14,42 @@ from .connection import overview
 # 1 ページに出す行数。既定は 1000 ── テーブル名を押した人が見たいのは中身で、
 # 50 行では「入っているものを見た」ことにならない。選べる値は固定の allow-list に
 # する（画面から来た数をそのまま LIMIT に渡さないため）。
+# 選べる 1 ページの大きさ。`fit` は「画面に入るぶんだけ」で、これが既定。
+#
+# 1000 行を出しても、画面に見えるのは 16 行ほどで、残り 98% はスクロールしないと
+# 見えない。**1000 行をスクロールして目で探す人はいない** ── 探すなら絞り込みか
+# SQL を使う。だから既定は「ちょうど収まるだけ」にして、スクロールバーを消す。
+# たくさん要る人（コピーして持っていくなど）は選べる。
 PAGE_SIZES = (100, 500, 1000, 5000)
-DEFAULT_PAGE_SIZE = 1000
+DEFAULT_PAGE_SIZE = "fit"
+
+# `fit` のときに受け付ける範囲。画面の高さから割り出した数がブラウザから来るので、
+# **そのまま LIMIT には渡さない。**
+FIT_MIN, FIT_MAX = 10, 200
+FIT_FALLBACK = 40  # JS が動く前の 1 回目。だいたい 1400×900 で埋まる数
 
 
 def _paging(request):
     """`?page=` と `?rows=` を、範囲の決まった (page_size, offset) に直す。
 
-    壊れた値・負の値・一覧に無い大きさは、黙って既定へ落とす ── ここで
-    エラーを出しても、利用者にできることが無い。
+    `rows=fit` は画面に合わせる指定で、実際の行数は `?fit=` で届く。壊れた値・
+    負の値・一覧に無い大きさは、黙って既定へ落とす ── ここでエラーを出しても、
+    利用者にできることが無い。
     """
-    try:
-        size = int(request.GET.get("rows", DEFAULT_PAGE_SIZE))
-    except (TypeError, ValueError):
-        size = DEFAULT_PAGE_SIZE
-    if size not in PAGE_SIZES:
-        size = DEFAULT_PAGE_SIZE
+    raw = request.GET.get("rows", DEFAULT_PAGE_SIZE)
+    if raw == "fit" or raw is None:
+        try:
+            size = int(request.GET.get("fit", FIT_FALLBACK))
+        except (TypeError, ValueError):
+            size = FIT_FALLBACK
+        size = min(FIT_MAX, max(FIT_MIN, size))
+    else:
+        try:
+            size = int(raw)
+        except (TypeError, ValueError):
+            size = FIT_FALLBACK
+        if size not in PAGE_SIZES:
+            size = FIT_FALLBACK
     try:
         page = max(1, int(request.GET.get("page", 1)))
     except (TypeError, ValueError):
@@ -92,7 +112,7 @@ def _write_previews(engine, schema, table):
 
 
 def _render_detail(request, connection, schema, table, error=None, notice=None,
-                   page_size=DEFAULT_PAGE_SIZE, offset=0):
+                   page_size=FIT_FALLBACK, offset=0):
     """Render the table-detail panel: columns, indexes and a row preview.
 
     A connection-level failure falls back to the error partial; a per-action
@@ -132,9 +152,19 @@ def _render_detail(request, connection, schema, table, error=None, notice=None,
             "index_methods": INDEX_METHODS,
             "column_types": COLUMN_TYPES,
             "preview_columns": preview.columns,
+            # 列名だけでなく型も見出しに出す（Sequel Ace と同じ）。型は
+            # Columns タブを開かないと分からない、という往復をなくす。
+            "preview_header": [
+                (name, next((c.type for c in columns if c.name == name), ""))
+                for name in preview.columns
+            ],
             "preview_rows": rows,
             "preview": preview,
             "page_sizes": PAGE_SIZES,
+            # いま「画面に合わせる」で見ているか（選択欄の既定を出し分ける）。
+            "fit_mode": request.GET.get("rows", DEFAULT_PAGE_SIZE) == "fit",
+            # ページ送りのリンクが持ち回る指定。fit なら fit のまま送る。
+            "mode": "fit" if request.GET.get("rows", DEFAULT_PAGE_SIZE) == "fit" else preview.page_size,
             # Display-only: prefilled into the SQL editor as a starting point,
             # never executed server-side. The run path (run_query) is read-only
             # enforced by the DB. nosec B608 — not a query we build and execute.

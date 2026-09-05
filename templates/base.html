@@ -42,6 +42,24 @@
     .field:focus { outline: none; border-color: #34d399; }
     .field-sm { padding: .25rem .5rem; font-size: .75rem; }
 
+    /* データグリッドの高さを決める数（すべて実測）。**JS の cli2uiFitRows も
+       CSS の max-height もここを読む**ので、直すときはこの 4 行だけ直す。
+       前は JS に 455、テンプレートに 435 と書き分けていて、片方だけ直して
+       1 行はみ出した。 */
+    :root {
+      --grid-chrome: 201px;       /* グリッドより上下にあるものの合計 */
+      --grid-chrome-open: 313px;  /* 絞り込みを開いているとき */
+      --grid-head: 33px;          /* 列名の行 */
+      --grid-row: 37px;           /* 1 行の高さ */
+      /* 列名の行が 32.5px と半端なので、丸めで 1px あふれてページ側に
+         スクロールバーが出る。4px 逃がしておく（行数は変わらない）。 */
+      --grid-max: calc(100vh - var(--grid-chrome) - 4px);
+      --grid-max-open: calc(100vh - var(--grid-chrome-open) - 4px);
+      /* サイドバーの一覧も同じ考えで伸ばす（接続の箱・絞り込み欄・件数の帯ぶんを
+         引く）。グリッドと同じ変数から作るので、上の帯を直せば一緒に付いてくる。 */
+      --list-max: calc(100vh - var(--grid-chrome) - 30px);
+    }
+
     /* Top section-nav bar (the top-level section switcher, in the header). The
        active state is toggled via Alpine :class on top of these base styles. */
     .topnav-btn { display: inline-flex; align-items: center; gap: .375rem; white-space: nowrap;
@@ -49,6 +67,15 @@
                   color: #a1a1aa; cursor: pointer; transition: color .15s, background-color .15s; }
     .topnav-btn:hover { color: #f4f4f5; background: rgba(39,39,42,.6); }
     .topnav-btn-on { background: #27272a; color: #f4f4f5; }
+    /* 押すと開くもの（区域メニュー・絞り込み）。枠を付けて「押せるもの」に見せる
+       ── 文字だけだと見出しに見えて、開くことに気づかれない。開いているあいだは
+       枠を光らせる。開閉は aria-expanded で表すので、見た目もそこから作る。 */
+    .disclosure { display: inline-flex; align-items: center; gap: .375rem; white-space: nowrap;
+                  border: 1px solid #3f3f46; border-radius: .5rem; background: rgba(39,39,42,.35);
+                  padding: .25rem .5rem; font-size: .75rem; color: #a1a1aa; cursor: pointer;
+                  transition: color .15s, background-color .15s, border-color .15s; }
+    .disclosure:hover { border-color: #52525b; color: #f4f4f5; }
+    .disclosure[aria-expanded="true"] { border-color: #71717a; background: #27272a; color: #f4f4f5; }
     .topnav-sep { width: 1px; height: 1rem; background: #27272a; margin: 0 .375rem; }
 
     /* Panel subtabs — the in-panel section switcher (Alpine x-show). */
@@ -93,10 +120,10 @@
     // spinner while pg_dump runs, then triggers the browser download from the
     // blob — and surfaces the server's error text inline if it fails.
     document.addEventListener("alpine:init", () => {
-      // Open-state for the overview hover menu (the section bento). A store so
-      // the bento cards can close it whether they're rendered in the menu or in
-      // the #detail landing (where there's no local menu scope).
-      Alpine.store("navmenu", { open: false });
+      // どの区域メニューが開いているか（'' なら閉。'query' / 'ops' / 'catalog'）。
+      // 店に置くのは、#detail 側に描かれたベントーのカードからも閉じられるように
+      // するため（あちらにはメニューのスコープが無い）。
+      Alpine.store("navmenu", { open: "" });
 
       Alpine.data("dumpLinks", () => ({
         busy: false,
@@ -121,7 +148,42 @@
       // Filter builder (table detail → Data tab): dynamic column/operator/value
       // rows. A stable id keys the x-for so editing one row doesn't disturb the
       // others; null / not-null operators hide the value input.
+      // データのグリッドを、画面の下端まで伸ばす。
+      //
+      // 固定値（max-h-[60vh] など）だと、上に何があるかで余ったり溢れたりする ──
+      // 絞り込みを開けば上が伸び、タブを変えれば別のものが載る。**自分の上端を
+      // 実測して残りを取る**のが唯一ずれない方法。
+      //
+      // これが無いと、グリッドの下を見るのに「まずページを送ってからグリッドを
+      // 送る」二段階になる。スクロールバーは 1 本にする。
+      // 画面に何行入るか。**window.innerHeight だけから決める。**
+      //
+      // 描画後のグリッドを測って直す方式にしたら、測る・取り直す・開閉で測り直す、が
+      // 絡んで挙動が不安定になった（1 回クリックしないと効かない、など）。入る行数は
+      // 結局ウィンドウの高さで決まるので、そこから引くだけにする。**描画結果に
+      // 依存しない ＝ 取り直しの連鎖が起きない。**
+      //
+      // 寸法は :root のカスタムプロパティから読む。グリッド側の max-height も
+      // 同じものを使うので、片方だけ直してずれることがない。
+      window.cli2uiFitRows = function () {
+        const px = (name) =>
+          parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
+        // 絞り込みを開いていればその高さも引く（開閉自体では取り直さない。
+        // 次にページを送ったり件数を変えたときに正しい数になる）。
+        const chrome = window.__cli2uiFilterOpen === true ? "--grid-chrome-open" : "--grid-chrome";
+        const space = window.innerHeight - px(chrome) - px("--grid-head");
+        // 少なく出して余白が残るほうが、1 行ぶんスクロールするより良い。
+        return Math.max(5, Math.floor((space - 8) / px("--grid-row")));
+      };
+
       Alpine.data("filterBuilder", () => ({
+        // 既定は畳む。絞り込みは毎回使うものではないのに、常に開いていると
+        // その高さぶんグリッドが下へ押し出される。開いた状態はテーブルを
+        // またいで覚える（一度使う人は続けて使うため）。
+        open: window.__cli2uiFilterOpen === true,
+        // 開閉で上端は動くが、取り直しはしない。数行の差はグリッドの
+        // max-height が吸収する（開いているあいだだけ内側に小さくスクロールが出る）。
+        toggle() { this.open = !this.open; window.__cli2uiFilterOpen = this.open; },
         rows: [{ id: 1, col: "", op: "eq", val: "" }],
         nextId: 2,
         add() { this.rows.push({ id: this.nextId++, col: "", op: "eq", val: "" }); },
@@ -144,15 +206,22 @@
     })();
   </script>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen"
+{% comment %}スクロールバーは 1 本にする。ページと中身の両方が動くと、
+グリッドの下を見るのにまずページを送ってからグリッドを送ることになる。
+body の高さを画面に固定し、main を伸縮させ、動くのはデータのグリッドだけ。
+{% endcomment %}
+<body class="bg-zinc-950 text-zinc-100 h-screen overflow-hidden flex flex-col"
       {% block body_attrs %}{% endblock %}
       hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-  <header class="border-b border-zinc-800 sticky top-0 bg-zinc-950/90 backdrop-blur z-10">
-    <div class="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3">
+  <header class="border-b border-zinc-800 bg-zinc-950/90 backdrop-blur z-10 shrink-0">
+    <div class="max-w-7xl mx-auto px-6 py-2 flex items-center gap-3">
       <a href="/" class="text-lg font-semibold tracking-tight">
         cli<span class="text-emerald-400">2</span>ui
       </a>
-      <span class="text-zinc-400 text-sm hidden sm:inline">{% trans "CLI database ops, as buttons." %}</span>
+      <span class="mono text-xs text-zinc-500">v{{ cli2ui_version }}</span>
+      {% comment %}区域ナビはロゴと同じ行に置く。前は下に 1 段ぶら下げていて、
+      その 40px はグリッドの高さからそのまま引かれていた。{% endcomment %}
+      {% block topnav %}{% endblock %}
       <form action="{% url 'set_language' %}" method="post" class="ml-auto flex items-center gap-1">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.path }}">
@@ -162,14 +231,9 @@
                 class="topnav-btn {% if LANGUAGE_CODE == 'ja' %}topnav-btn-on{% endif %}">JP</button>
       </form>
     </div>
-    {% block topnav %}{% endblock %}
   </header>
-  <main class="max-w-7xl mx-auto px-6 py-6">
+  <main class="max-w-7xl w-full mx-auto px-6 py-3 flex-1 min-h-0 overflow-y-auto">
     {% block content %}{% endblock %}
   </main>
-  <footer class="max-w-7xl mx-auto px-6 py-4 text-xs text-zinc-500 flex items-center gap-2">
-    <span>cli<span class="text-emerald-400">2</span>ui</span>
-    <span class="mono">v{{ cli2ui_version }}</span>
-  </footer>
 </body>
 </html>
