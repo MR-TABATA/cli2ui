@@ -67,6 +67,11 @@
                   color: #a1a1aa; cursor: pointer; transition: color .15s, background-color .15s; }
     .topnav-btn:hover { color: #f4f4f5; background: rgba(39,39,42,.6); }
     .topnav-btn-on { background: #27272a; color: #f4f4f5; }
+    /* 押すと開く区域ボタン。枠を付けて「押せるもの」に見せる ── 文字だけだと
+       見出しに見えて、開くことに気づかれない。開いているあいだは枠を光らせる。 */
+    .topnav-menu { border: 1px solid #3f3f46; background: rgba(39,39,42,.35); }
+    .topnav-menu:hover { border-color: #52525b; }
+    .topnav-menu[aria-expanded="true"] { border-color: #71717a; background: #27272a; color: #f4f4f5; }
     .topnav-sep { width: 1px; height: 1rem; background: #27272a; margin: 0 .375rem; }
 
     /* Panel subtabs — the in-panel section switcher (Alpine x-show). */

@@ -22,8 +22,12 @@ main pane) and `q` (the table filter).{% endcomment %}
     <button type="button" data-navgroup="query"
             @click="$store.navmenu.open = ($store.navmenu.open === 'query' ? '' : 'query')"
             :class="$store.navmenu.open === 'query' && 'topnav-btn-on'"
-            class="topnav-btn" aria-haspopup="true" :aria-expanded="$store.navmenu.open === 'query'">
-      <span class="text-emerald-300">●</span> {% trans "Query & planner" %} <span class="text-zinc-500">▾</span></button>
+            class="topnav-btn topnav-menu" aria-haspopup="true" :aria-expanded="$store.navmenu.open === 'query'">
+      <span class="text-emerald-300">●</span> {% trans "Query & planner" %}
+      <svg class="w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform"
+           :class="$store.navmenu.open === 'query' && 'rotate-180 text-zinc-200'"
+           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
     <div id="nav-menu-query" x-show="$store.navmenu.open === 'query'" x-cloak
          x-transition:enter="transition ease-out duration-150"
          x-transition:enter-start="opacity-0 -translate-y-1"
@@ -47,8 +51,12 @@ main pane) and `q` (the table filter).{% endcomment %}
     <button type="button" data-navgroup="ops"
             @click="$store.navmenu.open = ($store.navmenu.open === 'ops' ? '' : 'ops')"
             :class="$store.navmenu.open === 'ops' && 'topnav-btn-on'"
-            class="topnav-btn" aria-haspopup="true" :aria-expanded="$store.navmenu.open === 'ops'">
-      <span class="text-sky-300">●</span> {% trans "Live ops" %} <span class="text-zinc-500">▾</span></button>
+            class="topnav-btn topnav-menu" aria-haspopup="true" :aria-expanded="$store.navmenu.open === 'ops'">
+      <span class="text-sky-300">●</span> {% trans "Live ops" %}
+      <svg class="w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform"
+           :class="$store.navmenu.open === 'ops' && 'rotate-180 text-zinc-200'"
+           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
     <div id="nav-menu-ops" x-show="$store.navmenu.open === 'ops'" x-cloak
          x-transition:enter="transition ease-out duration-150"
          x-transition:enter-start="opacity-0 -translate-y-1"
@@ -70,8 +78,12 @@ main pane) and `q` (the table filter).{% endcomment %}
     <button type="button" data-navgroup="catalog"
             @click="$store.navmenu.open = ($store.navmenu.open === 'catalog' ? '' : 'catalog')"
             :class="$store.navmenu.open === 'catalog' && 'topnav-btn-on'"
-            class="topnav-btn" aria-haspopup="true" :aria-expanded="$store.navmenu.open === 'catalog'">
-      <span class="text-violet-300">●</span> {% trans "Catalog & data" %} <span class="text-zinc-500">▾</span></button>
+            class="topnav-btn topnav-menu" aria-haspopup="true" :aria-expanded="$store.navmenu.open === 'catalog'">
+      <span class="text-violet-300">●</span> {% trans "Catalog & data" %}
+      <svg class="w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform"
+           :class="$store.navmenu.open === 'catalog' && 'rotate-180 text-zinc-200'"
+           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
     <div id="nav-menu-catalog" x-show="$store.navmenu.open === 'catalog'" x-cloak
          x-transition:enter="transition ease-out duration-150"
          x-transition:enter-start="opacity-0 -translate-y-1"
