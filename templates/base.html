@@ -121,6 +121,88 @@
       // Filter builder (table detail → Data tab): dynamic column/operator/value
       // rows. A stable id keys the x-for so editing one row doesn't disturb the
       // others; null / not-null operators hide the value input.
+      // データのグリッドを、画面の下端まで伸ばす。
+      //
+      // 固定値（max-h-[60vh] など）だと、上に何があるかで余ったり溢れたりする ──
+      // 絞り込みを開けば上が伸び、タブを変えれば別のものが載る。**自分の上端を
+      // 実測して残りを取る**のが唯一ずれない方法。
+      //
+      // これが無いと、グリッドの下を見るのに「まずページを送ってからグリッドを
+      // 送る」二段階になる。スクロールバーは 1 本にする。
+      // いまの画面に、行が何行入るか。
+      //
+      // 1 行の高さは実測する（描画済みの行があればそれ、無ければ既定 33px）。
+      // グリッドの上端から main の内側の下端までが使える高さで、そこから
+      // 見出し行を引く。**この数を LIMIT にそのまま使わない** ── サーバ側で
+      // 範囲に丸める（core/views/tables.py の FIT_MIN / FIT_MAX）。
+      window.cli2uiFitRows = function (gridEl) {
+        const main = gridEl.closest("main");
+        const limit = main
+          ? main.getBoundingClientRect().bottom
+              - parseFloat(getComputedStyle(main).paddingBottom || 0)
+          : window.innerHeight;
+        const top = gridEl.getBoundingClientRect().top;
+        const head = gridEl.querySelector("thead");
+        const row = gridEl.querySelector("tbody tr");
+        const rowH = row ? row.getBoundingClientRect().height : 33;
+        const headH = head ? head.getBoundingClientRect().height : 30;
+        return Math.max(1, Math.floor((limit - top - headH - 8) / rowH));
+      };
+
+      // 「画面に入るぶんだけ」を、描画してから 1 回だけ直す。
+      //
+      // 何行入るかはブラウザでしか分からないので、1 つ目のテーブルは既定の 40 行で
+      // 来る。それが入りきらない（または余る）なら、測り直して**一度だけ**取り直す。
+      // 測った数は覚えておき、2 つ目以降のテーブルは最初から正しい行数で来る。
+      Alpine.data("fitRows", (loaded, url) => ({
+        init() {
+          requestAnimationFrame(() => {
+            const grid = this.$root.querySelector(".overflow-auto")
+                      || document.querySelector("#filter-result .overflow-auto");
+            if (!grid || !grid.offsetParent) return;
+            const want = window.cli2uiFitRows(grid);
+            window.__cli2uiFit = want;
+            // 1 行 2 行の差で取り直すと、開くたびに 2 回叩くことになる。
+            if (Math.abs(want - loaded) <= 2) return;
+            htmx.ajax("GET", url + "&rows=fit&fit=" + want,
+                      { target: "#detail", swap: "innerHTML" });
+          });
+        },
+      }));
+
+      Alpine.data("fillHeight", (gap = 8) => ({
+        init() {
+          this._fit = () => {
+            // 非表示のあいだは測れない（タブが閉じていると top が 0 になる）。
+            if (!this.$el.offsetParent) return;
+            const top = this.$el.getBoundingClientRect().top;
+            if (top <= 0) return;
+            // 画面の下端ではなく **main の内側の下端**まで。footer と main の
+            // padding を食うと、こんど main 側にスクロールバーが出る。
+            const main = this.$el.closest("main");
+            const limit = main
+              ? main.getBoundingClientRect().bottom
+                  - parseFloat(getComputedStyle(main).paddingBottom || 0)
+              : window.innerHeight;
+            this.$el.style.maxHeight = Math.max(160, limit - top - gap) + "px";
+          };
+          this._defer = () => requestAnimationFrame(this._fit);
+          this._defer();
+          // タブが切り替わって**初めて見えたとき**に測り直す。init の時点では
+          // まだ display:none で、そこで測ると必ず外す。
+          this._io = new IntersectionObserver(() => this._defer());
+          this._io.observe(this.$el);
+          // 上の高さが変わる場面 ── リサイズ、絞り込みの開閉、タブの切り替え。
+          window.addEventListener("resize", this._defer);
+          document.addEventListener("click", this._defer);
+        },
+        destroy() {
+          this._io && this._io.disconnect();
+          window.removeEventListener("resize", this._defer);
+          document.removeEventListener("click", this._defer);
+        },
+      }));
+
       Alpine.data("filterBuilder", () => ({
         // 既定は畳む。絞り込みは毎回使うものではないのに、常に開いていると
         // その高さぶんグリッドが下へ押し出される。開いた状態はテーブルを
@@ -149,10 +231,14 @@
     })();
   </script>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen"
+{% comment %}スクロールバーは 1 本にする。ページと中身の両方が動くと、
+グリッドの下を見るのにまずページを送ってからグリッドを送ることになる。
+body の高さを画面に固定し、main を伸縮させ、動くのはデータのグリッドだけ。
+{% endcomment %}
+<body class="bg-zinc-950 text-zinc-100 h-screen overflow-hidden flex flex-col"
       {% block body_attrs %}{% endblock %}
       hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-  <header class="border-b border-zinc-800 sticky top-0 bg-zinc-950/90 backdrop-blur z-10">
+  <header class="border-b border-zinc-800 bg-zinc-950/90 backdrop-blur z-10 shrink-0">
     <div class="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3">
       <a href="/" class="text-lg font-semibold tracking-tight">
         cli<span class="text-emerald-400">2</span>ui
@@ -169,10 +255,10 @@
     </div>
     {% block topnav %}{% endblock %}
   </header>
-  <main class="max-w-7xl mx-auto px-6 py-6">
+  <main class="max-w-7xl w-full mx-auto px-6 py-6 flex-1 min-h-0 overflow-y-auto">
     {% block content %}{% endblock %}
   </main>
-  <footer class="max-w-7xl mx-auto px-6 py-4 text-xs text-zinc-500 flex items-center gap-2">
+  <footer class="max-w-7xl w-full mx-auto px-6 py-2 text-xs text-zinc-500 flex items-center gap-2 shrink-0">
     <span>cli<span class="text-emerald-400">2</span>ui</span>
     <span class="mono">v{{ cli2ui_version }}</span>
   </footer>

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-04 13:53+0000\n"
+"POT-Creation-Date: 2026-09-05 03:26+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -93,7 +93,7 @@ msgid "Unsupported index method: %(method)s"
 msgstr "未対応のインデックス方式: %(method)s"
 
 #: core/engines/mysql.py:757 core/engines/postgres.py:178
-#: core/views/tables.py:223
+#: core/views/tables.py:247
 msgid "Select at least one column to index."
 msgstr "インデックス対象の列を1つ以上選んでください。"
 
@@ -316,24 +316,24 @@ msgstr "エクスポートする結果がありません — 先にクエリを�
 msgid "No table specified."
 msgstr "テーブルが指定されていません。"
 
-#: core/views/tables.py:183
+#: core/views/tables.py:207
 msgid "Choose a CSV file to import."
 msgstr "インポートする CSV ファイルを選んでください。"
 
-#: core/views/tables.py:191
+#: core/views/tables.py:215
 #, python-format
 msgid "Imported %(n)s row(s) from %(name)s."
 msgstr "%(name)s から %(n)s 行をインポートしました。"
 
-#: core/views/tables.py:257
+#: core/views/tables.py:281
 msgid "Enter a new table name."
 msgstr "新しいテーブル名を入力してください。"
 
-#: core/views/tables.py:308
+#: core/views/tables.py:332
 msgid "Enter a column name."
 msgstr "列名を入力してください。"
 
-#: core/views/tables.py:328
+#: core/views/tables.py:352
 msgid "Enter a new column name."
 msgstr "新しい列名を入力してください。"
 
@@ -420,7 +420,7 @@ msgid "— click columns in order"
 msgstr "— 列を順にクリック"
 
 #: planner_lab/templates/partials/index_lab.html:64
-#: templates/partials/detail.html:160 templates/partials/detail.html:499
+#: templates/partials/detail.html:165 templates/partials/detail.html:543
 msgid "unique"
 msgstr "ユニーク"
 
@@ -557,7 +557,7 @@ msgstr ""
 "スケールシミュレーションには superuser 接続が必要です（pg_class を編集するた"
 "め）。"
 
-#: templates/base.html:155
+#: templates/base.html:246
 msgid "CLI database ops, as buttons."
 msgstr "CLI のDB操作を、ボタンで。"
 
@@ -569,15 +569,15 @@ msgstr "新しい接続"
 msgid "Defaults point at the bundled sample DB."
 msgstr "初期値は同梱のサンプルDBを指しています。"
 
-#: templates/index.html:16 templates/partials/detail.html:79
-#: templates/partials/detail.html:381 templates/partials/detail.html:414
+#: templates/index.html:16 templates/partials/detail.html:84
+#: templates/partials/detail.html:425 templates/partials/detail.html:458
 #: templates/partials/replication.html:172
 msgid "Type"
 msgstr "種別"
 
-#: templates/index.html:17 templates/partials/detail.html:78
-#: templates/partials/detail.html:147 templates/partials/detail.html:377
-#: templates/partials/detail.html:490 templates/partials/extensions.html:28
+#: templates/index.html:17 templates/partials/detail.html:83
+#: templates/partials/detail.html:152 templates/partials/detail.html:421
+#: templates/partials/detail.html:534 templates/partials/extensions.html:28
 #: templates/partials/extensions.html:64 templates/partials/objects.html:34
 #: templates/partials/objects.html:95 templates/partials/objects.html:184
 #: templates/partials/objects.html:252 templates/partials/objects.html:263
@@ -586,8 +586,8 @@ msgstr "種別"
 msgid "Name"
 msgstr "名前"
 
-#: templates/index.html:17 templates/partials/detail.html:387
-#: templates/partials/detail.html:490 templates/partials/objects.html:188
+#: templates/index.html:17 templates/partials/detail.html:431
+#: templates/partials/detail.html:534 templates/partials/objects.html:188
 #: templates/partials/objects.html:283 templates/partials/objects.html:310
 msgid "(optional)"
 msgstr "（任意）"
@@ -889,7 +889,7 @@ msgstr "対象"
 msgid "Source DB"
 msgstr "元DB"
 
-#: templates/partials/backups.html:17 templates/partials/detail.html:150
+#: templates/partials/backups.html:17 templates/partials/detail.html:155
 #: templates/partials/health.html:69 templates/partials/health.html:169
 #: templates/partials/health.html:270 templates/partials/health.html:423
 #: templates/partials/objects.html:37
@@ -1018,8 +1018,8 @@ msgstr "子（参照する側）"
 msgid "Parent (referenced)"
 msgstr "親（参照される側）"
 
-#: templates/partials/dependencies.html:88 templates/partials/detail.html:62
-#: templates/partials/detail.html:148 templates/partials/health.html:226
+#: templates/partials/dependencies.html:88 templates/partials/detail.html:67
+#: templates/partials/detail.html:153 templates/partials/health.html:226
 #: templates/partials/health.html:316
 msgid "Columns"
 msgstr "列"
@@ -1028,93 +1028,93 @@ msgstr "列"
 msgid "Constraint"
 msgstr "制約"
 
-#: templates/partials/detail.html:29
+#: templates/partials/detail.html:34
 msgid "Open in SQL"
 msgstr "SQL で開く"
 
-#: templates/partials/detail.html:33
+#: templates/partials/detail.html:38
 msgid "backup"
 msgstr "バックアップ"
 
-#: templates/partials/detail.html:35
+#: templates/partials/detail.html:40
 msgid "pg_dump this table as plain SQL"
 msgstr "このテーブルを平文SQLで pg_dump"
 
-#: templates/partials/detail.html:38
+#: templates/partials/detail.html:43
 msgid "pg_dump this table in custom format"
 msgstr "このテーブルをカスタム形式で pg_dump"
 
-#: templates/partials/detail.html:46
+#: templates/partials/detail.html:51
 msgid "export"
 msgstr "エクスポート"
 
-#: templates/partials/detail.html:48
+#: templates/partials/detail.html:53
 msgid "Download every row as CSV"
 msgstr "全行を CSV でダウンロード"
 
-#: templates/partials/detail.html:50
+#: templates/partials/detail.html:55
 msgid "Download every row as JSON"
 msgstr "全行を JSON でダウンロード"
 
-#: templates/partials/detail.html:53
+#: templates/partials/detail.html:58
 msgid "Append rows from a CSV file"
 msgstr "CSV ファイルから行を追加"
 
-#: templates/partials/detail.html:53
+#: templates/partials/detail.html:58
 msgid "import"
 msgstr "インポート"
 
-#: templates/partials/detail.html:54 templates/partials/objects.html:65
+#: templates/partials/detail.html:59 templates/partials/objects.html:65
 msgid "rename"
 msgstr "リネーム"
 
-#: templates/partials/detail.html:63 templates/partials/health.html:25
+#: templates/partials/detail.html:68 templates/partials/health.html:25
 msgid "Indexes"
 msgstr "インデックス"
 
-#: templates/partials/detail.html:64
+#: templates/partials/detail.html:69
 msgid "Data"
 msgstr "データ"
 
-#: templates/partials/detail.html:66
+#: templates/partials/detail.html:71
 msgid "Danger"
 msgstr "危険"
 
-#: templates/partials/detail.html:72 templates/partials/detail.html:391
+#: templates/partials/detail.html:77 templates/partials/detail.html:435
 msgid "+ Add column"
 msgstr "+ 列を追加"
 
-#: templates/partials/detail.html:80 templates/partials/health.html:114
+#: templates/partials/detail.html:85 templates/partials/health.html:114
 msgid "Nullable"
 msgstr "NULL 許容"
 
-#: templates/partials/detail.html:81 templates/partials/detail.html:387
-#: templates/partials/detail.html:458
+#: templates/partials/detail.html:86 templates/partials/detail.html:431
+#: templates/partials/detail.html:502
 msgid "Default"
 msgstr "デフォルト"
 
-#: templates/partials/detail.html:93
+#: templates/partials/detail.html:98
 msgid "yes"
 msgstr "はい"
 
-#: templates/partials/detail.html:93
+#: templates/partials/detail.html:98
 msgid "no"
 msgstr "いいえ"
 
-#: templates/partials/detail.html:96
+#: templates/partials/detail.html:101
 msgid "generated"
 msgstr "生成列"
 
-#: templates/partials/detail.html:108
+#: templates/partials/detail.html:113
 msgid "shape"
 msgstr "構造"
 
-#: templates/partials/detail.html:111 templates/partials/objects.html:108
+#: templates/partials/detail.html:116 templates/partials/objects.html:108
 #: templates/partials/objects.html:152
 msgid "edit"
 msgstr "編集"
 
-#: templates/partials/detail.html:113
+#: templates/partials/detail.html:118
 #, python-format
 msgid ""
 "Drop column &quot;%(col)s&quot; from %(schema)s.%(table)s? This permanently "
@@ -1123,116 +1123,122 @@ msgstr ""
 "%(schema)s.%(table)s から列 &quot;%(col)s&quot; を削除しますか？データは完全"
 "に削除されます。"
 
-#: templates/partials/detail.html:117 templates/partials/detail.html:175
+#: templates/partials/detail.html:122 templates/partials/detail.html:180
 #: templates/partials/objects.html:69 templates/partials/objects.html:112
 #: templates/partials/objects.html:156 templates/partials/replication.html:198
 msgid "drop"
 msgstr "削除"
 
-#: templates/partials/detail.html:127
+#: templates/partials/detail.html:132
 msgid "Sampling…"
 msgstr "サンプリング中…"
 
-#: templates/partials/detail.html:137
+#: templates/partials/detail.html:142
 msgid "Try an index and measure it before creating it for real"
 msgstr "本番作成の前にインデックスを試して計測します"
 
-#: templates/partials/detail.html:138
+#: templates/partials/detail.html:143
 msgid "Try an index"
 msgstr "インデックスを試す"
 
-#: templates/partials/detail.html:140 templates/partials/detail.html:500
+#: templates/partials/detail.html:145 templates/partials/detail.html:544
 msgid "+ Create index"
 msgstr "+ インデックスを作成"
 
-#: templates/partials/detail.html:149 templates/partials/detail.html:494
+#: templates/partials/detail.html:154 templates/partials/detail.html:538
 msgid "Method"
 msgstr "方式"
 
-#: templates/partials/detail.html:159 templates/partials/replication.html:26
+#: templates/partials/detail.html:164 templates/partials/replication.html:26
 msgid "primary"
 msgstr "主キー"
 
-#: templates/partials/detail.html:161 templates/partials/health.html:187
+#: templates/partials/detail.html:166 templates/partials/health.html:187
 msgid "A concurrent build failed — this index is unusable; drop it."
 msgstr "並行ビルドに失敗 — このインデックスは使用不可です。削除してください。"
 
-#: templates/partials/detail.html:161
+#: templates/partials/detail.html:166
 msgid "invalid"
 msgstr "無効"
 
-#: templates/partials/detail.html:168
+#: templates/partials/detail.html:173
 msgid "pk"
 msgstr "pk"
 
-#: templates/partials/detail.html:171
+#: templates/partials/detail.html:176
 #, python-format
 msgid "Drop index &quot;%(name)s&quot;?"
 msgstr "インデックス &quot;%(name)s&quot; を削除しますか？"
 
-#: templates/partials/detail.html:184
+#: templates/partials/detail.html:189
 msgid "No indexes on this table yet."
 msgstr "このテーブルにはまだインデックスがありません。"
 
-#: templates/partials/detail.html:199
+#: templates/partials/detail.html:203
+#, fuzzy
+#| msgid "Filter error"
+msgid "Filter"
+msgstr "フィルタエラー"
+
+#: templates/partials/detail.html:218
 msgid "column…"
 msgstr "列…"
 
-#: templates/partials/detail.html:209
+#: templates/partials/detail.html:228
 msgid "contains"
 msgstr "を含む"
 
-#: templates/partials/detail.html:210
+#: templates/partials/detail.html:229
 msgid "starts with"
 msgstr "で始まる"
 
-#: templates/partials/detail.html:211
+#: templates/partials/detail.html:230
 msgid "is null"
 msgstr "が NULL"
 
-#: templates/partials/detail.html:212
+#: templates/partials/detail.html:231
 msgid "is not null"
 msgstr "が NULL でない"
 
-#: templates/partials/detail.html:215
+#: templates/partials/detail.html:234
 msgid "value"
 msgstr "値"
 
-#: templates/partials/detail.html:217
+#: templates/partials/detail.html:236
 msgid "Remove condition"
 msgstr "条件を削除"
 
-#: templates/partials/detail.html:221
+#: templates/partials/detail.html:240
 msgid "+ Condition"
 msgstr "+ 条件"
 
-#: templates/partials/detail.html:222
+#: templates/partials/detail.html:241
 msgid "Apply filters"
 msgstr "フィルタを適用"
 
-#: templates/partials/detail.html:223
+#: templates/partials/detail.html:242
 msgid "All conditions are ANDed · read-only"
 msgstr "全条件は AND 結合・読み取り専用"
 
-#: templates/partials/detail.html:232
+#: templates/partials/detail.html:262
 #, fuzzy, python-format
 #| msgid "rows %(n)s"
 msgid "rows %(a)s–%(b)s"
 msgstr "行 %(n)s"
 
-#: templates/partials/detail.html:234
+#: templates/partials/detail.html:264
 #, fuzzy, python-format
 #| msgid "Rows: about %(n)s (estimated from statistics, last analyzed %(d)s)"
 msgid "of about %(n)s (estimated from statistics)"
 msgstr "行数: 約 %(n)s（統計からの推定・最終 ANALYZE %(d)s）"
 
-#: templates/partials/detail.html:236
+#: templates/partials/detail.html:266
 #, fuzzy
 #| msgid "Rows: unknown (this table has never been analyzed)"
 msgid "of an unknown total — this table has never been analyzed"
 msgstr "行数: 不明（このテーブルはまだ ANALYZE されていません）"
 
-#: templates/partials/detail.html:241
+#: templates/partials/detail.html:271
 msgid ""
 "A table with no primary key has no defined row order, so paging can repeat "
 "or skip rows."
@@ -1240,48 +1246,52 @@ msgstr ""
 "主キーの無いテーブルには決まった行の順序がないので、ページをめくると同じ行が"
 "二度出たり、どこにも出ない行ができることがあります。"
 
-#: templates/partials/detail.html:242
+#: templates/partials/detail.html:272
 msgid "⚠ No primary key — row order is not guaranteed between pages"
 msgstr "⚠ 主キーが無いため、ページ間で行の順序は保証されません"
 
-#: templates/partials/detail.html:249
+#: templates/partials/detail.html:279
 msgid "← Prev"
 msgstr "← 前"
 
-#: templates/partials/detail.html:253
+#: templates/partials/detail.html:283
 #, python-format
 msgid "page %(p)s of about %(t)s"
 msgstr "%(p)s / 約 %(t)s ページ"
 
-#: templates/partials/detail.html:255
+#: templates/partials/detail.html:285
 #, python-format
 msgid "page %(p)s"
 msgstr "%(p)s ページ"
 
-#: templates/partials/detail.html:260
+#: templates/partials/detail.html:290
 msgid "Next →"
 msgstr "次 →"
 
-#: templates/partials/detail.html:266
+#: templates/partials/detail.html:304
+msgid "fit to window"
+msgstr "画面に合わせる"
+
+#: templates/partials/detail.html:306
 #, fuzzy, python-format
 #| msgid "%(n)s row"
 #| msgid_plural "%(n)s rows"
 msgid "%(n)s rows"
 msgstr "%(n)s 行"
 
-#: templates/partials/detail.html:296
+#: templates/partials/detail.html:340
 msgid "This table is empty."
 msgstr "このテーブルは空です。"
 
-#: templates/partials/detail.html:307
+#: templates/partials/detail.html:351
 msgid "Truncate table"
 msgstr "テーブルを truncate"
 
-#: templates/partials/detail.html:308
+#: templates/partials/detail.html:352
 msgid "Delete every row. A safety snapshot is taken first."
 msgstr "全行を削除します。先に安全スナップショットを取得します。"
 
-#: templates/partials/detail.html:311
+#: templates/partials/detail.html:355
 #, python-format
 msgid ""
 "Truncate &quot;%(schema)s.%(table)s&quot;? This permanently deletes every "
@@ -1290,81 +1300,81 @@ msgstr ""
 "&quot;%(schema)s.%(table)s&quot; を truncate しますか？全行が完全に削除されま"
 "す。"
 
-#: templates/partials/detail.html:311 templates/partials/detail.html:323
+#: templates/partials/detail.html:355 templates/partials/detail.html:367
 #: templates/partials/objects.html:67 templates/partials/objects.html:110
 #: templates/partials/objects.html:154
 msgid "This runs:"
 msgstr "実行される SQL:"
 
-#: templates/partials/detail.html:311 templates/partials/detail.html:323
+#: templates/partials/detail.html:355 templates/partials/detail.html:367
 msgid "Rows: unknown (this table has never been analyzed)"
 msgstr "行数: 不明（このテーブルはまだ ANALYZE されていません）"
 
-#: templates/partials/detail.html:311 templates/partials/detail.html:323
+#: templates/partials/detail.html:355 templates/partials/detail.html:367
 #, python-format
 msgid "Rows: about %(n)s (estimated from statistics, last analyzed %(d)s)"
 msgstr "行数: 約 %(n)s（統計からの推定・最終 ANALYZE %(d)s）"
 
-#: templates/partials/detail.html:311 templates/partials/detail.html:323
+#: templates/partials/detail.html:355 templates/partials/detail.html:367
 msgid "Referenced by:"
 msgstr "参照しているテーブル:"
 
-#: templates/partials/detail.html:311 templates/partials/detail.html:323
+#: templates/partials/detail.html:355 templates/partials/detail.html:367
 msgid "A DROP … CASCADE would also drop:"
 msgstr "DROP … CASCADE で一緒に消えるもの:"
 
-#: templates/partials/detail.html:314
+#: templates/partials/detail.html:358
 msgid "Truncate"
 msgstr "Truncate"
 
-#: templates/partials/detail.html:319 templates/partials/detail.html:326
+#: templates/partials/detail.html:363 templates/partials/detail.html:370
 msgid "Drop table"
 msgstr "テーブルを削除"
 
-#: templates/partials/detail.html:320
+#: templates/partials/detail.html:364
 msgid "Remove the table and all its data. A safety snapshot is taken first."
 msgstr "テーブルと全データを削除します。先に安全スナップショットを取得します。"
 
-#: templates/partials/detail.html:323
+#: templates/partials/detail.html:367
 #, python-format
 msgid "Drop table &quot;%(schema)s.%(table)s&quot;? This cannot be undone."
 msgstr ""
 "テーブル &quot;%(schema)s.%(table)s&quot; を削除しますか？元に戻せません。"
 
-#: templates/partials/detail.html:337
+#: templates/partials/detail.html:381
 msgid "Rename table"
 msgstr "テーブルをリネーム"
 
-#: templates/partials/detail.html:337
+#: templates/partials/detail.html:381
 msgid "Add column"
 msgstr "列を追加"
 
-#: templates/partials/detail.html:338
+#: templates/partials/detail.html:382
 msgid "Edit column"
 msgstr "列を編集"
 
-#: templates/partials/detail.html:338
+#: templates/partials/detail.html:382
 msgid "Create index"
 msgstr "インデックスを作成"
 
-#: templates/partials/detail.html:339 templates/partials/detail.html:367
+#: templates/partials/detail.html:383 templates/partials/detail.html:411
 msgid "Import CSV"
 msgstr "CSV インポート"
 
-#: templates/partials/detail.html:350 templates/partials/objects.html:201
+#: templates/partials/detail.html:394 templates/partials/objects.html:201
 msgid "New name"
 msgstr "新しい名前"
 
-#: templates/partials/detail.html:352 templates/partials/detail.html:405
+#: templates/partials/detail.html:396 templates/partials/detail.html:449
 #: templates/partials/objects.html:203
 msgid "Rename"
 msgstr "リネーム"
 
-#: templates/partials/detail.html:361
+#: templates/partials/detail.html:405
 msgid "CSV file"
 msgstr "CSV ファイル"
 
-#: templates/partials/detail.html:365
+#: templates/partials/detail.html:409
 msgid ""
 "The first row must be a header; columns are matched to the table by name. "
 "Rows are appended in one transaction — if any row's types don't fit, the "
@@ -1374,43 +1384,43 @@ msgstr ""
 "は1つのトランザクションで追加され、いずれかの行の型が合わない場合はインポート"
 "全体がロールバックされます。事前に安全のためのスナップショットを取得します。"
 
-#: templates/partials/detail.html:378
+#: templates/partials/detail.html:422
 msgid "column name"
 msgstr "列名"
 
-#: templates/partials/detail.html:390
+#: templates/partials/detail.html:434
 msgid "not null"
 msgstr "not null"
 
-#: templates/partials/detail.html:402
+#: templates/partials/detail.html:446
 msgid "Rename to"
 msgstr "リネーム先"
 
-#: templates/partials/detail.html:417
+#: templates/partials/detail.html:461
 msgid "(current)"
 msgstr "（現在）"
 
-#: templates/partials/detail.html:420
+#: templates/partials/detail.html:464
 msgid "Change"
 msgstr "変更"
 
-#: templates/partials/detail.html:425
+#: templates/partials/detail.html:469
 msgid "Nullability"
 msgstr "NULL許可"
 
-#: templates/partials/detail.html:433
+#: templates/partials/detail.html:477
 msgid "set NOT NULL"
 msgstr "NOT NULL を設定"
 
-#: templates/partials/detail.html:433
+#: templates/partials/detail.html:477
 msgid "drop NOT NULL"
 msgstr "NOT NULL を解除"
 
-#: templates/partials/detail.html:444
+#: templates/partials/detail.html:488
 msgid "Rehearse it"
 msgstr "リハーサル"
 
-#: templates/partials/detail.html:449
+#: templates/partials/detail.html:493
 msgid ""
 "Runs the real statement and rolls it back. It takes a real ACCESS EXCLUSIVE "
 "lock while it runs, so readers queue behind it — briefly, but for real."
@@ -1418,23 +1428,23 @@ msgstr ""
 "本物の文を実行して、ロールバックする。実行中は本物の ACCESS EXCLUSIVE ロック"
 "を取るので、読み取りはその後ろに並ぶ。短いが、本物。"
 
-#: templates/partials/detail.html:458
+#: templates/partials/detail.html:502
 msgid "(empty drops it)"
 msgstr "（空で解除）"
 
-#: templates/partials/detail.html:461 templates/partials/settings_row.html:42
+#: templates/partials/detail.html:505 templates/partials/settings_row.html:42
 msgid "Set"
 msgstr "設定"
 
-#: templates/partials/detail.html:477
+#: templates/partials/detail.html:521
 msgid "Click columns in the order you want them indexed."
 msgstr "インデックスしたい順に列をクリックしてください。"
 
-#: templates/partials/detail.html:491
+#: templates/partials/detail.html:535
 msgid "index name"
 msgstr "インデックス名"
 
-#: templates/partials/detail.html:501
+#: templates/partials/detail.html:545
 msgid "built CONCURRENTLY"
 msgstr "CONCURRENTLY で作成"
 
@@ -2977,16 +2987,16 @@ msgstr ""
 msgid "Filter tables…"
 msgstr "テーブルを絞り込み…"
 
-#: templates/partials/table_list.html:17
+#: templates/partials/table_list.html:21
 msgid "Statistics have never been collected for this table — run ANALYZE"
 msgstr ""
 "このテーブルの統計がまだ集められていません（ANALYZE を実行してください）"
 
-#: templates/partials/table_list.html:17
+#: templates/partials/table_list.html:21
 msgid "unknown"
 msgstr "不明"
 
-#: templates/partials/table_list.html:23
+#: templates/partials/table_list.html:27
 #, python-format
 msgid "%(counter)s table"
 msgid_plural "%(counter)s tables"

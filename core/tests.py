@@ -727,23 +727,37 @@ class PagingParameterTests(SimpleTestCase):
 
         return _paging(RequestFactory().get("/", params))
 
-    def test_defaults(self):
-        from core.views.tables import DEFAULT_PAGE_SIZE
+    def test_default_is_fit_to_window(self):
+        # 既定は「画面に入るぶんだけ」。JS が測る前の 1 回目は FIT_FALLBACK。
+        from core.views.tables import FIT_FALLBACK
 
-        self.assertEqual(self._paging(), (DEFAULT_PAGE_SIZE, 0))
+        self.assertEqual(self._paging(), (FIT_FALLBACK, 0))
 
-    def test_offset_follows_the_page(self):
+    def test_fit_takes_the_measured_number(self):
+        self.assertEqual(self._paging(rows="fit", fit="27"), (27, 0))
+
+    def test_fit_is_clamped(self):
+        # **ブラウザから来た数をそのまま LIMIT に渡さない。**
+        from core.views.tables import FIT_MAX, FIT_MIN
+
+        self.assertEqual(self._paging(rows="fit", fit="99999")[0], FIT_MAX)
+        self.assertEqual(self._paging(rows="fit", fit="0")[0], FIT_MIN)
+        self.assertEqual(self._paging(rows="fit", fit="-5")[0], FIT_MIN)
+
+    def test_explicit_size_still_works(self):
         self.assertEqual(self._paging(page="3", rows="100"), (100, 200))
 
     def test_junk_falls_back_quietly(self):
         # ここでエラーを出しても、利用者にできることが無い。
-        from core.views.tables import DEFAULT_PAGE_SIZE
+        from core.views.tables import FIT_FALLBACK, FIT_MAX, FIT_MIN
 
+        allowed = {FIT_FALLBACK, 100, 500, 1000, 5000}
         for params in [{"page": "abc"}, {"page": "-5"}, {"rows": "99999"},
-                       {"rows": "0"}, {"rows": "; DROP TABLE x"}]:
+                       {"rows": "0"}, {"rows": "; DROP TABLE x"},
+                       {"rows": "fit", "fit": "abc"}, {"rows": "fit", "fit": ""}]:
             with self.subTest(params=params):
                 size, offset = self._paging(**params)
-                self.assertIn(size, (DEFAULT_PAGE_SIZE, 100, 500, 1000, 5000))
+                self.assertTrue(size in allowed or FIT_MIN <= size <= FIT_MAX)
                 self.assertGreaterEqual(offset, 0)
 
 
