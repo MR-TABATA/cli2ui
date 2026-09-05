@@ -111,10 +111,10 @@
     // spinner while pg_dump runs, then triggers the browser download from the
     // blob — and surfaces the server's error text inline if it fails.
     document.addEventListener("alpine:init", () => {
-      // Open-state for the overview hover menu (the section bento). A store so
-      // the bento cards can close it whether they're rendered in the menu or in
-      // the #detail landing (where there's no local menu scope).
-      Alpine.store("navmenu", { open: false });
+      // どの区域メニューが開いているか（'' なら閉。'query' / 'ops' / 'catalog'）。
+      // 店に置くのは、#detail 側に描かれたベントーのカードからも閉じられるように
+      // するため（あちらにはメニューのスコープが無い）。
+      Alpine.store("navmenu", { open: "" });
 
       Alpine.data("dumpLinks", () => ({
         busy: false,

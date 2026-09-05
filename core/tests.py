@@ -3509,11 +3509,22 @@ class _BrowserE2E(LiveServerTestCase):
     def tearDown(self):
         self.page.close()
 
-    def open_section(self, name):
-        """Navigate to a section through the overview hover menu (the bento)."""
-        self.page.get_by_role("button", name="overview").hover()
-        self.page.locator("#nav-menu").get_by_role("button", name=name).click()
+    # どの区域がどのメニューに入っているか。2026-09-05 に 1 つのホバー
+    # メガメニューからグループごとのクリックメニューへ変えた。
+    NAV_GROUPS = {
+        "query": ("SQL runner", "Index lab", "Snapshots", "History"),
+        "ops": ("Activity", "Locks", "Health", "Replication"),
+        "catalog": ("Objects", "Dependencies", "Extensions", "Backups", "Config"),
+    }
 
+    def open_section(self, name):
+        """Navigate to a section through its group menu in the top bar."""
+        key = next((k for k, v in self.NAV_GROUPS.items() if name in v), None)
+        self.assertIsNotNone(key, f"no nav group holds {name}")
+        self.page.locator(f'button[data-navgroup="{key}"]').click()
+        panel = self.page.locator(f"#nav-menu-{key}")
+        panel.wait_for(state="visible")
+        panel.get_by_role("button", name=name).click()
 
 @unittest.skipUnless(_HAS_PLAYWRIGHT and _sampledb_reachable(),
                      "needs playwright + chromium and a reachable sample DB")
