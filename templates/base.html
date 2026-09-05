@@ -42,6 +42,21 @@
     .field:focus { outline: none; border-color: #34d399; }
     .field-sm { padding: .25rem .5rem; font-size: .75rem; }
 
+    /* データグリッドの高さを決める数（すべて実測）。**JS の cli2uiFitRows も
+       CSS の max-height もここを読む**ので、直すときはこの 4 行だけ直す。
+       前は JS に 455、テンプレートに 435 と書き分けていて、片方だけ直して
+       1 行はみ出した。 */
+    :root {
+      --grid-chrome: 302px;       /* グリッドより上下にあるものの合計 */
+      --grid-chrome-open: 414px;  /* 絞り込みを開いているとき */
+      --grid-head: 33px;          /* 列名の行 */
+      --grid-row: 37px;           /* 1 行の高さ */
+      /* 列名の行が 32.5px と半端なので、丸めで 1px あふれてページ側に
+         スクロールバーが出る。4px 逃がしておく（行数は変わらない）。 */
+      --grid-max: calc(100vh - var(--grid-chrome) - 4px);
+      --grid-max-open: calc(100vh - var(--grid-chrome-open) - 4px);
+    }
+
     /* Top section-nav bar (the top-level section switcher, in the header). The
        active state is toggled via Alpine :class on top of these base styles. */
     .topnav-btn { display: inline-flex; align-items: center; gap: .375rem; white-space: nowrap;
@@ -136,17 +151,17 @@
       // 結局ウィンドウの高さで決まるので、そこから引くだけにする。**描画結果に
       // 依存しない ＝ 取り直しの連鎖が起きない。**
       //
-      // 定数は実測から:
-      //   CHROME 455px … グリッドより上と下に載っているもの（ヘッダ・ナビ・
-      //                   タイトル・タブ・ページャ・フッタ）の合計
-      //   HEAD    33px … 列名の行
-      //   ROW     37px … 1 行の高さ（px-4 py-2 + 罫線。**33 だと思って外した**）
-      // グリッド側の max-height も CHROME から作る（calc(100vh-455px)）ので、
-      // 両者がずれない。
+      // 寸法は :root のカスタムプロパティから読む。グリッド側の max-height も
+      // 同じものを使うので、片方だけ直してずれることがない。
       window.cli2uiFitRows = function () {
-        // 6px 足りずにスクロールが出たので、1 行ぶん余裕を持たせる。
-        // **少なく出して余白が残るほうが、1 行ぶんスクロールするより良い。**
-        return Math.max(5, Math.floor((window.innerHeight - 455 - 33 - 8) / 37));
+        const px = (name) =>
+          parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
+        // 絞り込みを開いていればその高さも引く（開閉自体では取り直さない。
+        // 次にページを送ったり件数を変えたときに正しい数になる）。
+        const chrome = window.__cli2uiFilterOpen === true ? "--grid-chrome-open" : "--grid-chrome";
+        const space = window.innerHeight - px(chrome) - px("--grid-head");
+        // 少なく出して余白が残るほうが、1 行ぶんスクロールするより良い。
+        return Math.max(5, Math.floor((space - 8) / px("--grid-row")));
       };
 
       Alpine.data("filterBuilder", () => ({
@@ -187,10 +202,11 @@ body の高さを画面に固定し、main を伸縮させ、動くのはデー�
       {% block body_attrs %}{% endblock %}
       hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   <header class="border-b border-zinc-800 bg-zinc-950/90 backdrop-blur z-10 shrink-0">
-    <div class="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3">
+    <div class="max-w-7xl mx-auto px-6 py-2 flex items-center gap-3">
       <a href="/" class="text-lg font-semibold tracking-tight">
         cli<span class="text-emerald-400">2</span>ui
       </a>
+      <span class="mono text-xs text-zinc-500">v{{ cli2ui_version }}</span>
       <span class="text-zinc-400 text-sm hidden sm:inline">{% trans "CLI database ops, as buttons." %}</span>
       <form action="{% url 'set_language' %}" method="post" class="ml-auto flex items-center gap-1">
         {% csrf_token %}
@@ -203,12 +219,8 @@ body の高さを画面に固定し、main を伸縮させ、動くのはデー�
     </div>
     {% block topnav %}{% endblock %}
   </header>
-  <main class="max-w-7xl w-full mx-auto px-6 py-6 flex-1 min-h-0 overflow-y-auto">
+  <main class="max-w-7xl w-full mx-auto px-6 py-3 flex-1 min-h-0 overflow-y-auto">
     {% block content %}{% endblock %}
   </main>
-  <footer class="max-w-7xl w-full mx-auto px-6 py-2 text-xs text-zinc-500 flex items-center gap-2 shrink-0">
-    <span>cli<span class="text-emerald-400">2</span>ui</span>
-    <span class="mono">v{{ cli2ui_version }}</span>
-  </footer>
 </body>
 </html>
