@@ -241,11 +241,6 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
     </form>
 
     {% if preview %}
-    {% if fit_mode %}
-      {% comment %}「画面に合わせる」で開いたときだけ、描画後に測り直す。
-      ずれが 2 行以内なら何もしない。{% endcomment %}
-      <div x-data="fitRows({{ preview.page_size }}, '{% url 'table_detail' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}')"></div>
-    {% endif %}
     <!-- ページ送り。行数は数えない（count(*) は毎回の全走査）ので、統計の推定を
          「約」と断って出す。順序が決まっていないテーブルではそれも言う。 -->
     {% comment %}ページャはグリッドの上に貼り付ける。グリッドだけがスクロールする
@@ -291,10 +286,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
                 @change="$el.form ? null : null"
                 hx-get="{% url 'table_detail' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}"
                 hx-target="#detail" hx-swap="innerHTML" hx-include="this"
-                hx-vals="js:{fit: (function(){
-                  const g = document.querySelector('#filter-result .overflow-auto');
-                  return g ? window.cli2uiFitRows(g) : 40;
-                })()}">
+                hx-vals="js:{fit: window.cli2uiFitRows()}">
           <option value="fit"{% if fit_mode %} selected{% endif %}>{% trans "fit to window" %}</option>
           {% for n in page_sizes %}
             <option value="{{ n }}"{% if not fit_mode and n == preview.page_size %} selected{% endif %}>{% blocktrans with n=n|intcomma %}{{ n }} rows{% endblocktrans %}</option>
@@ -311,7 +303,12 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
           {% comment %}グリッドだけが縦にスクロールする。1000 行あるので、ページ全体が
           動くと列名もページ送りも画面の外へ流れてしまう。SQL ランナーと絞り込みの
           結果は既にこうなっていて、ここだけ揃っていなかった。{% endcomment %}
-          <div class="overflow-auto" x-data="fillHeight()">
+          {% comment %}高さは行数と同じ定数から作る（行数 = (画面高 - 470) / 33、
+          高さ = 画面高 - 440 ＝ 引いた残り + 見出し 30）。絞り込みを開くと
+          その高さぶん上端が下がるので、開いているあいだだけ狭める ── 取り直さず
+          CSS で吸収する。{% endcomment %}
+          <div class="overflow-auto max-h-[calc(100vh-435px)]"
+               :class="open && '!max-h-[calc(100vh-550px)]'">
             <table class="w-full text-sm">
               <thead class="text-left text-xs uppercase tracking-wide text-zinc-400 sticky top-0 bg-zinc-900">
                 <tr class="border-b border-zinc-800">

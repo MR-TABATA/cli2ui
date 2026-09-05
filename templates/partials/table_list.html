@@ -5,13 +5,13 @@
            class="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm
                   text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
   </div>
-  <ul class="py-1 overflow-y-auto" x-data="fillHeight(40)">
+  <ul class="py-1 overflow-y-auto max-h-[calc(100vh-320px)]">
     {% for t in tables %}
       <li x-show="q === '' || '{{ t.qualified|lower|escapejs }}'.includes(q.toLowerCase())">
         {% comment %}前に測った「画面に入る行数」を一緒に送る。2 つ目以降のテーブルは
         1 回で正しい行数になる（1 つ目だけは測る前なので、開いた直後に直す）。{% endcomment %}
         <button hx-get="{% url 'table_detail' connection.pk %}?schema={{ t.schema|urlencode }}&table={{ t.name|urlencode }}"
-                hx-vals="js:{rows: 'fit', fit: window.__cli2uiFit || 40}"
+                hx-vals="js:{rows: 'fit', fit: window.cli2uiFitRows()}"
                 hx-target="#detail" hx-swap="innerHTML"
                 @click="sel = '{{ t.qualified|escapejs }}'"
                 :class="sel === '{{ t.qualified|escapejs }}' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-300'"

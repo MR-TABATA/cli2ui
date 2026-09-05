@@ -129,108 +129,34 @@
       //
       // これが無いと、グリッドの下を見るのに「まずページを送ってからグリッドを
       // 送る」二段階になる。スクロールバーは 1 本にする。
-      // いまの画面に、行が何行入るか。
+      // 画面に何行入るか。**window.innerHeight だけから決める。**
       //
-      // 1 行の高さは実測する（描画済みの行があればそれ、無ければ既定 33px）。
-      // グリッドの上端から main の内側の下端までが使える高さで、そこから
-      // 見出し行を引く。**この数を LIMIT にそのまま使わない** ── サーバ側で
-      // 範囲に丸める（core/views/tables.py の FIT_MIN / FIT_MAX）。
-      window.cli2uiFitRows = function (gridEl) {
-        const main = gridEl.closest("main");
-        const limit = main
-          ? main.getBoundingClientRect().bottom
-              - parseFloat(getComputedStyle(main).paddingBottom || 0)
-          : window.innerHeight;
-        const top = gridEl.getBoundingClientRect().top;
-        const head = gridEl.querySelector("thead");
-        const row = gridEl.querySelector("tbody tr");
-        const rowH = row ? row.getBoundingClientRect().height : 33;
-        const headH = head ? head.getBoundingClientRect().height : 30;
-        return Math.max(1, Math.floor((limit - top - headH - 8) / rowH));
+      // 描画後のグリッドを測って直す方式にしたら、測る・取り直す・開閉で測り直す、が
+      // 絡んで挙動が不安定になった（1 回クリックしないと効かない、など）。入る行数は
+      // 結局ウィンドウの高さで決まるので、そこから引くだけにする。**描画結果に
+      // 依存しない ＝ 取り直しの連鎖が起きない。**
+      //
+      // 定数は実測から:
+      //   CHROME 455px … グリッドより上と下に載っているもの（ヘッダ・ナビ・
+      //                   タイトル・タブ・ページャ・フッタ）の合計
+      //   HEAD    33px … 列名の行
+      //   ROW     37px … 1 行の高さ（px-4 py-2 + 罫線。**33 だと思って外した**）
+      // グリッド側の max-height も CHROME から作る（calc(100vh-455px)）ので、
+      // 両者がずれない。
+      window.cli2uiFitRows = function () {
+        // 6px 足りずにスクロールが出たので、1 行ぶん余裕を持たせる。
+        // **少なく出して余白が残るほうが、1 行ぶんスクロールするより良い。**
+        return Math.max(5, Math.floor((window.innerHeight - 455 - 33 - 8) / 37));
       };
-
-      // 「画面に入るぶんだけ」を、描画してから 1 回だけ直す。
-      //
-      // 何行入るかはブラウザでしか分からないので、1 つ目のテーブルは既定の 40 行で
-      // 来る。それが入りきらない（または余る）なら、測り直して**一度だけ**取り直す。
-      // 測った数は覚えておき、2 つ目以降のテーブルは最初から正しい行数で来る。
-      Alpine.data("fitRows", (loaded, url) => ({
-        init() {
-          this._refit = (force) => {
-            const grid = document.querySelector("#filter-result .overflow-auto");
-            if (!grid || !grid.offsetParent) return;
-            const want = window.cli2uiFitRows(grid);
-            window.__cli2uiFit = want;
-            const now = grid.querySelectorAll("tbody tr").length;
-            if (!force && Math.abs(want - now) <= 2) return;
-            htmx.ajax("GET", url + "&rows=fit&fit=" + want,
-                      { target: "#detail", swap: "innerHTML" });
-          };
-          // 絞り込みの開閉で上端が動いたら測り直す。
-          this._onRefit = () => requestAnimationFrame(() => this._refit(false));
-          document.addEventListener("cli2ui:refit", this._onRefit);
-          requestAnimationFrame(() => {
-            const grid = this.$root.querySelector(".overflow-auto")
-                      || document.querySelector("#filter-result .overflow-auto");
-            if (!grid || !grid.offsetParent) return;
-            const want = window.cli2uiFitRows(grid);
-            window.__cli2uiFit = want;
-            // 1 行 2 行の差で取り直すと、開くたびに 2 回叩くことになる。
-            if (Math.abs(want - loaded) <= 2) return;
-            htmx.ajax("GET", url + "&rows=fit&fit=" + want,
-                      { target: "#detail", swap: "innerHTML" });
-          });
-        },
-        destroy() { document.removeEventListener("cli2ui:refit", this._onRefit); },
-      }));
-
-      Alpine.data("fillHeight", (gap = 8) => ({
-        init() {
-          this._fit = () => {
-            // 非表示のあいだは測れない（タブが閉じていると top が 0 になる）。
-            if (!this.$el.offsetParent) return;
-            const top = this.$el.getBoundingClientRect().top;
-            if (top <= 0) return;
-            // 画面の下端ではなく **main の内側の下端**まで。footer と main の
-            // padding を食うと、こんど main 側にスクロールバーが出る。
-            const main = this.$el.closest("main");
-            const limit = main
-              ? main.getBoundingClientRect().bottom
-                  - parseFloat(getComputedStyle(main).paddingBottom || 0)
-              : window.innerHeight;
-            this.$el.style.maxHeight = Math.max(160, limit - top - gap) + "px";
-          };
-          this._defer = () => requestAnimationFrame(this._fit);
-          this._defer();
-          // タブが切り替わって**初めて見えたとき**に測り直す。init の時点では
-          // まだ display:none で、そこで測ると必ず外す。
-          this._io = new IntersectionObserver(() => this._defer());
-          this._io.observe(this.$el);
-          // 上の高さが変わる場面 ── リサイズ、絞り込みの開閉、タブの切り替え。
-          window.addEventListener("resize", this._defer);
-          document.addEventListener("click", this._defer);
-        },
-        destroy() {
-          this._io && this._io.disconnect();
-          window.removeEventListener("resize", this._defer);
-          document.removeEventListener("click", this._defer);
-        },
-      }));
 
       Alpine.data("filterBuilder", () => ({
         // 既定は畳む。絞り込みは毎回使うものではないのに、常に開いていると
         // その高さぶんグリッドが下へ押し出される。開いた状態はテーブルを
         // またいで覚える（一度使う人は続けて使うため）。
         open: window.__cli2uiFilterOpen === true,
-        toggle() {
-          this.open = !this.open;
-          window.__cli2uiFilterOpen = this.open;
-          // 開閉でグリッドの上端が動く ＝ 入る行数が変わる。**高さだけ直しても
-          // 行数はそのまま**なので、取り直さないとはみ出す（閉じているときの
-          // 21 行を開いた状態に置くと 79px 溢れた）。
-          requestAnimationFrame(() => document.dispatchEvent(
-            new CustomEvent("cli2ui:refit")));
-        },
+        // 開閉で上端は動くが、取り直しはしない。数行の差はグリッドの
+        // max-height が吸収する（開いているあいだだけ内側に小さくスクロールが出る）。
+        toggle() { this.open = !this.open; window.__cli2uiFilterOpen = this.open; },
         rows: [{ id: 1, col: "", op: "eq", val: "" }],
         nextId: 2,
         add() { this.rows.push({ id: this.nextId++, col: "", op: "eq", val: "" }); },
