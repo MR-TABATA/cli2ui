@@ -24,6 +24,10 @@ and pre-wired into the connection form, with a realistic
 The UI ships in **English and Japanese** — a header toggle switches between
 them, and it auto-detects your browser's language on first visit.
 
+It ships **light and dark**, too, plus a custom theme: pick a ground, a text
+colour and an accent, and the other fourteen are derived from them. The choice
+stays in your browser — it is never sent to the server.
+
 ## What it looks like
 
 ![Workspace overview — every panel one click away, with live counts](docs/screenshots/overview.png)

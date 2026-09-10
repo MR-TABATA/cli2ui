@@ -45,7 +45,7 @@
       <button type="submit"
               :hx-confirm="write ? '{% trans 'Run this in WRITE mode? It will be committed. A whole-database safety snapshot is taken first (recover it from Backups).' %}' : null"
               class="sql-run font-medium rounded-lg px-5 py-2 text-sm transition flex items-center gap-2"
-              :class="write ? 'bg-warn hover:bg-warn text-on-accent'
+              :class="write ? 'bg-warn hover:bg-warn text-canvas'
                             : 'bg-accent hover:bg-accent text-on-accent'">
         <span class="run-label" x-text="write ? '{% trans 'Run write' %}' : '{% trans 'Run' %}'"></span>
         <span class="run-spin items-center gap-2">

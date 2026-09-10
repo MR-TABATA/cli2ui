@@ -1,5 +1,5 @@
-{% comment %}Shared error / notice banner. error → red; notice → amber if it
-carries a "⚠" warning, otherwise sky (info). See STYLE.md.{% endcomment %}
+{% comment %}Shared error / notice banner. error → danger; notice → warn if it
+carries a "⚠" warning, otherwise info. Roles, not shades — see STYLE.md.{% endcomment %}
 {% if error %}
   <div class="bg-danger/40 border border-danger rounded-lg px-4 py-2.5 text-sm text-danger/90 mono">{{ error }}</div>
 {% endif %}

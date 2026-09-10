@@ -17,6 +17,51 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Added
+
+- **A light theme, and a custom one.** The header carries four choices — 自動 /
+  明 / 暗 / 自作. 自動 follows the operating system; 自作 asks for three colours
+  (ground, text, accent) and derives the other fourteen. The choice is kept in
+  `localStorage` and applied in `<head>` before the first paint, so switching
+  does not flash the old theme. **It is never sent to the server** — no cookie,
+  no request. cli2ui runs on your machine and the theme belongs to the browser
+  looking at it.
+
+  Two things the custom theme does on purpose. Faint text is *clamped*: it is
+  made by pulling the text colour toward the ground, and on a theme where those
+  two are already close (Solarized) that sank to 2.0 : 1 — it now stops at the
+  last point that still holds 3.0 : 1. And when the two seed colours themselves
+  are closer than 3.0 : 1, the panel says so rather than quietly drawing a screen
+  nobody can read. The threshold is 3.0 and not 4.5 because 4.5 fired on
+  Solarized Light (4.1 : 1), a theme people really use — and a warning that cries
+  wolf stops being read.
+
+### Changed
+
+- **Colour is a role now, not a shade.** Templates no longer name palette
+  colours (`text-zinc-400`, `bg-emerald-500`); they name what the colour is for
+  (`text-muted`, `bg-accent`) and the theme decides the shade. There were 1,459
+  such names across 989 lines, which is why the app could only ever be dark.
+  There are now 17 roles and no direct colours in any of the 38 templates.
+  [STYLE.md](STYLE.md) is rewritten around them.
+
+- **The screenshots in this README are light-mode**, and six panels that had
+  never been shown are now in `docs/screenshots/`.
+
+### Fixed
+
+- **The primary button's label used the page's ground colour instead of the
+  colour computed to sit on the accent.** In the two presets those are the same
+  value, so it looked correct; in a custom theme with a dark ground *and* a dark
+  accent the label fell to 2.4 : 1. It now uses `on-accent` — 7.6 : 1 on the same
+  theme.
+
+- **Filled warning buttons ("Run write", "Preview index") used that same
+  on-accent colour**, which is derived from the accent and says nothing about
+  amber. Seed a dark ground with a dark accent and the label went white on amber:
+  1.9 : 1. They use the ground colour now, which is the readable side of a fixed
+  intent colour by construction: 11.1 : 1.
+
 ## [1.8.0] - 2026-09-04
 
 Click a table and you see what is in it — a thousand rows at a time, with counts that no longer say 0 when they mean "not counted".

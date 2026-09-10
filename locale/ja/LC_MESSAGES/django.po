@@ -3028,3 +3028,64 @@ msgstr "+ 新しい接続"
 #: templates/workspace.html:117
 msgid "back to connections"
 msgstr "接続一覧に戻る"
+
+#: templates/base.html:330
+msgid "Follow the OS"
+msgstr "OS に合わせる"
+
+#: templates/base.html:331
+msgid "Auto"
+msgstr "自動"
+
+#: templates/base.html:332
+msgid "Light theme"
+msgstr "明るい"
+
+#: templates/base.html:333
+msgid "Light"
+msgstr "明"
+
+#: templates/base.html:334
+msgid "Dark theme"
+msgstr "暗い"
+
+#: templates/base.html:335
+msgid "Dark"
+msgstr "暗"
+
+#: templates/base.html:337
+msgid "Pick your own"
+msgstr "自分で決める"
+
+#: templates/base.html:338
+msgid "Custom"
+msgstr "自作"
+
+#: templates/base.html:343
+msgid ""
+"You pick three colours. Surfaces, lines and headings are derived from "
+"them; danger / warning / info are left alone so they keep meaning what "
+"they mean."
+msgstr "3 色だけ決めます。面・罫線・見出しなどはここから導き、危険/警告/情報の色は意味を保つため触りません。"
+
+#: templates/base.html:346
+msgid "Ground"
+msgstr "地"
+
+#: templates/base.html:349
+msgid "Text"
+msgstr "文字"
+
+#: templates/base.html:352
+msgid "Accent"
+msgstr "主操作"
+
+#: templates/base.html:356
+msgid ""
+"Ground and text are too close. No derivation can fix that — move one "
+"of them further away."
+msgstr "地と文字が近すぎます。導出では救えないので、どちらかを離してください。"
+
+#: templates/base.html:360
+msgid "Back to the presets"
+msgstr "既定に戻す"
