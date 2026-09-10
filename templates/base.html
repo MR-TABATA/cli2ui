@@ -1,16 +1,115 @@
 {% load i18n %}{% get_current_language as LANGUAGE_CODE %}<!DOCTYPE html>
-<html lang="{{ LANGUAGE_CODE }}" class="dark">
+<html lang="{{ LANGUAGE_CODE }}" class="dark" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}cli2ui{% endblock %}</title>
+  <script>
+    // 最初の描画より前にテーマを当てる。あとから当てると一瞬ダークが見える。
+    // 保存は localStorage ── ローカル専用の道具なので、サーバへは送らない。
+    (function () {
+      try {
+        var t = localStorage.getItem("cli2ui-theme") || "dark";
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) { /* localStorage が使えなくても既定のダークで動く */ }
+    })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
   <script>
-    tailwind.config = { darkMode: "class" }
+    // 色は「役割」で持ち、中身はテーマが決める（MrEditor の EditorColorTheme と同じ考え方）。
+    // <alpha-value> を挟むので bg-panel/60 のような不透明度の修飾子がそのまま効く。
+    tailwind.config = {
+      darkMode: "class",
+      theme: { extend: { colors: {
+        // 「base」は Tailwind の text-on-accent（文字サイズ）と衝突するので canvas にした
+        canvas:      "rgb(var(--c-canvas) / <alpha-value>)",
+        panel:       "rgb(var(--c-panel) / <alpha-value>)",
+        raised:      "rgb(var(--c-raised) / <alpha-value>)",
+        line:        "rgb(var(--c-line) / <alpha-value>)",
+        "line-strong":"rgb(var(--c-line-strong) / <alpha-value>)",
+        heading:     "rgb(var(--c-heading) / <alpha-value>)",
+        strong:      "rgb(var(--c-strong) / <alpha-value>)",
+        body:        "rgb(var(--c-body) / <alpha-value>)",
+        muted:       "rgb(var(--c-muted) / <alpha-value>)",
+        faint:       "rgb(var(--c-faint) / <alpha-value>)",
+        accent:      "rgb(var(--c-accent) / <alpha-value>)",
+        "on-accent": "rgb(var(--c-on-accent) / <alpha-value>)",
+        danger:      "rgb(var(--c-danger) / <alpha-value>)",
+        warn:        "rgb(var(--c-warn) / <alpha-value>)",
+        info:        "rgb(var(--c-info) / <alpha-value>)",
+        input:       "rgb(var(--c-input) / <alpha-value>)",
+        catalog:     "rgb(var(--c-catalog) / <alpha-value>)",
+      }}}
+    }
   </script>
   <style>
+    /* ===== テーマ =====================================================
+       役割ごとに色を持ち、プリセットで中身を差し替える。
+       値は "R G B"（rgb() の中で使うため。/60 などの不透明度が効くように）。
+
+         data-theme="dark"    暗い（既定・従来と同じ値）
+         data-theme="light"   明るい
+         data-theme="system"  OS 追従
+         data-theme="custom"  ユーザ指定（--c-* を上書きする）
+
+       STYLE.md の約束は変わらない ── 色＝意図。
+       accent=主操作 / danger=破壊的 / warn=警告 / info=情報。
+       ================================================================= */
+    :root, [data-theme="dark"] {
+      --c-canvas:        9 9 11;        /* zinc-950  ページの地 */
+      --c-panel:       24 24 27;      /* zinc-900  パネルの面 */
+      --c-raised:      39 39 42;      /* zinc-800  一段上の面 */
+      --c-line:        39 39 42;      /* zinc-800  罫線 */
+      --c-line-strong: 63 63 70;      /* zinc-700  強い罫線・入力枠 */
+      --c-heading:     244 244 245;   /* zinc-100  見出し */
+      --c-strong:      228 228 231;   /* zinc-200  強い本文 */
+      --c-body:        161 161 170;   /* zinc-400  本文（最頻） */
+      --c-muted:       113 113 122;   /* zinc-500  補足 */
+      --c-faint:       113 113 122;   /* zinc-500  さらに薄い（旧 zinc-600 は比 1.7 で読めなかった） */
+      --c-accent:      52 211 153;    /* emerald-400  主操作 */
+      --c-on-accent:   9 9 11;        /*             主操作の上の文字 */
+      --c-danger:      248 113 113;   /* red-400      破壊的 */
+      --c-warn:        251 191 36;    /* amber-400    警告 */
+      --c-info:        125 211 252;   /* sky-300      情報・リンク */
+      --c-input:       9 9 11;        /*             入力欄の面（暗い側は沈める） */
+      --c-catalog:     196 181 253;   /* violet-300  カタログ & データの区域 */
+      --c-scrim:       .5;            /*             幕（ドロワーの下地） */
+      --c-shadow:      .45;           /*             影の濃さ */
+    }
+    [data-theme="light"] {
+      --c-canvas:        255 255 255;
+      --c-panel:       250 250 250;   /* zinc-50 */
+      --c-raised:      244 244 245;   /* zinc-100 */
+      --c-line:        228 228 231;   /* zinc-200 */
+      --c-line-strong: 212 212 216;   /* zinc-300 */
+      --c-heading:     9 9 11;
+      --c-strong:      39 39 42;      /* zinc-800 */
+      --c-body:        82 82 91;      /* zinc-600 */
+      --c-muted:       113 113 122;   /* zinc-500 */
+      --c-faint:       113 113 122;   /* zinc-500（旧 zinc-400 は比 1.4 で読めなかった） */   /* zinc-400 */
+      --c-accent:      5 150 105;     /* emerald-600  明るい下地で読める濃さ */
+      --c-on-accent:   255 255 255;
+      --c-danger:      220 38 38;     /* red-600 */
+      --c-warn:        217 119 6;     /* amber-600 */
+      --c-info:        2 132 199;     /* sky-600 */
+      --c-input:       255 255 255;   /*             明るい側は白のまま浮かせる */
+      --c-catalog:     109 40 217;    /* violet-700  明るい下地で読める濃さ */
+      --c-scrim:       .25;           /* 明るい側では幕を薄く */
+      --c-shadow:      .12;           /* 影も薄く */
+    }
+    @media (prefers-color-scheme: light) {
+      [data-theme="system"] {
+        --c-canvas: 255 255 255; --c-panel: 250 250 250; --c-raised: 244 244 245;
+        --c-line: 228 228 231; --c-line-strong: 212 212 216;
+        --c-heading: 9 9 11; --c-strong: 39 39 42; --c-body: 82 82 91;
+        --c-muted: 113 113 122; --c-faint: 113 113 122;
+        --c-accent: 5 150 105; --c-on-accent: 255 255 255;
+        --c-danger: 220 38 38; --c-warn: 217 119 6; --c-info: 2 132 199; --c-input: 255 255 255; --c-catalog: 109 40 217;
+        --c-scrim: .25; --c-shadow: .12;
+      }
+    }
     body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
     .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
     [x-cloak] { display: none !important; }
@@ -25,21 +124,21 @@
            transition: color .15s, background-color .15s, border-color .15s; }
     .btn:disabled { opacity: .4; cursor: not-allowed; }
     .btn-sm { padding: .25rem .5rem; font-size: .75rem; gap: .25rem; }
-    .btn-primary { background: #34d399; color: #09090b; font-weight: 500; }
-    .btn-primary:hover:not(:disabled) { background: #6ee7b7; }
-    .btn-neutral { border-color: #3f3f46; color: #d4d4d8; }
-    .btn-neutral:hover:not(:disabled) { border-color: #71717a; color: #f4f4f5; }
-    .btn-danger { border-color: rgba(127,29,29,.6); color: rgba(248,113,113,.85); }
-    .btn-danger:hover:not(:disabled) { border-color: #ef4444; color: #fecaca; }
-    .btn-warn { border-color: rgba(120,53,15,.7); color: rgba(252,211,77,.9); }
-    .btn-warn:hover:not(:disabled) { border-color: #f59e0b; color: #fde68a; }
-    .btn-link { border: 0; padding: 0; background: none; color: rgba(125,211,252,.85); }
-    .btn-link:hover:not(:disabled) { color: #bae6fd; }
+    .btn-primary { background: rgb(var(--c-accent)); color: rgb(var(--c-canvas)); font-weight: 500; }
+    .btn-primary:hover:not(:disabled) { background: rgb(var(--c-accent) / .8); }
+    .btn-neutral { border-color: rgb(var(--c-line-strong)); color: rgb(var(--c-strong)); }
+    .btn-neutral:hover:not(:disabled) { border-color: rgb(var(--c-muted)); color: rgb(var(--c-heading)); }
+    .btn-danger { border-color: rgb(var(--c-danger) / .45); color: rgb(var(--c-danger) / .85); }
+    .btn-danger:hover:not(:disabled) { border-color: rgb(var(--c-danger)); color: rgb(var(--c-danger) / .7); }
+    .btn-warn { border-color: rgb(var(--c-warn) / .45); color: rgb(var(--c-warn) / .9); }
+    .btn-warn:hover:not(:disabled) { border-color: rgb(var(--c-warn)); color: rgb(var(--c-warn) / .75); }
+    .btn-link { border: 0; padding: 0; background: none; color: rgb(var(--c-info) / .85); }
+    .btn-link:hover:not(:disabled) { color: rgb(var(--c-info) / .8); }
 
-    .field { background: #09090b; border: 1px solid #3f3f46; border-radius: .5rem;
-             padding: .375rem .625rem; font-size: .875rem; color: #f4f4f5; }
-    .field::placeholder { color: #52525b; }
-    .field:focus { outline: none; border-color: #34d399; }
+    .field { background: rgb(var(--c-input)); border: 1px solid rgb(var(--c-line-strong)); border-radius: .5rem;
+             padding: .375rem .625rem; font-size: .875rem; color: rgb(var(--c-heading)); }
+    .field::placeholder { color: rgb(var(--c-faint)); }
+    .field:focus { outline: none; border-color: rgb(var(--c-accent)); }
     .field-sm { padding: .25rem .5rem; font-size: .75rem; }
 
     /* データグリッドの高さを決める数（すべて実測）。**JS の cli2uiFitRows も
@@ -64,35 +163,35 @@
        active state is toggled via Alpine :class on top of these base styles. */
     .topnav-btn { display: inline-flex; align-items: center; gap: .375rem; white-space: nowrap;
                   border-radius: .5rem; padding: .3125rem .625rem; font-size: .8125rem;
-                  color: #a1a1aa; cursor: pointer; transition: color .15s, background-color .15s; }
-    .topnav-btn:hover { color: #f4f4f5; background: rgba(39,39,42,.6); }
-    .topnav-btn-on { background: #27272a; color: #f4f4f5; }
+                  color: rgb(var(--c-body)); cursor: pointer; transition: color .15s, background-color .15s; }
+    .topnav-btn:hover { color: rgb(var(--c-heading)); background: rgb(var(--c-line) / .6); }
+    .topnav-btn-on { background: rgb(var(--c-line)); color: rgb(var(--c-heading)); }
     /* 押すと開くもの（区域メニュー・絞り込み）。枠を付けて「押せるもの」に見せる
        ── 文字だけだと見出しに見えて、開くことに気づかれない。開いているあいだは
        枠を光らせる。開閉は aria-expanded で表すので、見た目もそこから作る。 */
     .disclosure { display: inline-flex; align-items: center; gap: .375rem; white-space: nowrap;
-                  border: 1px solid #3f3f46; border-radius: .5rem; background: rgba(39,39,42,.35);
-                  padding: .25rem .5rem; font-size: .75rem; color: #a1a1aa; cursor: pointer;
+                  border: 1px solid rgb(var(--c-line-strong)); border-radius: .5rem; background: rgb(var(--c-line) / .35);
+                  padding: .25rem .5rem; font-size: .75rem; color: rgb(var(--c-body)); cursor: pointer;
                   transition: color .15s, background-color .15s, border-color .15s; }
-    .disclosure:hover { border-color: #52525b; color: #f4f4f5; }
-    .disclosure[aria-expanded="true"] { border-color: #71717a; background: #27272a; color: #f4f4f5; }
-    .topnav-sep { width: 1px; height: 1rem; background: #27272a; margin: 0 .375rem; }
+    .disclosure:hover { border-color: rgb(var(--c-faint)); color: rgb(var(--c-heading)); }
+    .disclosure[aria-expanded="true"] { border-color: rgb(var(--c-muted)); background: rgb(var(--c-line)); color: rgb(var(--c-heading)); }
+    .topnav-sep { width: 1px; height: 1rem; background: rgb(var(--c-line)); margin: 0 .375rem; }
 
     /* Panel subtabs — the in-panel section switcher (Alpine x-show). */
     .subtab { padding: .375rem .75rem; font-size: .8125rem; border-radius: .5rem;
-              color: #a1a1aa; cursor: pointer; transition: color .15s, background-color .15s; }
-    .subtab:hover { color: #f4f4f5; }
-    .subtab-on { background: #27272a; color: #f4f4f5; }
+              color: rgb(var(--c-body)); cursor: pointer; transition: color .15s, background-color .15s; }
+    .subtab:hover { color: rgb(var(--c-heading)); }
+    .subtab-on { background: rgb(var(--c-line)); color: rgb(var(--c-heading)); }
 
     /* Shared right slide-over drawer. Kept in the DOM, translated off-screen;
        toggled by binding `.open`. Form panels live inside, switched by x-show. */
-    .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 40; }
+    .drawer-backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / var(--c-scrim, .5)); z-index: 40; }
     .drawer { position: fixed; top: 0; right: 0; height: 100vh; width: 28rem; max-width: 92vw;
-              background: #18181b; border-left: 1px solid #27272a; z-index: 41;
-              box-shadow: -10px 0 30px rgba(0,0,0,.45); display: flex; flex-direction: column;
+              background: rgb(var(--c-panel)); border-left: 1px solid rgb(var(--c-line)); z-index: 41;
+              box-shadow: -10px 0 30px rgb(0 0 0 / var(--c-shadow, .45)); display: flex; flex-direction: column;
               transform: translateX(100%); transition: transform .2s ease; }
     .drawer.open { transform: translateX(0); }
-    .drawer-head { padding: 1rem 1.25rem; border-bottom: 1px solid #27272a;
+    .drawer-head { padding: 1rem 1.25rem; border-bottom: 1px solid rgb(var(--c-line));
                    display: flex; align-items: center; justify-content: space-between; }
     .drawer-body { padding: 1.25rem; overflow-y: auto; flex: 1; }
     /* htmx loading indicators: hidden until a request the element belongs to is
@@ -108,7 +207,7 @@
        don't flash it but slow ops (dump/restore/drop) signal that work is on. */
     #htmx-activity { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 50;
                      opacity: 0; transition: opacity .2s;
-                     background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+                     background: linear-gradient(90deg, transparent, rgb(var(--c-info)), transparent);
                      background-size: 40% 100%; background-repeat: no-repeat;
                      animation: htmx-slide 1s linear infinite; }
     #htmx-activity.on { opacity: 1; }
@@ -210,19 +309,28 @@
 グリッドの下を見るのにまずページを送ってからグリッドを送ることになる。
 body の高さを画面に固定し、main を伸縮させ、動くのはデータのグリッドだけ。
 {% endcomment %}
-<body class="bg-zinc-950 text-zinc-100 h-screen overflow-hidden flex flex-col"
+<body class="bg-canvas text-heading h-screen overflow-hidden flex flex-col"
       {% block body_attrs %}{% endblock %}
       hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-  <header class="border-b border-zinc-800 bg-zinc-950/90 backdrop-blur z-10 shrink-0">
+  <header class="border-b border-line bg-canvas/90 backdrop-blur z-10 shrink-0">
     <div class="max-w-7xl mx-auto px-6 py-2 flex items-center gap-3">
       <a href="/" class="text-lg font-semibold tracking-tight">
-        cli<span class="text-emerald-400">2</span>ui
+        cli<span class="text-accent">2</span>ui
       </a>
-      <span class="mono text-xs text-zinc-500">v{{ cli2ui_version }}</span>
+      <span class="mono text-xs text-muted">v{{ cli2ui_version }}</span>
       {% comment %}区域ナビはロゴと同じ行に置く。前は下に 1 段ぶら下げていて、
       その 40px はグリッドの高さからそのまま引かれていた。{% endcomment %}
       {% block topnav %}{% endblock %}
-      <form action="{% url 'set_language' %}" method="post" class="ml-auto flex items-center gap-1">
+      <div class="ml-auto flex items-center gap-3">
+      <div class="flex items-center gap-1" data-theme-switch>
+        <button type="button" data-set-theme="system" title="{% trans 'OS に合わせる' %}"
+                class="topnav-btn">{% trans "自動" %}</button>
+        <button type="button" data-set-theme="light" title="{% trans '明るい' %}"
+                class="topnav-btn">{% trans "明" %}</button>
+        <button type="button" data-set-theme="dark" title="{% trans '暗い' %}"
+                class="topnav-btn">{% trans "暗" %}</button>
+      </div>
+      <form action="{% url 'set_language' %}" method="post" class="flex items-center gap-1">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.path }}">
         <button type="submit" name="language" value="en"
@@ -230,10 +338,31 @@ body の高さを画面に固定し、main を伸縮させ、動くのはデー�
         <button type="submit" name="language" value="ja"
                 class="topnav-btn {% if LANGUAGE_CODE == 'ja' %}topnav-btn-on{% endif %}">JP</button>
       </form>
+      </div>
     </div>
   </header>
   <main class="max-w-7xl w-full mx-auto px-6 py-3 flex-1 min-h-0 overflow-y-auto">
     {% block content %}{% endblock %}
   </main>
+  <script>
+    // テーマの切り替え。押した瞬間に当てて、localStorage に残す。
+    (function () {
+      function mark() {
+        var now = document.documentElement.getAttribute("data-theme");
+        document.querySelectorAll("[data-set-theme]").forEach(function (b) {
+          b.classList.toggle("topnav-btn-on", b.dataset.setTheme === now);
+        });
+      }
+      document.addEventListener("click", function (e) {
+        var b = e.target.closest("[data-set-theme]");
+        if (!b) return;
+        var t = b.dataset.setTheme;
+        document.documentElement.setAttribute("data-theme", t);
+        try { localStorage.setItem("cli2ui-theme", t); } catch (err) {}
+        mark();
+      });
+      mark();
+    })();
+  </script>
 </body>
 </html>

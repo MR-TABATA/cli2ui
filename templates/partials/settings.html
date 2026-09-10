@@ -3,10 +3,10 @@
     <div>
       {% if connection.kind == 'mysql' %}
         <h2 class="text-lg font-semibold flex items-center gap-2"><span>⚙</span> {% trans "Server variables" %}</h2>
-        <p class="text-xs text-zinc-400 mono">global_variables → SET PERSIST</p>
+        <p class="text-xs text-body mono">global_variables → SET PERSIST</p>
       {% else %}
         <h2 class="text-lg font-semibold flex items-center gap-2"><span>⚙</span> postgresql.conf</h2>
-        <p class="text-xs text-zinc-400 mono">pg_settings → ALTER SYSTEM SET → pg_reload_conf()</p>
+        <p class="text-xs text-body mono">pg_settings → ALTER SYSTEM SET → pg_reload_conf()</p>
       {% endif %}
     </div>
     <div class="flex items-center gap-2">
@@ -23,11 +23,11 @@
 
   {% include "partials/restart_banner.html" %}
 
-  <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+  <div class="bg-panel/60 border border-line rounded-xl overflow-hidden">
     {% if settings %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">{% trans "Setting" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Value" %}</th>
           </tr>
@@ -37,20 +37,20 @@
         </tbody>
       </table>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No settings in this category." %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "No settings in this category." %}</p>
     {% endif %}
   </div>
 
   {% if connection.kind == 'mysql' %}
-  <p class="text-xs text-zinc-400">
+  <p class="text-xs text-body">
     {% blocktrans %}Changes use <span class="mono">SET PERSIST</span> (writes mysqld-auto.cnf) and apply immediately
     to running, dynamic variables. Read-only variables can't be changed without a restart and will report an
     error. Requires a connection with the <span class="mono">SYSTEM_VARIABLES_ADMIN</span> privilege.{% endblocktrans %}
   </p>
   {% else %}
-  <p class="text-xs text-zinc-400">
+  <p class="text-xs text-body">
     {% blocktrans %}Changes use <span class="mono">ALTER SYSTEM</span> (writes postgresql.auto.conf) and reload
-    automatically. <span class="text-amber-400/80">restart</span>-tagged settings only take effect
+    automatically. <span class="text-warn/80">restart</span>-tagged settings only take effect
     after a server restart. Requires a superuser connection.{% endblocktrans %}
   </p>
   {% endif %}

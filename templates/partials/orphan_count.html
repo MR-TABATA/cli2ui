@@ -1,17 +1,17 @@
 {% load i18n humanize %}<div class="my-2 rounded-lg border px-4 py-2.5 text-sm
-  {% if error or unsupported %}border-zinc-800 bg-zinc-900/60 text-zinc-400
-  {% elif result.clean %}border-emerald-500/25 bg-emerald-500/10
-  {% else %}border-red-500/25 bg-red-500/10{% endif %}">
+  {% if error or unsupported %}border-line bg-panel/60 text-body
+  {% elif result.clean %}border-accent/25 bg-accent/10
+  {% else %}border-danger/25 bg-danger/10{% endif %}">
   {% if unsupported %}
     {% trans "Not applicable to this engine." %}
   {% elif error %}
-    <span class="text-amber-300">{{ error }}</span>
+    <span class="text-warn">{{ error }}</span>
   {% elif result.clean %}
-    <span class="text-emerald-300">✓ {% trans "No orphan rows" %}</span>
-    <span class="text-zinc-500 mono">· {% blocktrans count c=result.checked with n=result.checked|intcomma %}{{ n }} row checked{% plural %}{{ n }} rows checked{% endblocktrans %}</span>
+    <span class="text-accent">✓ {% trans "No orphan rows" %}</span>
+    <span class="text-muted mono">· {% blocktrans count c=result.checked with n=result.checked|intcomma %}{{ n }} row checked{% plural %}{{ n }} rows checked{% endblocktrans %}</span>
   {% else %}
-    <span class="text-red-300 mono tabular-nums font-semibold">{{ result.orphans|intcomma }}</span>
-    <span class="text-red-200">{% blocktrans count n=result.orphans %}orphan row{% plural %}orphan rows{% endblocktrans %}</span>
-    <span class="text-zinc-500 mono">· {% blocktrans count c=result.checked with n=result.checked|intcomma %}of {{ n }} row with a non-null reference{% plural %}of {{ n }} rows with a non-null reference{% endblocktrans %}</span>
+    <span class="text-danger mono tabular-nums font-semibold">{{ result.orphans|intcomma }}</span>
+    <span class="text-danger">{% blocktrans count n=result.orphans %}orphan row{% plural %}orphan rows{% endblocktrans %}</span>
+    <span class="text-muted mono">· {% blocktrans count c=result.checked with n=result.checked|intcomma %}of {{ n }} row with a non-null reference{% plural %}of {{ n }} rows with a non-null reference{% endblocktrans %}</span>
   {% endif %}
 </div>

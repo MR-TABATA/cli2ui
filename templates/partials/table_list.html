@@ -1,9 +1,9 @@
 {% load i18n humanize %}<div id="table-list"{% if oob %} hx-swap-oob="true"{% endif %}
-     class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-  <div class="px-3 py-2.5 border-b border-zinc-800">
+     class="bg-panel/60 border border-line rounded-xl overflow-hidden">
+  <div class="px-3 py-2.5 border-b border-line">
     <input type="text" x-model="q" placeholder="{% trans 'Filter tables…' %}"
-           class="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm
-                  text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-400">
+           class="w-full bg-canvas border border-line-strong rounded-lg px-3 py-1.5 text-sm
+                  text-heading placeholder-line-strong focus:outline-none focus:border-accent">
   </div>
   <ul class="py-1 overflow-y-auto" style="max-height: var(--list-max)">
     {% for t in tables %}
@@ -14,15 +14,15 @@
                 hx-vals="js:{rows: 'fit', fit: window.cli2uiFitRows()}"
                 hx-target="#detail" hx-swap="innerHTML"
                 @click="sel = '{{ t.qualified|escapejs }}'"
-                :class="sel === '{{ t.qualified|escapejs }}' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-300'"
-                class="w-full text-left px-3.5 py-1.5 text-sm flex items-center justify-between gap-2 hover:bg-zinc-800/60 transition">
+                :class="sel === '{{ t.qualified|escapejs }}' ? 'bg-raised text-heading' : 'text-strong'"
+                class="w-full text-left px-3.5 py-1.5 text-sm flex items-center justify-between gap-2 hover:bg-raised/60 transition">
           <span class="mono truncate">{{ t.name }}</span>
-          <span class="text-xs text-zinc-400 shrink-0">{% if t.unknown %}<span title="{% trans 'Statistics have never been collected for this table — run ANALYZE' %}">{% trans "unknown" %}</span>{% else %}{{ t.rows|intcomma }}{% endif %}</span>
+          <span class="text-xs text-body shrink-0">{% if t.unknown %}<span title="{% trans 'Statistics have never been collected for this table — run ANALYZE' %}">{% trans "unknown" %}</span>{% else %}{{ t.rows|intcomma }}{% endif %}</span>
         </button>
       </li>
     {% endfor %}
   </ul>
-  <div class="px-3.5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
+  <div class="px-3.5 py-2 border-t border-line text-xs text-body">
     {% blocktrans count counter=tables|length %}{{ counter }} table{% plural %}{{ counter }} tables{% endblocktrans %}
   </div>
 </div><!-- /table box -->

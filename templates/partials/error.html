@@ -1,10 +1,10 @@
-{% load i18n %}<div class="bg-red-950/40 border border-red-900 rounded-xl px-5 py-4">
-  <p class="text-sm font-medium text-red-300 mb-1">{% trans "Could not connect" %}</p>
+{% load i18n %}<div class="bg-danger/40 border border-danger rounded-xl px-5 py-4">
+  <p class="text-sm font-medium text-danger mb-1">{% trans "Could not connect" %}</p>
   {% if message %}
-    <p class="text-sm text-red-200/80 mono">{{ message }}</p>
+    <p class="text-sm text-danger/80 mono">{{ message }}</p>
   {% endif %}
   {% if errors %}
-    <ul class="text-sm text-red-200/80 list-disc list-inside">
+    <ul class="text-sm text-danger/80 list-disc list-inside">
       {% for field, errs in errors.items %}
         <li>{{ field }}: {{ errs|join:", " }}</li>
       {% endfor %}

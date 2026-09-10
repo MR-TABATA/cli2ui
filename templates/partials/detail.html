@@ -26,13 +26,13 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
   {% comment %}道具は 1 本の帯にまとめる。テーブル名・タブ・絞り込みで 3 段
   積んでいたのを 1 段にした。グリッドは窓の底まで届かせたいので、上に積むものを
   減らすのがそのまま行数になる。{% endcomment %}
-  <nav class="flex items-center gap-1 border-b border-zinc-800 pb-1.5">
+  <nav class="flex items-center gap-1 border-b border-line pb-1.5">
     <h2 class="mono text-sm font-semibold mr-3 truncate max-w-[320px]"
         {% if table_comment %}title="{{ table_comment }}"{% endif %}>{{ schema }}.{{ table }}</h2>
-    <button class="subtab" :class="tab === 'columns' && 'subtab-on'" @click="tab = 'columns'">{% trans "Columns" %} <span class="text-zinc-600 tabular-nums">{{ columns|length|intcomma }}</span></button>
-    <button class="subtab" :class="tab === 'indexes' && 'subtab-on'" @click="tab = 'indexes'">{% trans "Indexes" %} <span class="text-zinc-600 tabular-nums">{{ indexes|length|intcomma }}</span></button>
+    <button class="subtab" :class="tab === 'columns' && 'subtab-on'" @click="tab = 'columns'">{% trans "Columns" %} <span class="text-faint tabular-nums">{{ columns|length|intcomma }}</span></button>
+    <button class="subtab" :class="tab === 'indexes' && 'subtab-on'" @click="tab = 'indexes'">{% trans "Indexes" %} <span class="text-faint tabular-nums">{{ indexes|length|intcomma }}</span></button>
     <button class="subtab" :class="tab === 'data' && 'subtab-on'" @click="tab = 'data'">{% trans "Data" %}</button>
-    <button class="subtab ml-auto" :class="tab === 'danger' && 'subtab-on text-red-300'"
+    <button class="subtab ml-auto" :class="tab === 'danger' && 'subtab-on text-danger'"
             @click="tab = 'danger'">{% trans "Danger" %}</button>
   </nav>
 
@@ -41,10 +41,10 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
     <div class="flex justify-end">
       <button @click="drawer = 'add-col'" class="btn btn-sm btn-primary">{% trans "+ Add column" %}</button>
     </div>
-    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="bg-panel/60 border border-line rounded-xl overflow-hidden">
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">{% trans "Name" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Type" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Nullable" %}</th>
@@ -54,16 +54,16 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
         </thead>
         <tbody>
           {% for col in columns %}
-            <tr class="border-b border-zinc-800/60">
+            <tr class="border-b border-line/60">
               <td class="px-5 py-2 mono align-top">
                 {{ col.name }}
-                {% if col.comment %}<div class="mt-0.5 text-xs text-zinc-500 font-sans not-italic max-w-[280px] whitespace-normal" title="{{ col.comment }}">{{ col.comment }}</div>{% endif %}
+                {% if col.comment %}<div class="mt-0.5 text-xs text-muted font-sans not-italic max-w-[280px] whitespace-normal" title="{{ col.comment }}">{{ col.comment }}</div>{% endif %}
               </td>
-              <td class="px-5 py-2 text-zinc-400 mono align-top">{{ col.type }}</td>
-              <td class="px-5 py-2 text-zinc-400 align-top">{% if col.nullable %}{% trans "yes" %}{% else %}<span class="text-zinc-200">{% trans "no" %}</span>{% endif %}</td>
-              <td class="px-5 py-2 text-zinc-400 mono truncate max-w-[200px] align-top">
+              <td class="px-5 py-2 text-body mono align-top">{{ col.type }}</td>
+              <td class="px-5 py-2 text-body align-top">{% if col.nullable %}{% trans "yes" %}{% else %}<span class="text-strong">{% trans "no" %}</span>{% endif %}</td>
+              <td class="px-5 py-2 text-body mono truncate max-w-[200px] align-top">
                 {% if col.generated %}
-                  <span class="inline-block text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-sans not-italic align-middle" title="generated always as ({{ col.generation_expr }}) {{ col.generated }}">{% trans "generated" %} · {{ col.generated }}</span>
+                  <span class="inline-block text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-raised text-strong font-sans not-italic align-middle" title="generated always as ({{ col.generation_expr }}) {{ col.generated }}">{% trans "generated" %} · {{ col.generated }}</span>
                   {% if col.generation_expr %}<span title="{{ col.generation_expr }}">{{ col.generation_expr }}</span>{% endif %}
                 {% else %}
                   {{ col.default|default:"—" }}
@@ -72,19 +72,19 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
               <td class="px-5 py-2 text-right whitespace-nowrap align-top">
                 <div class="flex items-center gap-3 justify-end">
                   {% if jsonb_shape_supported and col.type == 'jsonb' or jsonb_shape_supported and col.type == 'json' %}
-                    <button type="button" class="text-xs text-indigo-300/80 hover:text-indigo-200"
+                    <button type="button" class="text-xs text-catalog/80 hover:text-catalog"
                             hx-get="{% url 'jsonb_shape' connection.pk %}?schema={{ schema|urlencode }}&amp;table={{ table|urlencode }}&amp;column={{ col.name|urlencode }}"
                             hx-target="#jsonb-shape" hx-swap="innerHTML"
                             hx-indicator="#jsonb-shape-spin">{% trans "shape" %}</button>
                   {% endif %}
-                  <button type="button" class="text-xs text-zinc-400 hover:text-zinc-100"
+                  <button type="button" class="text-xs text-body hover:text-heading"
                           @click="ctx = { column: '{{ col.name|escapejs }}', type: '{{ col.type|escapejs }}', nullable: {{ col.nullable|yesno:'true,false' }}, default: '{{ col.default|default:''|escapejs }}' }; drawer = 'col-edit'">{% trans "edit" %}</button>
                   <form hx-post="{% url 'column_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
                         hx-confirm="{% blocktrans with col=col.name schema=schema table=table %}Drop column &quot;{{ col }}&quot; from {{ schema }}.{{ table }}? This permanently deletes its data.{% endblocktrans %}">
                     <input type="hidden" name="schema" value="{{ schema }}">
                     <input type="hidden" name="table" value="{{ table }}">
                     <input type="hidden" name="column" value="{{ col.name }}">
-                    <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">{% trans "drop" %}</button>
+                    <button type="submit" class="text-xs text-danger/80 hover:text-danger">{% trans "drop" %}</button>
                   </form>
                 </div>
               </td>
@@ -94,7 +94,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
       </table>
     </div>
     <!-- JSON/JSONB shape inspector loads here (per-column, on demand). -->
-    <div id="jsonb-shape-spin" class="htmx-indicator text-xs text-zinc-500 px-1">{% trans "Sampling…" %}</div>
+    <div id="jsonb-shape-spin" class="htmx-indicator text-xs text-muted px-1">{% trans "Sampling…" %}</div>
     <div id="jsonb-shape"></div>
   </section>
 
@@ -109,11 +109,11 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
       {% endif %}
       <button @click="drawer = 'create-index'" class="btn btn-sm btn-primary">{% trans "+ Create index" %}</button>
     </div>
-    <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+    <div class="bg-panel/60 border border-line rounded-xl overflow-hidden">
       {% if indexes %}
         <table class="w-full text-sm">
-          <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-            <tr class="border-b border-zinc-800">
+          <thead class="text-left text-xs uppercase tracking-wide text-body">
+            <tr class="border-b border-line">
               <th class="px-5 py-2 font-medium">{% trans "Name" %}</th>
               <th class="px-5 py-2 font-medium">{% trans "Columns" %}</th>
               <th class="px-5 py-2 font-medium">{% trans "Method" %}</th>
@@ -123,26 +123,26 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
           </thead>
           <tbody>
             {% for ix in indexes %}
-              <tr class="border-b border-zinc-800/60">
+              <tr class="border-b border-line/60">
                 <td class="px-5 py-2 mono">
                   {{ ix.name }}
-                  {% if ix.primary %}<span class="inline-block text-xs text-amber-300/90 bg-amber-950/50 rounded px-1.5 py-0.5 ml-1">{% trans "primary" %}</span>
-                  {% elif ix.unique %}<span class="inline-block text-xs text-sky-300/90 bg-sky-950/50 rounded px-1.5 py-0.5 ml-1">{% trans "unique" %}</span>{% endif %}
-                  {% if not ix.valid %}<span class="inline-block text-xs text-red-300/90 bg-red-950/50 rounded px-1.5 py-0.5 ml-1" title="{% trans 'A concurrent build failed — this index is unusable; drop it.' %}">{% trans "invalid" %}</span>{% endif %}
+                  {% if ix.primary %}<span class="inline-block text-xs text-warn/90 bg-warn/50 rounded px-1.5 py-0.5 ml-1">{% trans "primary" %}</span>
+                  {% elif ix.unique %}<span class="inline-block text-xs text-info/90 bg-info/50 rounded px-1.5 py-0.5 ml-1">{% trans "unique" %}</span>{% endif %}
+                  {% if not ix.valid %}<span class="inline-block text-xs text-danger/90 bg-danger/50 rounded px-1.5 py-0.5 ml-1" title="{% trans 'A concurrent build failed — this index is unusable; drop it.' %}">{% trans "invalid" %}</span>{% endif %}
                 </td>
-                <td class="px-5 py-2 text-zinc-400 mono truncate max-w-[280px]">{{ ix.columns_text }}</td>
-                <td class="px-5 py-2 text-zinc-400 mono">{{ ix.method }}</td>
-                <td class="px-5 py-2 text-zinc-400 mono text-right">{{ ix.size|default:"—" }}</td>
+                <td class="px-5 py-2 text-body mono truncate max-w-[280px]">{{ ix.columns_text }}</td>
+                <td class="px-5 py-2 text-body mono">{{ ix.method }}</td>
+                <td class="px-5 py-2 text-body mono text-right">{{ ix.size|default:"—" }}</td>
                 <td class="px-5 py-2 text-right whitespace-nowrap">
                   {% if ix.primary %}
-                    <span class="text-xs text-zinc-400">{% trans "pk" %}</span>
+                    <span class="text-xs text-body">{% trans "pk" %}</span>
                   {% else %}
                     <form hx-post="{% url 'index_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
                           hx-confirm="{% blocktrans with name=ix.name %}Drop index &quot;{{ name }}&quot;?{% endblocktrans %}">
                       <input type="hidden" name="schema" value="{{ schema }}">
                       <input type="hidden" name="table" value="{{ table }}">
                       <input type="hidden" name="name" value="{{ ix.name }}">
-                      <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">{% trans "drop" %}</button>
+                      <button type="submit" class="text-xs text-danger/80 hover:text-danger">{% trans "drop" %}</button>
                     </form>
                   {% endif %}
                 </td>
@@ -151,7 +151,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
           </tbody>
         </table>
       {% else %}
-        <p class="px-5 py-6 text-center text-zinc-400 text-sm">{% trans "No indexes on this table yet." %}</p>
+        <p class="px-5 py-6 text-center text-body text-sm">{% trans "No indexes on this table yet." %}</p>
       {% endif %}
     </div>
   </section>
@@ -164,7 +164,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
     <button type="button" @click="toggle()" class="disclosure" :aria-expanded="open">
       {% trans "Filter" %}
       <span x-show="!open && rows.some(r => r.col)" x-cloak
-            class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 tabular-nums"
+            class="px-1.5 py-0.5 rounded bg-accent/15 text-accent tabular-nums"
             x-text="rows.filter(r => r.col).length"></span>
       <svg class="w-3.5 h-3.5 shrink-0 transition-transform" :class="open && 'rotate-180'"
            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -174,7 +174,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
     <!-- Filter builder: column ▾ + operator ▾ + value rows, ANDed, run read-only. -->
     <form x-show="open" x-cloak
           hx-post="{% url 'table_filter' connection.pk %}" hx-target="#filter-result" hx-swap="innerHTML"
-          class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 space-y-2">
+          class="bg-panel/60 border border-line rounded-xl p-3 space-y-2">
       <input type="hidden" name="schema" value="{{ schema }}">
       <input type="hidden" name="table" value="{{ table }}">
       <template x-for="(row, i) in rows" :key="row.id">
@@ -197,21 +197,21 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
           </select>
           <input name="val" x-model="row.val" x-show="needsValue(row.op)"
                  class="field field-sm flex-1" placeholder="{% trans 'value' %}">
-          <button type="button" @click="remove(i)" class="text-zinc-500 hover:text-red-300 px-1"
+          <button type="button" @click="remove(i)" class="text-muted hover:text-danger px-1"
                   title="{% trans 'Remove condition' %}">&times;</button>
         </div>
       </template>
       <div class="flex items-center gap-2">
         <button type="button" @click="add()" class="btn btn-sm btn-neutral">{% trans "+ Condition" %}</button>
         <button type="submit" class="btn btn-sm btn-primary">{% trans "Apply filters" %}</button>
-        <span class="text-xs text-zinc-500">{% trans "All conditions are ANDed · read-only" %}</span>
+        <span class="text-xs text-muted">{% trans "All conditions are ANDed · read-only" %}</span>
       </div>
     </form>
 
 
     <!-- Initial content = unfiltered preview; Apply swaps in the filtered grid. -->
     <div id="filter-result">
-      <div class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+      <div class="bg-panel/60 border border-line rounded-xl overflow-hidden">
         {% if preview_rows %}
           {% comment %}グリッドだけが縦にスクロールする。1000 行あるので、ページ全体が
           動くと列名もページ送りも画面の外へ流れてしまう。SQL ランナーと絞り込みの
@@ -223,16 +223,16 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
           <div class="overflow-auto" style="max-height: var(--grid-max)"
                :style="open && 'max-height: var(--grid-max-open)'">
             <table class="w-full text-sm">
-              <thead class="text-left text-xs uppercase tracking-wide text-zinc-400 sticky top-0 bg-zinc-900">
-                <tr class="border-b border-zinc-800">
-                  {% for name, type in preview_header %}<th class="px-4 py-2 font-medium mono whitespace-nowrap">{{ name }}<span class="ml-1.5 text-[10px] text-zinc-600 normal-case">{{ type }}</span></th>{% endfor %}
+              <thead class="text-left text-xs uppercase tracking-wide text-body sticky top-0 bg-panel">
+                <tr class="border-b border-line">
+                  {% for name, type in preview_header %}<th class="px-4 py-2 font-medium mono whitespace-nowrap">{{ name }}<span class="ml-1.5 text-[10px] text-faint normal-case">{{ type }}</span></th>{% endfor %}
                 </tr>
               </thead>
               <tbody>
                 {% for row in preview_rows %}
-                  <tr class="border-b border-zinc-800/60 hover:bg-zinc-800/40">
+                  <tr class="border-b border-line/60 hover:bg-raised/40">
                     {% for v in row %}
-                      <td class="px-4 py-2 mono text-zinc-300 max-w-[260px] truncate whitespace-nowrap">{{ v|cell }}</td>
+                      <td class="px-4 py-2 mono text-strong max-w-[260px] truncate whitespace-nowrap">{{ v|cell }}</td>
                     {% endfor %}
                   </tr>
                 {% endfor %}
@@ -240,7 +240,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
             </table>
           </div>
         {% else %}
-          <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "This table is empty." %}</p>
+          <p class="px-5 py-8 text-center text-body text-sm">{% trans "This table is empty." %}</p>
         {% endif %}
       </div>
     </div>
@@ -248,11 +248,11 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
 
   <!-- Danger tab: destructive ops, isolated. -->
   <section x-show="tab === 'danger'" x-cloak class="space-y-3">
-    <div class="bg-red-950/20 border border-red-900/50 rounded-xl divide-y divide-red-900/30">
+    <div class="bg-danger/20 border border-danger/50 rounded-xl divide-y divide-danger/30">
       <div class="px-5 py-3 flex items-center justify-between gap-4">
         <div>
-          <p class="text-sm text-zinc-200">{% trans "Truncate table" %}</p>
-          <p class="text-xs text-zinc-400">{% trans "Delete every row. A safety snapshot is taken first." %}</p>
+          <p class="text-sm text-strong">{% trans "Truncate table" %}</p>
+          <p class="text-xs text-body">{% trans "Delete every row. A safety snapshot is taken first." %}</p>
         </div>
         <form hx-post="{% url 'table_truncate' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               hx-confirm="{% blocktrans with schema=schema table=table %}Truncate &quot;{{ schema }}.{{ table }}&quot;? This permanently deletes every row.{% endblocktrans %}{% if truncate_sql %}&#10;&#10;{% trans "This runs:" %}&#10;{{ truncate_sql }}{% endif %}{% if write_impact %}&#10;&#10;{% if write_impact.unknown %}{% trans "Rows: unknown (this table has never been analyzed)" %}{% else %}{% blocktrans with n=write_impact.rows|intcomma d=write_impact.analyzed %}Rows: about {{ n }} (estimated from statistics, last analyzed {{ d }}){% endblocktrans %}{% endif %}{% if write_impact.referenced_by %}&#10;{% trans "Referenced by:" %}{% for r in write_impact.referenced_by %}&#10;  {{ r.table }} ({{ r.constraint }}){% endfor %}{% endif %}{% if write_impact.fallout %}&#10;{% trans "A DROP … CASCADE would also drop:" %}{% for f in write_impact.fallout %}&#10;  {{ f.kind }} {{ f.name }}{% endfor %}{% endif %}{% endif %}">
@@ -263,8 +263,8 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
       </div>
       <div class="px-5 py-3 flex items-center justify-between gap-4">
         <div>
-          <p class="text-sm text-zinc-200">{% trans "Drop table" %}</p>
-          <p class="text-xs text-zinc-400">{% trans "Remove the table and all its data. A safety snapshot is taken first." %}</p>
+          <p class="text-sm text-strong">{% trans "Drop table" %}</p>
+          <p class="text-xs text-body">{% trans "Remove the table and all its data. A safety snapshot is taken first." %}</p>
         </div>
         <form hx-post="{% url 'table_drop' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
               hx-confirm="{% blocktrans with schema=schema table=table %}Drop table &quot;{{ schema }}.{{ table }}&quot;? This cannot be undone.{% endblocktrans %}{% if drop_sql %}&#10;&#10;{% trans "This runs:" %}&#10;{{ drop_sql }}{% endif %}{% if write_impact %}&#10;&#10;{% if write_impact.unknown %}{% trans "Rows: unknown (this table has never been analyzed)" %}{% else %}{% blocktrans with n=write_impact.rows|intcomma d=write_impact.analyzed %}Rows: about {{ n }} (estimated from statistics, last analyzed {{ d }}){% endblocktrans %}{% endif %}{% if write_impact.referenced_by %}&#10;{% trans "Referenced by:" %}{% for r in write_impact.referenced_by %}&#10;  {{ r.table }} ({{ r.constraint }}){% endfor %}{% endif %}{% if write_impact.fallout %}&#10;{% trans "A DROP … CASCADE would also drop:" %}{% for f in write_impact.fallout %}&#10;  {{ f.kind }} {{ f.name }}{% endfor %}{% endif %}{% endif %}">
@@ -281,29 +281,29 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
   操作。前は行数をグリッドの上、操作をさらにその上、と 2 段積んでいた。上に積んだ
   ものはそのぶん行数が減るので、下へ回してまとめた（Sequel Ace も底の 1 本に
   「テーブルから 1 - 1,000 行目」と操作を並べている）。{% endcomment %}
-  <div class="border-t border-zinc-800 pt-1.5 flex flex-wrap items-center gap-3 text-xs">
+  <div class="border-t border-line pt-1.5 flex flex-wrap items-center gap-3 text-xs">
     {% if preview %}
     <!-- ページ送り。行数は数えない（count(*) は毎回の全走査）ので、統計の推定を
          「約」と断って出す。順序が決まっていないテーブルではそれも言う。 -->
-    <div x-show="tab === 'data'" class="flex flex-wrap items-center gap-3 text-zinc-400">
+    <div x-show="tab === 'data'" class="flex flex-wrap items-center gap-3 text-body">
       {% comment %}帯は 1 行に収める。折り返すとその高さぶんグリッドが縮むので、
       説明は title に逃がして画面には数字だけ出す。{% endcomment %}
       {% if preview.estimated_rows is not None %}
         <span class="tabular-nums whitespace-nowrap"
               title="{% trans 'The total is estimated from table statistics — counting every row would scan the whole table.' %}">
           {% blocktrans with a=preview.first_row|intcomma b=preview.last_row|intcomma %}rows {{ a }}–{{ b }}{% endblocktrans %}
-          <span class="text-zinc-500">/ {% blocktrans with n=preview.estimated_rows|intcomma %}about {{ n }}{% endblocktrans %}</span>
+          <span class="text-muted">/ {% blocktrans with n=preview.estimated_rows|intcomma %}about {{ n }}{% endblocktrans %}</span>
         </span>
       {% else %}
         <span class="tabular-nums whitespace-nowrap"
               title="{% trans 'This table has never been analyzed, so there is no row-count estimate.' %}">
           {% blocktrans with a=preview.first_row|intcomma b=preview.last_row|intcomma %}rows {{ a }}–{{ b }}{% endblocktrans %}
-          <span class="text-zinc-500">/ {% trans "total unknown" %}</span>
+          <span class="text-muted">/ {% trans "total unknown" %}</span>
         </span>
       {% endif %}
 
       {% if not preview.stable %}
-        <span class="text-amber-400 whitespace-nowrap"
+        <span class="text-warn whitespace-nowrap"
               title="{% trans 'A table with no primary key has no defined row order, so paging can repeat or skip rows.' %}">
           {% trans "⚠ no primary key" %}
         </span>
@@ -354,7 +354,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
                 class="btn btn-sm btn-neutral" title="{% trans 'More table actions' %}"
                 aria-haspopup="true" :aria-expanded="menu">⋯</button>
         <div x-show="menu" x-cloak
-             class="absolute bottom-full right-0 mb-1 z-20 w-max bg-zinc-900 border border-zinc-700
+             class="absolute bottom-full right-0 mb-1 z-20 w-max bg-panel border border-line-strong
                     rounded-lg shadow-xl p-2 flex flex-col items-stretch gap-1.5">
       <!-- Backup this table (pg_dump -t). Fetched via JS for an in-page spinner. -->
       <span x-data="dumpLinks()" class="btn btn-sm btn-neutral gap-2 cursor-default">
@@ -365,8 +365,8 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
         <a href="#" @click.prevent="download('{% url 'table_dump' connection.pk %}?schema={{ schema|urlencode }}&table={{ table|urlencode }}&format=custom')"
            :class="busy && 'opacity-40 pointer-events-none'" title="{% trans 'pg_dump this table in custom format' %}"
            class="btn-link">.dump ↓</a>
-        <span x-show="busy" class="spinner text-sky-300"></span>
-        <span x-show="err" x-text="err" class="text-red-400/90 max-w-[160px] truncate"></span>
+        <span x-show="busy" class="spinner text-info"></span>
+        <span x-show="err" x-text="err" class="text-danger/90 max-w-[160px] truncate"></span>
       </span>
       <!-- Export every row (read-only SELECT *, streamed). Native download links
            like the query exporter; full table, not the preview's row cap. -->
@@ -393,7 +393,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
         'col-edit': '{% trans 'Edit column' %}', 'create-index': '{% trans 'Create index' %}',
         'import-csv': '{% trans 'Import CSV' %}'
       }[drawer] || ''"></h3>
-      <button @click="drawer = null" class="text-zinc-400 hover:text-zinc-100 text-lg leading-none">&times;</button>
+      <button @click="drawer = null" class="text-body hover:text-heading text-lg leading-none">&times;</button>
     </div>
     <div class="drawer-body">
 
@@ -402,7 +402,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
             hx-target="#detail" hx-swap="innerHTML" class="space-y-3">
         <input type="hidden" name="schema" value="{{ schema }}">
         <input type="hidden" name="table" value="{{ table }}">
-        <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "New name" %}</label>
+        <label class="block text-xs uppercase tracking-wide text-body">{% trans "New name" %}</label>
         <input name="new_name" value="{{ table }}" autocomplete="off" required class="field mono w-full">
         <button type="submit" class="btn btn-primary w-full justify-center">{% trans "Rename" %}</button>
       </form>
@@ -413,10 +413,10 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
             hx-disabled-elt="find button[type=submit]" class="space-y-3">
         <input type="hidden" name="schema" value="{{ schema }}">
         <input type="hidden" name="table" value="{{ table }}">
-        <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "CSV file" %}</label>
+        <label class="block text-xs uppercase tracking-wide text-body">{% trans "CSV file" %}</label>
         <input type="file" name="file" accept=".csv,text/csv" required
-               class="field w-full text-sm file:mr-3 file:rounded file:border-0 file:bg-zinc-700 file:px-2 file:py-1 file:text-zinc-100">
-        <p class="text-xs text-zinc-400 leading-relaxed">
+               class="field w-full text-sm file:mr-3 file:rounded file:border-0 file:bg-line-strong file:px-2 file:py-1 file:text-heading">
+        <p class="text-xs text-body leading-relaxed">
           {% trans "The first row must be a header; columns are matched to the table by name. Rows are appended in one transaction — if any row's types don't fit, the whole import is rolled back. A safety snapshot is taken first." %}
         </p>
         <button type="submit" class="btn btn-primary w-full justify-center">{% trans "Import CSV" %}</button>
@@ -429,32 +429,32 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
         <input type="hidden" name="schema" value="{{ schema }}">
         <input type="hidden" name="table" value="{{ table }}">
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">{% trans "Name" %}</label>
+          <label class="block text-xs uppercase tracking-wide text-body mb-1">{% trans "Name" %}</label>
           <input name="name" placeholder="{% trans 'column name' %}" autocomplete="off" required class="field mono w-full">
         </div>
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">{% trans "Type" %}</label>
+          <label class="block text-xs uppercase tracking-wide text-body mb-1">{% trans "Type" %}</label>
           <select name="type" class="field mono w-full">
             {% for t in column_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
           </select>
         </div>
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">{% trans "Default" %} <span class="normal-case text-zinc-400">{% trans "(optional)" %}</span></label>
+          <label class="block text-xs uppercase tracking-wide text-body mb-1">{% trans "Default" %} <span class="normal-case text-body">{% trans "(optional)" %}</span></label>
           <input name="default" placeholder="default" autocomplete="off" class="field mono w-full">
         </div>
-        <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="notnull" class="accent-emerald-400"> {% trans "not null" %}</label>
+        <label class="flex items-center gap-2 text-sm text-strong"><input type="checkbox" name="notnull" class="accent-accent"> {% trans "not null" %}</label>
         <button type="submit" class="btn btn-primary w-full justify-center">{% trans "+ Add column" %}</button>
       </form>
 
       <!-- Edit column: rename / type / nullability / default, each its own ALTER. -->
       <div x-show="drawer === 'col-edit'" class="space-y-5">
-        <p class="text-sm mono text-zinc-300" x-text="ctx.column"></p>
+        <p class="text-sm mono text-strong" x-text="ctx.column"></p>
 
         <form hx-post="{% url 'column_rename' connection.pk %}" hx-target="#detail" hx-swap="innerHTML" class="space-y-2">
           <input type="hidden" name="schema" value="{{ schema }}">
           <input type="hidden" name="table" value="{{ table }}">
           <input type="hidden" name="column" :value="ctx.column">
-          <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "Rename to" %}</label>
+          <label class="block text-xs uppercase tracking-wide text-body">{% trans "Rename to" %}</label>
           <div class="flex gap-2">
             <input name="new_name" :value="ctx.column" autocomplete="off" class="field field-sm mono flex-1">
             <button type="submit" class="btn btn-sm btn-neutral">{% trans "Rename" %}</button>
@@ -466,7 +466,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
           <input type="hidden" name="table" value="{{ table }}">
           <input type="hidden" name="column" :value="ctx.column">
           <input type="hidden" name="cur_type" :value="ctx.type">
-          <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "Type" %}</label>
+          <label class="block text-xs uppercase tracking-wide text-body">{% trans "Type" %}</label>
           <div class="flex gap-2">
             <select name="type" class="field field-sm mono flex-1">
               <option :value="ctx.type" x-text="ctx.type + ' {% trans '(current)' %}'"></option>
@@ -477,7 +477,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
         </form>
 
         <div class="space-y-2">
-          <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "Nullability" %}</label>
+          <label class="block text-xs uppercase tracking-wide text-body">{% trans "Nullability" %}</label>
           <div class="flex flex-wrap items-center gap-2">
             <form hx-post="{% url 'column_set_null' connection.pk %}" hx-target="#detail" hx-swap="innerHTML">
               <input type="hidden" name="schema" value="{{ schema }}">
@@ -501,7 +501,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
             {% endif %}
           </div>
           {% if 'planner_lab' in enabled_features and connection.kind == 'postgres' %}
-            <p x-show="ctx.nullable" class="text-xs text-zinc-500">{% trans "Runs the real statement and rolls it back. It takes a real ACCESS EXCLUSIVE lock while it runs, so readers queue behind it — briefly, but for real." %}</p>
+            <p x-show="ctx.nullable" class="text-xs text-muted">{% trans "Runs the real statement and rolls it back. It takes a real ACCESS EXCLUSIVE lock while it runs, so readers queue behind it — briefly, but for real." %}</p>
             <div id="ddl-rehearsal"></div>
           {% endif %}
         </div>
@@ -510,7 +510,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
           <input type="hidden" name="schema" value="{{ schema }}">
           <input type="hidden" name="table" value="{{ table }}">
           <input type="hidden" name="column" :value="ctx.column">
-          <label class="block text-xs uppercase tracking-wide text-zinc-400">{% trans "Default" %} <span class="normal-case text-zinc-400">{% trans "(empty drops it)" %}</span></label>
+          <label class="block text-xs uppercase tracking-wide text-body">{% trans "Default" %} <span class="normal-case text-body">{% trans "(empty drops it)" %}</span></label>
           <div class="flex gap-2">
             <input name="default" :value="ctx.default" placeholder="(none)" autocomplete="off" class="field field-sm mono flex-1">
             <button type="submit" class="btn btn-sm btn-neutral">{% trans "Set" %}</button>
@@ -529,31 +529,31 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
         <input type="hidden" name="schema" value="{{ schema }}">
         <input type="hidden" name="table" value="{{ table }}">
         <template x-for="c in picked" :key="c"><input type="hidden" name="columns" :value="c"></template>
-        <p class="text-xs text-zinc-400">{% trans "Click columns in the order you want them indexed." %}</p>
+        <p class="text-xs text-body">{% trans "Click columns in the order you want them indexed." %}</p>
         <div class="flex flex-wrap gap-1.5">
           {% for col in columns %}
             <button type="button" @click="toggle('{{ col.name|escapejs }}')"
-                    :class="pos('{{ col.name|escapejs }}') >= 0 ? 'border-emerald-400 text-emerald-300 bg-emerald-950/40' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'"
+                    :class="pos('{{ col.name|escapejs }}') >= 0 ? 'border-accent text-accent bg-accent/40' : 'border-line-strong text-strong hover:border-muted'"
                     class="flex items-center gap-1.5 border rounded-lg px-2 py-1 text-sm mono transition">
               <span x-show="pos('{{ col.name|escapejs }}') >= 0" x-text="pos('{{ col.name|escapejs }}') + 1"
-                    class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-400 text-zinc-950 text-[10px] font-bold"></span>
+                    class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-accent text-on-accent text-[10px] font-bold"></span>
               {{ col.name }}
             </button>
           {% endfor %}
         </div>
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">{% trans "Name" %} <span class="normal-case text-zinc-400">{% trans "(optional)" %}</span></label>
+          <label class="block text-xs uppercase tracking-wide text-body mb-1">{% trans "Name" %} <span class="normal-case text-body">{% trans "(optional)" %}</span></label>
           <input name="name" placeholder="{% trans 'index name' %}" autocomplete="off" class="field mono w-full">
         </div>
         <div>
-          <label class="block text-xs uppercase tracking-wide text-zinc-400 mb-1">{% trans "Method" %}</label>
+          <label class="block text-xs uppercase tracking-wide text-body mb-1">{% trans "Method" %}</label>
           <select name="method" class="field mono w-full">
             {% for m in index_methods %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
           </select>
         </div>
-        <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="unique" class="accent-emerald-400"> {% trans "unique" %}</label>
+        <label class="flex items-center gap-2 text-sm text-strong"><input type="checkbox" name="unique" class="accent-accent"> {% trans "unique" %}</label>
         <button type="submit" :disabled="picked.length === 0" class="btn btn-primary w-full justify-center">{% trans "+ Create index" %}</button>
-        <p class="text-xs text-zinc-400 text-center">{% trans "built CONCURRENTLY" %}</p>
+        <p class="text-xs text-body text-center">{% trans "built CONCURRENTLY" %}</p>
       </form>
 
     </div>

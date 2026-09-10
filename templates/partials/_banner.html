@@ -1,8 +1,8 @@
 {% comment %}Shared error / notice banner. error → red; notice → amber if it
 carries a "⚠" warning, otherwise sky (info). See STYLE.md.{% endcomment %}
 {% if error %}
-  <div class="bg-red-950/40 border border-red-900 rounded-lg px-4 py-2.5 text-sm text-red-200/90 mono">{{ error }}</div>
+  <div class="bg-danger/40 border border-danger rounded-lg px-4 py-2.5 text-sm text-danger/90 mono">{{ error }}</div>
 {% endif %}
 {% if notice %}
-  <div class="{% if '⚠' in notice %}bg-amber-950/40 border-amber-900 text-amber-200/90{% else %}bg-sky-950/40 border-sky-900 text-sky-200/90{% endif %} border rounded-lg px-4 py-2.5 text-sm">{{ notice }}</div>
+  <div class="{% if '⚠' in notice %}bg-warn/40 border-warn text-warn/90{% else %}bg-info/40 border-info text-info/90{% endif %} border rounded-lg px-4 py-2.5 text-sm">{{ notice }}</div>
 {% endif %}

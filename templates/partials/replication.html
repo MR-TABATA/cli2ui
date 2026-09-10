@@ -2,131 +2,131 @@
   <div class="flex flex-wrap items-start justify-between gap-3">
     <div>
       <h2 class="text-lg font-semibold flex items-center gap-2"><span>🔁</span> {% trans "Replication" %}</h2>
-      <p class="text-xs text-zinc-400 mono">{% trans "readiness · WAL position · standbys · slots" %}</p>
+      <p class="text-xs text-body mono">{% trans "readiness · WAL position · standbys · slots" %}</p>
     </div>
     <button hx-get="{% url 'replication' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-            class="text-xs text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1.5
-                   hover:border-zinc-600 transition">{% trans "↻ Refresh" %}</button>
+            class="text-xs text-strong border border-line rounded-lg px-3 py-1.5
+                   hover:border-line-strong transition">{% trans "↻ Refresh" %}</button>
   </div>
 
   {% include "partials/_banner.html" %}
 
   <!-- Readiness + role: can this server accept a standby, and where is its WAL -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
-      <span class="text-xs uppercase tracking-wide text-zinc-400">{% trans "Readiness" %}</span>
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-line flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-body">{% trans "Readiness" %}</span>
       {% if status.ready %}
-        <span class="text-[11px] px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/60">{% trans "ready for a standby" %}</span>
+        <span class="text-[11px] px-1.5 py-0.5 rounded bg-accent/50 text-accent border border-accent/60">{% trans "ready for a standby" %}</span>
       {% else %}
-        <span class="text-[11px] px-1.5 py-0.5 rounded bg-amber-950/50 text-amber-400 border border-amber-900/60">{% trans "not accepting standbys" %}</span>
+        <span class="text-[11px] px-1.5 py-0.5 rounded bg-warn/50 text-warn border border-warn/60">{% trans "not accepting standbys" %}</span>
       {% endif %}
     </div>
     <div class="px-5 py-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5 text-sm">
-      <div><div class="text-xs text-zinc-400">{% trans "role" %}</div>
-        <div class="mono text-zinc-200">{% if status.is_standby %}{% trans "standby (in recovery)" %}{% else %}{% trans "primary" %}{% endif %}</div></div>
-      <div><div class="text-xs text-zinc-400">{% trans "current LSN" %}</div>
-        <div class="mono text-zinc-200">{{ status.current_lsn|default:"—" }}</div></div>
-      <div><div class="text-xs text-zinc-400">wal_level</div>
-        <div class="mono {% if status.wal_level == 'minimal' %}text-amber-400{% else %}text-zinc-200{% endif %}">{{ status.wal_level }}</div></div>
-      <div><div class="text-xs text-zinc-400">max_wal_senders</div>
-        <div class="mono {% if status.max_wal_senders == 0 %}text-amber-400{% else %}text-zinc-200{% endif %}">{{ status.max_wal_senders }}</div></div>
-      <div><div class="text-xs text-zinc-400">max_replication_slots</div>
-        <div class="mono text-zinc-200">{{ status.max_replication_slots }}</div></div>
-      <div><div class="text-xs text-zinc-400">archive_mode</div>
-        <div class="mono text-zinc-200">{{ status.archive_mode }}</div></div>
+      <div><div class="text-xs text-body">{% trans "role" %}</div>
+        <div class="mono text-strong">{% if status.is_standby %}{% trans "standby (in recovery)" %}{% else %}{% trans "primary" %}{% endif %}</div></div>
+      <div><div class="text-xs text-body">{% trans "current LSN" %}</div>
+        <div class="mono text-strong">{{ status.current_lsn|default:"—" }}</div></div>
+      <div><div class="text-xs text-body">wal_level</div>
+        <div class="mono {% if status.wal_level == 'minimal' %}text-warn{% else %}text-strong{% endif %}">{{ status.wal_level }}</div></div>
+      <div><div class="text-xs text-body">max_wal_senders</div>
+        <div class="mono {% if status.max_wal_senders == 0 %}text-warn{% else %}text-strong{% endif %}">{{ status.max_wal_senders }}</div></div>
+      <div><div class="text-xs text-body">max_replication_slots</div>
+        <div class="mono text-strong">{{ status.max_replication_slots }}</div></div>
+      <div><div class="text-xs text-body">archive_mode</div>
+        <div class="mono text-strong">{{ status.archive_mode }}</div></div>
     </div>
-    <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-400 flex items-center justify-between gap-3">
+    <div class="px-5 py-2 border-t border-line text-xs text-body flex items-center justify-between gap-3">
       <span>{% blocktrans %}A standby needs <span class="mono">wal_level</span> ≥ replica and <span class="mono">max_wal_senders</span> &gt; 0.{% endblocktrans %}</span>
       <button hx-get="{% url 'settings' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-              class="text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition whitespace-nowrap">{% trans "edit in settings →" %}</button>
+              class="text-body border border-line rounded-lg px-3 py-1
+                     hover:border-line-strong transition whitespace-nowrap">{% trans "edit in settings →" %}</button>
     </div>
   </section>
 
   <!-- Setup recipe: copy-paste steps to attach a standby, current values filled in. -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden" x-data="{ open: false }">
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden" x-data="{ open: false }">
     <button @click="open = !open"
-            class="w-full px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3 text-left hover:bg-zinc-900/40 transition">
-      <span class="text-xs uppercase tracking-wide text-zinc-400">{% trans "Set up a standby" %}
-        <span class="mono lowercase text-zinc-500">{% trans "recipe with your values filled in" %}</span></span>
-      <span class="text-zinc-500 text-xs" x-text="open ? '▾' : '▸'">▸</span>
+            class="w-full px-5 py-2.5 border-b border-line flex items-center justify-between gap-3 text-left hover:bg-panel/40 transition">
+      <span class="text-xs uppercase tracking-wide text-body">{% trans "Set up a standby" %}
+        <span class="mono lowercase text-muted">{% trans "recipe with your values filled in" %}</span></span>
+      <span class="text-muted text-xs" x-text="open ? '▾' : '▸'">▸</span>
     </button>
     <div x-show="open" x-cloak class="px-5 py-4 space-y-5 text-sm">
 
       <!-- Step 1: make the primary ready -->
       <div>
-        <div class="text-zinc-300 font-medium mb-1.5">{% trans "1 · Make the primary ready" %}</div>
+        <div class="text-strong font-medium mb-1.5">{% trans "1 · Make the primary ready" %}</div>
         {% if recipe.ready %}
-          <p class="text-emerald-400 text-xs">{% trans "✓ Already configured to accept a standby." %}</p>
+          <p class="text-accent text-xs">{% trans "✓ Already configured to accept a standby." %}</p>
         {% else %}
-          <p class="text-zinc-400 text-xs mb-2">{% trans "Set these on the primary, then restart it (each needs a full restart):" %}</p>
-          <div class="rounded-lg border border-zinc-800 bg-zinc-950/60 divide-y divide-zinc-800/60">
+          <p class="text-body text-xs mb-2">{% trans "Set these on the primary, then restart it (each needs a full restart):" %}</p>
+          <div class="rounded-lg border border-line bg-canvas/60 divide-y divide-line/60">
             {% for param, val in recipe.conf_changes %}
               <div class="px-3 py-1.5 flex items-center justify-between gap-3 mono text-xs">
-                <span class="text-zinc-300">{{ param }}</span>
-                <span class="text-emerald-300">{{ val }}</span>
+                <span class="text-strong">{{ param }}</span>
+                <span class="text-accent">{{ val }}</span>
               </div>
             {% endfor %}
           </div>
           <button hx-get="{% url 'settings' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
-                  class="mt-2 text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1 hover:border-zinc-600 transition">{% trans "edit in settings →" %}</button>
+                  class="mt-2 text-xs text-body border border-line rounded-lg px-3 py-1 hover:border-line-strong transition">{% trans "edit in settings →" %}</button>
         {% endif %}
       </div>
 
       <!-- Step 2: a replication slot -->
       <div>
-        <div class="text-zinc-300 font-medium mb-1.5">{% trans "2 · Create a replication slot" %}</div>
+        <div class="text-strong font-medium mb-1.5">{% trans "2 · Create a replication slot" %}</div>
         {% if recipe.slot_exists %}
-          <p class="text-xs text-zinc-400">{% blocktrans with name=recipe.slot_name %}Reusing the existing physical slot <span class="mono text-zinc-300">{{ name }}</span>.{% endblocktrans %}</p>
+          <p class="text-xs text-body">{% blocktrans with name=recipe.slot_name %}Reusing the existing physical slot <span class="mono text-strong">{{ name }}</span>.{% endblocktrans %}</p>
         {% else %}
-          <p class="text-xs text-zinc-400 mb-2">{% blocktrans with name=recipe.slot_name %}No physical slot yet — create <span class="mono text-zinc-300">{{ name }}</span> (so the primary keeps WAL for the standby):{% endblocktrans %}</p>
+          <p class="text-xs text-body mb-2">{% blocktrans with name=recipe.slot_name %}No physical slot yet — create <span class="mono text-strong">{{ name }}</span> (so the primary keeps WAL for the standby):{% endblocktrans %}</p>
           <div x-data="{ copied: false }" class="relative">
-            <pre x-ref="s2" class="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 pr-16 mono text-xs text-zinc-200 overflow-x-auto">{{ recipe.create_slot_sql }}</pre>
+            <pre x-ref="s2" class="rounded-lg border border-line bg-canvas/60 px-3 py-2 pr-16 mono text-xs text-strong overflow-x-auto">{{ recipe.create_slot_sql }}</pre>
             <button @click="navigator.clipboard.writeText($refs.s2.textContent.trim()); copied=true; setTimeout(()=>copied=false,1500)"
-                    class="absolute top-1.5 right-1.5 text-[11px] text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 bg-zinc-900 hover:border-zinc-600 transition"
+                    class="absolute top-1.5 right-1.5 text-[11px] text-body border border-line rounded px-2 py-0.5 bg-panel hover:border-line-strong transition"
                     x-text="copied ? '{% trans "copied" %}' : '{% trans "copy" %}'">{% trans "copy" %}</button>
           </div>
           <button hx-post="{% url 'slot_create' connection.pk %}" hx-vals='{"name": "{{ recipe.slot_name }}"}'
                   hx-target="#detail" hx-swap="innerHTML"
-                  class="mt-2 text-xs text-emerald-400 border border-emerald-900/60 bg-emerald-950/40 rounded-lg px-3 py-1 hover:border-emerald-700 transition">{% blocktrans with name=recipe.slot_name %}+ Create {{ name }} now{% endblocktrans %}</button>
+                  class="mt-2 text-xs text-accent border border-accent/60 bg-accent/40 rounded-lg px-3 py-1 hover:border-accent/45 transition">{% blocktrans with name=recipe.slot_name %}+ Create {{ name }} now{% endblocktrans %}</button>
         {% endif %}
       </div>
 
       <!-- Step 3: pg_basebackup on the standby host -->
       <div>
-        <div class="text-zinc-300 font-medium mb-1.5">{% trans "3 · Clone to the standby host" %}</div>
-        <p class="text-xs text-zinc-400 mb-2">{% trans "Run this on the new standby (an empty data dir). -R writes its standby config for you:" %}</p>
+        <div class="text-strong font-medium mb-1.5">{% trans "3 · Clone to the standby host" %}</div>
+        <p class="text-xs text-body mb-2">{% trans "Run this on the new standby (an empty data dir). -R writes its standby config for you:" %}</p>
         <div x-data="{ copied: false }" class="relative">
-          <pre x-ref="s3" class="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 pr-16 mono text-xs text-zinc-200 overflow-x-auto whitespace-pre-wrap break-all">{{ recipe.basebackup_cmd }}</pre>
+          <pre x-ref="s3" class="rounded-lg border border-line bg-canvas/60 px-3 py-2 pr-16 mono text-xs text-strong overflow-x-auto whitespace-pre-wrap break-all">{{ recipe.basebackup_cmd }}</pre>
           <button @click="navigator.clipboard.writeText($refs.s3.textContent.trim()); copied=true; setTimeout(()=>copied=false,1500)"
-                  class="absolute top-1.5 right-1.5 text-[11px] text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 bg-zinc-900 hover:border-zinc-600 transition"
+                  class="absolute top-1.5 right-1.5 text-[11px] text-body border border-line rounded px-2 py-0.5 bg-panel hover:border-line-strong transition"
                   x-text="copied ? '{% trans "copied" %}' : '{% trans "copy" %}'">{% trans "copy" %}</button>
         </div>
-        <p class="mt-2 text-xs text-zinc-500">{% trans "primary_conninfo it will write:" %}
-          <span class="mono text-zinc-400">{{ recipe.primary_conninfo }}</span></p>
+        <p class="mt-2 text-xs text-muted">{% trans "primary_conninfo it will write:" %}
+          <span class="mono text-body">{{ recipe.primary_conninfo }}</span></p>
       </div>
 
-      <p class="text-[11px] text-amber-400/80 border-t border-zinc-800 pt-3">
+      <p class="text-[11px] text-warn/80 border-t border-line pt-3">
         {% blocktrans with host=recipe.primary_host port=recipe.primary_port %}⚠ The standby must be able to reach <span class="mono">{{ host }}:{{ port }}</span> over the network, and authenticate — set the password via <span class="mono">PGPASSWORD</span> or <span class="mono">~/.pgpass</span> (never in the config). This is a starting point; see your platform's docs for production (TLS, auth).{% endblocktrans %}
       </p>
     </div>
   </section>
 
   <!-- Connected standbys: pg_stat_replication. Empty unless a replica is attached. -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
-      <span class="text-xs uppercase tracking-wide text-zinc-400">
-        {% trans "Standbys" %} <span class="mono lowercase text-zinc-500">pg_stat_replication</span>
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-line flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-body">
+        {% trans "Standbys" %} <span class="mono lowercase text-muted">pg_stat_replication</span>
       </span>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ standbys_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
-              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
+              class="text-xs text-body border border-line rounded-lg px-3 py-1
+                     hover:border-line-strong transition">{% trans "open in SQL →" %}</button>
     </div>
     {% if standbys %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">PID</th>
             <th class="px-5 py-2 font-medium">{% trans "Client" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "State" %}</th>
@@ -137,37 +137,37 @@
         </thead>
         <tbody>
           {% for s in standbys %}
-            <tr class="border-b border-zinc-800/60">
-              <td class="px-5 py-2 mono text-zinc-400">{{ s.pid }}</td>
-              <td class="px-5 py-2 mono text-zinc-300">{{ s.app|default:"—" }} <span class="text-zinc-400">{{ s.client|default:"" }}</span></td>
-              <td class="px-5 py-2 mono text-zinc-300">{{ s.state|default:"—" }}</td>
-              <td class="px-5 py-2 mono text-zinc-400">{{ s.sync_state|default:"—" }}</td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{% if s.lag_bytes is not None %}{{ s.lag_bytes }} B{% else %}—{% endif %}</td>
-              <td class="px-5 py-2 mono text-zinc-200 text-right tabular-nums">{{ s.replay_lag_human|default:"—" }}</td>
+            <tr class="border-b border-line/60">
+              <td class="px-5 py-2 mono text-body">{{ s.pid }}</td>
+              <td class="px-5 py-2 mono text-strong">{{ s.app|default:"—" }} <span class="text-body">{{ s.client|default:"" }}</span></td>
+              <td class="px-5 py-2 mono text-strong">{{ s.state|default:"—" }}</td>
+              <td class="px-5 py-2 mono text-body">{{ s.sync_state|default:"—" }}</td>
+              <td class="px-5 py-2 mono text-body text-right tabular-nums">{% if s.lag_bytes is not None %}{{ s.lag_bytes }} B{% else %}—{% endif %}</td>
+              <td class="px-5 py-2 mono text-strong text-right tabular-nums">{{ s.replay_lag_human|default:"—" }}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No standby connected." %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "No standby connected." %}</p>
     {% endif %}
   </section>
 
   <!-- Slots: pg_replication_slots, with create / drop. An inactive slot pins WAL. -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
-      <span class="text-xs uppercase tracking-wide text-zinc-400">
-        {% trans "Slots" %} <span class="mono lowercase text-zinc-500">pg_replication_slots</span>
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-line flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-body">
+        {% trans "Slots" %} <span class="mono lowercase text-muted">pg_replication_slots</span>
       </span>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ slots_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
-              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
+              class="text-xs text-body border border-line rounded-lg px-3 py-1
+                     hover:border-line-strong transition">{% trans "open in SQL →" %}</button>
     </div>
     {% if slots %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">{% trans "Name" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Type" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Active" %}</th>
@@ -177,43 +177,43 @@
         </thead>
         <tbody>
           {% for sl in slots %}
-            <tr class="border-b border-zinc-800/60">
-              <td class="px-5 py-2 mono text-zinc-200">{{ sl.name }}</td>
-              <td class="px-5 py-2 mono text-zinc-400">{{ sl.slot_type }}{% if sl.database %} <span class="text-zinc-400">{{ sl.database }}</span>{% endif %}</td>
+            <tr class="border-b border-line/60">
+              <td class="px-5 py-2 mono text-strong">{{ sl.name }}</td>
+              <td class="px-5 py-2 mono text-body">{{ sl.slot_type }}{% if sl.database %} <span class="text-body">{{ sl.database }}</span>{% endif %}</td>
               <td class="px-5 py-2">
                 {% if sl.active %}
-                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/60">{% trans "active" %}</span>
+                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-accent/50 text-accent border border-accent/60">{% trans "active" %}</span>
                 {% else %}
-                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-amber-950/50 text-amber-400 border border-amber-900/60" title="{% trans 'An inactive slot keeps WAL from being recycled' %}">{% trans "inactive · pins WAL" %}</span>
+                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-warn/50 text-warn border border-warn/60" title="{% trans 'An inactive slot keeps WAL from being recycled' %}">{% trans "inactive · pins WAL" %}</span>
                 {% endif %}
                 {% if sl.wal_status and sl.wal_status != 'reserved' %}
-                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-red-950/50 text-red-400 border border-red-900/60">{{ sl.wal_status }}</span>
+                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-danger/50 text-danger border border-danger/60">{{ sl.wal_status }}</span>
                 {% endif %}
               </td>
-              <td class="px-5 py-2 mono text-zinc-400">{{ sl.restart_lsn|default:"—" }}</td>
+              <td class="px-5 py-2 mono text-body">{{ sl.restart_lsn|default:"—" }}</td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
                 <button hx-post="{% url 'slot_drop' connection.pk %}" hx-vals='{"name": "{{ sl.name }}"}'
                         hx-target="#detail" hx-swap="innerHTML"
                         hx-confirm="{% blocktrans with name=sl.name %}Drop replication slot &quot;{{ name }}&quot;? Any standby relying on it will break.{% endblocktrans %}"
-                        class="text-xs text-red-400 hover:text-red-300 underline">{% trans "drop" %}</button>
+                        class="text-xs text-danger hover:text-danger underline">{% trans "drop" %}</button>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No replication slots." %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "No replication slots." %}</p>
     {% endif %}
-    <div class="px-5 py-3 border-t border-zinc-800">
+    <div class="px-5 py-3 border-t border-line">
       <form hx-post="{% url 'slot_create' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
             class="flex items-center gap-2 flex-wrap">
         <input name="name" placeholder="new_slot_name" autocomplete="off"
-               class="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm mono
-                      focus:outline-none focus:border-emerald-500 w-48">
+               class="bg-canvas border border-line rounded-lg px-3 py-1.5 text-sm mono
+                      focus:outline-none focus:border-accent w-48">
         <button type="submit"
-                class="text-xs text-emerald-400 border border-emerald-900/60 bg-emerald-950/40 rounded-lg px-3 py-1.5
-                       hover:border-emerald-700 transition">{% trans "+ Create physical slot" %}</button>
-        <span class="text-xs text-amber-400/80">{% trans "⚠ An unused slot keeps WAL forever — drop it when done." %}</span>
+                class="text-xs text-accent border border-accent/60 bg-accent/40 rounded-lg px-3 py-1.5
+                       hover:border-accent/45 transition">{% trans "+ Create physical slot" %}</button>
+        <span class="text-xs text-warn/80">{% trans "⚠ An unused slot keeps WAL forever — drop it when done." %}</span>
       </form>
     </div>
   </section>

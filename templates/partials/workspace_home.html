@@ -6,12 +6,12 @@ lands you on it and hovering gives the same as a quick menu.{% endcomment %}
   {% include "partials/_banner.html" %}
   <div>
     <h2 class="text-lg font-semibold">{% blocktrans with name=connection.display_name %}Connected to {{ name }}{% endblocktrans %}</h2>
-    <p class="text-xs text-zinc-400 mt-0.5 mono">{{ connection.host }}:{{ connection.port }}/{{ connection.dbname }}</p>
+    <p class="text-xs text-body mt-0.5 mono">{{ connection.host }}:{{ connection.port }}/{{ connection.dbname }}</p>
   </div>
 
   {% include "partials/_bento.html" %}
 
-  <p class="text-xs text-zinc-500">
+  <p class="text-xs text-muted">
     {% blocktrans %}Read-only by default — changes are always explicit. cli2ui runs locally; your DB
     credentials never leave this machine.{% endblocktrans %}
   </p>

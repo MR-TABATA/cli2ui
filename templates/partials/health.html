@@ -1,24 +1,24 @@
 {% load i18n %}<div class="space-y-5">
   <div>
     <h2 class="text-lg font-semibold flex items-center gap-2"><span>🩺</span> {% trans "Health" %}</h2>
-    <p class="text-xs text-zinc-400 mono">{% trans "disk usage · unused / redundant / unindexed-FK · orphan rows · dead rows" %}</p>
+    <p class="text-xs text-body mono">{% trans "disk usage · unused / redundant / unindexed-FK · orphan rows · dead rows" %}</p>
   </div>
 
   <!-- Table sizes: \dt+ sorted by total on-disk footprint -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
-      <span class="text-xs uppercase tracking-wide text-zinc-400">
-        {% trans "Table sizes" %} <span class="mono lowercase text-zinc-500">heap + indexes + toast</span>
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-line flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-body">
+        {% trans "Table sizes" %} <span class="mono lowercase text-muted">heap + indexes + toast</span>
       </span>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ sizes_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
-              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
+              class="text-xs text-body border border-line rounded-lg px-3 py-1
+                     hover:border-line-strong transition">{% trans "open in SQL →" %}</button>
     </div>
     {% if sizes %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Total" %}</th>
             <th class="px-5 py-2 font-medium text-right">{% trans "Table" %}</th>
@@ -27,42 +27,42 @@
         </thead>
         <tbody>
           {% for s in sizes %}
-            <tr class="border-b border-zinc-800/60">
+            <tr class="border-b border-line/60">
               <td class="px-5 py-2 mono">{{ s.qualified }}</td>
               <td class="px-5 py-2">
                 <div class="flex items-center gap-2">
-                  <div class="h-1.5 rounded bg-emerald-500/60" style="width: {% widthratio s.total_bytes max_bytes 120 %}px"></div>
-                  <span class="mono text-zinc-300 tabular-nums">{{ s.total }}</span>
+                  <div class="h-1.5 rounded bg-accent/60" style="width: {% widthratio s.total_bytes max_bytes 120 %}px"></div>
+                  <span class="mono text-strong tabular-nums">{{ s.total }}</span>
                 </div>
               </td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ s.table }}</td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ s.index }}</td>
+              <td class="px-5 py-2 mono text-body text-right tabular-nums">{{ s.table }}</td>
+              <td class="px-5 py-2 mono text-body text-right tabular-nums">{{ s.index }}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% elif sizes_error %}
-      <p class="px-5 py-6 text-sm text-amber-300/90">{{ sizes_error }}</p>
+      <p class="px-5 py-6 text-sm text-warn/90">{{ sizes_error }}</p>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No user tables." %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "No user tables." %}</p>
     {% endif %}
   </section>
 
   <!-- Unused indexes: idx_scan = 0, the inverse of the index lab -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
-      <span class="text-xs uppercase tracking-wide text-zinc-400">
-        {% trans "Unused indexes" %} <span class="mono lowercase text-zinc-500">idx_scan = 0 since last stats reset</span>
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-line flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-body">
+        {% trans "Unused indexes" %} <span class="mono lowercase text-muted">idx_scan = 0 since last stats reset</span>
       </span>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ unused_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
-              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
+              class="text-xs text-body border border-line rounded-lg px-3 py-1
+                     hover:border-line-strong transition">{% trans "open in SQL →" %}</button>
     </div>
     {% if unused %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">{% trans "Index" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "On table" %}</th>
             <th class="px-5 py-2 font-medium text-right">{% trans "Scans" %}</th>
@@ -72,22 +72,22 @@
         </thead>
         <tbody>
           {% for u in unused %}
-            <tr class="border-b border-zinc-800/60">
+            <tr class="border-b border-line/60">
               <td class="px-5 py-2 mono">{{ u.name }}</td>
-              <td class="px-5 py-2 mono text-zinc-400">{{ u.schema }}.{{ u.table }}</td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ u.scans }}</td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ u.size|default:"—" }}</td>
+              <td class="px-5 py-2 mono text-body">{{ u.schema }}.{{ u.table }}</td>
+              <td class="px-5 py-2 mono text-body text-right tabular-nums">{{ u.scans }}</td>
+              <td class="px-5 py-2 mono text-body text-right tabular-nums">{{ u.size|default:"—" }}</td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
                 <button hx-get="{% url 'table_detail' connection.pk %}?schema={{ u.schema|urlencode }}&table={{ u.table|urlencode }}"
                         hx-target="#detail" hx-swap="innerHTML"
-                        class="text-xs text-zinc-400 hover:text-zinc-200">{% trans "manage →" %}</button>
+                        class="text-xs text-body hover:text-strong">{% trans "manage →" %}</button>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No unused indexes — every index has been used. 🎉" %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "No unused indexes — every index has been used. 🎉" %}</p>
     {% endif %}
   </section>
 
@@ -95,20 +95,20 @@
        other, so duplicates fit through the hole. Counting is on demand — the
        list is catalog-only, the count reads the table. -->
   {% if supports_null_slip %}
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
-      <span class="text-xs uppercase tracking-wide text-zinc-400">
-        {% trans "UNIQUE with a NULL hole" %} <span class="mono lowercase text-zinc-500">NULLs are distinct — duplicates fit through</span>
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-line flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-body">
+        {% trans "UNIQUE with a NULL hole" %} <span class="mono lowercase text-muted">NULLs are distinct — duplicates fit through</span>
       </span>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ null_slip_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
-              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
+              class="text-xs text-body border border-line rounded-lg px-3 py-1
+                     hover:border-line-strong transition">{% trans "open in SQL →" %}</button>
     </div>
     {% if null_slips %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Unique on" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Nullable" %}</th>
@@ -117,16 +117,16 @@
         </thead>
         <tbody>
           {% for u in null_slips %}
-            <tr class="border-b border-zinc-800/60">
+            <tr class="border-b border-line/60">
               <td class="px-5 py-2 mono">{{ u.qualified }}</td>
-              <td class="px-5 py-2 mono text-zinc-300">{{ u.columns }}
-                <span class="text-zinc-600">({{ u.constraint|default:u.index }})</span></td>
-              <td class="px-5 py-2 mono text-amber-300/90">{{ u.nullable }}</td>
+              <td class="px-5 py-2 mono text-strong">{{ u.columns }}
+                <span class="text-faint">({{ u.constraint|default:u.index }})</span></td>
+              <td class="px-5 py-2 mono text-warn/90">{{ u.nullable }}</td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
                 <button hx-get="{% url 'null_slip_count' connection.pk %}?schema={{ u.schema|urlencode }}&table={{ u.table|urlencode }}&index={{ u.index|urlencode }}"
                         hx-target="#slip-{{ forloop.counter }}" hx-swap="innerHTML"
                         hx-indicator="#slip-spin-{{ forloop.counter }}"
-                        class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1 hover:border-zinc-600 transition">
+                        class="text-xs text-body border border-line rounded-lg px-3 py-1 hover:border-line-strong transition">
                   {% trans "count duplicates →" %}
                   <span id="slip-spin-{{ forloop.counter }}" class="htmx-indicator">…</span>
                 </button>
@@ -136,11 +136,11 @@
           {% endfor %}
         </tbody>
       </table>
-      <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
+      <div class="px-5 py-2 border-t border-line text-xs text-body">
         {% blocktrans %}A NULL is not equal to another NULL, so rows whose key holds one are all different to the index — the constraint is enforced, with a hole the shape of its nullable columns. PostgreSQL 15's <span class="mono">NULLS NOT DISTINCT</span> closes it; those indexes are not listed. Counting reads the table, read-only.{% endblocktrans %}
       </div>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No composite UNIQUE has a nullable column — no hole to fit through. 🎉" %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "No composite UNIQUE has a nullable column — no hole to fit through. 🎉" %}</p>
     {% endif %}
   </section>
   {% endif %}
@@ -149,20 +149,20 @@
        A build still running looks the same in the catalog, so it is shown with
        its own badge instead of being filtered out or called wreckage. -->
   {% if supports_invalid_index %}
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
-      <span class="text-xs uppercase tracking-wide text-zinc-400">
-        {% trans "Invalid indexes" %} <span class="mono lowercase text-zinc-500">indisvalid = false — the planner ignores these</span>
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-line flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-body">
+        {% trans "Invalid indexes" %} <span class="mono lowercase text-muted">indisvalid = false — the planner ignores these</span>
       </span>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ invalid_index_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
-              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
+              class="text-xs text-body border border-line rounded-lg px-3 py-1
+                     hover:border-line-strong transition">{% trans "open in SQL →" %}</button>
     </div>
     {% if invalid %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">{% trans "Index" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "On table" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "State" %}</th>
@@ -172,56 +172,56 @@
         </thead>
         <tbody>
           {% for ix in invalid %}
-            <tr class="border-b border-zinc-800/60">
+            <tr class="border-b border-line/60">
               <td class="px-5 py-2 mono">{{ ix.name }}</td>
-              <td class="px-5 py-2 mono text-zinc-400">{{ ix.schema }}.{{ ix.table }}</td>
+              <td class="px-5 py-2 mono text-body">{{ ix.schema }}.{{ ix.table }}</td>
               <td class="px-5 py-2">
                 {% if ix.building %}
-                  <span class="inline-block text-xs text-sky-300/90 bg-sky-950/50 rounded px-1.5 py-0.5"
+                  <span class="inline-block text-xs text-info/90 bg-info/50 rounded px-1.5 py-0.5"
                         title="{% trans 'A CREATE INDEX CONCURRENTLY is running right now. Leave it alone — it becomes valid when it finishes.' %}">{% trans "building" %}</span>
                 {% elif not ix.live %}
-                  <span class="inline-block text-xs text-amber-300/90 bg-amber-950/50 rounded px-1.5 py-0.5"
+                  <span class="inline-block text-xs text-warn/90 bg-warn/50 rounded px-1.5 py-0.5"
                         title="{% trans 'A concurrent DROP failed: unusable for queries, still maintained on every write.' %}">{% trans "drop failed" %}</span>
                 {% else %}
-                  <span class="inline-block text-xs text-red-300/90 bg-red-950/50 rounded px-1.5 py-0.5"
+                  <span class="inline-block text-xs text-danger/90 bg-danger/50 rounded px-1.5 py-0.5"
                         title="{% trans 'A concurrent build failed — this index is unusable; drop it.' %}">{% trans "build failed" %}</span>
                 {% endif %}
               </td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ ix.size|default:"—" }}</td>
+              <td class="px-5 py-2 mono text-body text-right tabular-nums">{{ ix.size|default:"—" }}</td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
                 <button hx-get="{% url 'table_detail' connection.pk %}?schema={{ ix.schema|urlencode }}&table={{ ix.table|urlencode }}"
                         hx-target="#detail" hx-swap="innerHTML"
-                        class="text-xs text-zinc-400 hover:text-zinc-200">{% trans "manage →" %}</button>
+                        class="text-xs text-body hover:text-strong">{% trans "manage →" %}</button>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No invalid indexes — every index is usable. 🎉" %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "No invalid indexes — every index is usable. 🎉" %}</p>
     {% endif %}
   </section>
   {% endif %}
 
   <!-- FK missing index: FK columns that aren't the leading key of any index -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
-      <span class="text-xs uppercase tracking-wide text-zinc-400">
-        {% trans "Unindexed foreign keys" %} <span class="mono lowercase text-zinc-500">FK columns with no supporting index</span>
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-line flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-body">
+        {% trans "Unindexed foreign keys" %} <span class="mono lowercase text-muted">FK columns with no supporting index</span>
       </span>
       {% if supports_fk_index %}
       <button hx-get="{% url 'query' connection.pk %}?sql={{ fk_index_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
-              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
+              class="text-xs text-body border border-line rounded-lg px-3 py-1
+                     hover:border-line-strong transition">{% trans "open in SQL →" %}</button>
       {% endif %}
     </div>
     {% if not supports_fk_index %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "Not applicable to this engine — InnoDB requires and auto-creates an index on every foreign key's columns, so there's never one missing." %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "Not applicable to this engine — InnoDB requires and auto-creates an index on every foreign key's columns, so there's never one missing." %}</p>
     {% elif fk_missing %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Columns" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "References" %}</th>
@@ -231,39 +231,39 @@
         </thead>
         <tbody>
           {% for f in fk_missing %}
-            <tr class="border-b border-zinc-800/60">
+            <tr class="border-b border-line/60">
               <td class="px-5 py-2 mono">{{ f.qualified }}</td>
-              <td class="px-5 py-2 mono text-zinc-300">{{ f.columns }}</td>
-              <td class="px-5 py-2 mono text-zinc-400">{{ f.references }}</td>
-              <td class="px-5 py-2 mono text-zinc-500 text-xs">{{ f.constraint }}</td>
+              <td class="px-5 py-2 mono text-strong">{{ f.columns }}</td>
+              <td class="px-5 py-2 mono text-body">{{ f.references }}</td>
+              <td class="px-5 py-2 mono text-muted text-xs">{{ f.constraint }}</td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
                 <button hx-get="{% url 'table_detail' connection.pk %}?schema={{ f.schema|urlencode }}&table={{ f.table|urlencode }}"
                         hx-target="#detail" hx-swap="innerHTML"
-                        class="text-xs text-zinc-400 hover:text-zinc-200">{% trans "manage →" %}</button>
+                        class="text-xs text-body hover:text-strong">{% trans "manage →" %}</button>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
-      <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
+      <div class="px-5 py-2 border-t border-line text-xs text-body">
         {% blocktrans %}PostgreSQL doesn't auto-index the referencing side of a foreign key, so FK checks, cascade deletes and joins to the parent scan the whole table. A fact, not a rule — index if these paths are hot.{% endblocktrans %}
       </div>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "Every foreign key has a supporting index. 🎉" %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "Every foreign key has a supporting index. 🎉" %}</p>
     {% endif %}
   </section>
 
   <!-- Redundant indexes: leading-prefix of / identical to another index -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800">
-      <span class="text-xs uppercase tracking-wide text-zinc-400">
-        {% trans "Redundant indexes" %} <span class="mono lowercase text-zinc-500">covered by another index on the same table</span>
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-line">
+      <span class="text-xs uppercase tracking-wide text-body">
+        {% trans "Redundant indexes" %} <span class="mono lowercase text-muted">covered by another index on the same table</span>
       </span>
     </div>
     {% if duplicates %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Redundant index" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Covered by" %}</th>
@@ -273,45 +273,45 @@
         </thead>
         <tbody>
           {% for d in duplicates %}
-            <tr class="border-b border-zinc-800/60">
-              <td class="px-5 py-2 mono text-zinc-400">{{ d.qualified }}</td>
+            <tr class="border-b border-line/60">
+              <td class="px-5 py-2 mono text-body">{{ d.qualified }}</td>
               <td class="px-5 py-2 mono">
-                {{ d.name }} <span class="text-zinc-500">({{ d.columns }})</span>
-                {% if d.identical %}<span class="ml-1 text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">{% trans "identical" %}</span>{% endif %}
+                {{ d.name }} <span class="text-muted">({{ d.columns }})</span>
+                {% if d.identical %}<span class="ml-1 text-xs px-1.5 py-0.5 rounded bg-warn/15 text-warn">{% trans "identical" %}</span>{% endif %}
               </td>
-              <td class="px-5 py-2 mono text-zinc-400">{{ d.covered_by }} <span class="text-zinc-600">({{ d.covered_by_columns }})</span></td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ d.size|default:"—" }}</td>
+              <td class="px-5 py-2 mono text-body">{{ d.covered_by }} <span class="text-faint">({{ d.covered_by_columns }})</span></td>
+              <td class="px-5 py-2 mono text-body text-right tabular-nums">{{ d.size|default:"—" }}</td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
                 <button hx-get="{% url 'table_detail' connection.pk %}?schema={{ d.schema|urlencode }}&table={{ d.table|urlencode }}"
                         hx-target="#detail" hx-swap="innerHTML"
-                        class="text-xs text-zinc-400 hover:text-zinc-200">{% trans "manage →" %}</button>
+                        class="text-xs text-body hover:text-strong">{% trans "manage →" %}</button>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
-      <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
+      <div class="px-5 py-2 border-t border-line text-xs text-body">
         {% blocktrans %}A non-unique index whose columns are a leading prefix of (or identical to) another — the wider index already serves its lookups. Dropping the redundant one is your call.{% endblocktrans %}
       </div>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No redundant indexes — no index is covered by another. 🎉" %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "No redundant indexes — no index is covered by another. 🎉" %}</p>
     {% endif %}
   </section>
 
   <!-- Unenforced references: NOT VALID FKs + inferred *_id columns; where
        orphan rows can hide. Each row offers an on-demand read-only orphan count. -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800">
-      <span class="text-xs uppercase tracking-wide text-zinc-400">
-        {% trans "Unenforced references" %} <span class="mono lowercase text-zinc-500">NOT VALID FKs · *_id columns with no FK</span>
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-line">
+      <span class="text-xs uppercase tracking-wide text-body">
+        {% trans "Unenforced references" %} <span class="mono lowercase text-muted">NOT VALID FKs · *_id columns with no FK</span>
       </span>
     </div>
     {% if not supports_orphans %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "Not applicable to this engine — InnoDB has no NOT VALID clause, so a declared foreign key is always enforced and can't carry orphan rows." %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "Not applicable to this engine — InnoDB has no NOT VALID clause, so a declared foreign key is always enforced and can't carry orphan rows." %}</p>
     {% elif orphan_candidates %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Columns" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "References" %}</th>
@@ -321,22 +321,22 @@
         </thead>
         <tbody>
           {% for o in orphan_candidates %}
-            <tr class="border-b border-zinc-800/60">
+            <tr class="border-b border-line/60">
               <td class="px-5 py-2 mono">{{ o.qualified }}</td>
-              <td class="px-5 py-2 mono text-zinc-300">{{ o.columns }}</td>
-              <td class="px-5 py-2 mono text-zinc-400">{{ o.references }} <span class="text-zinc-600">({{ o.ref_columns }})</span></td>
+              <td class="px-5 py-2 mono text-strong">{{ o.columns }}</td>
+              <td class="px-5 py-2 mono text-body">{{ o.references }} <span class="text-faint">({{ o.ref_columns }})</span></td>
               <td class="px-5 py-2">
                 {% if o.inferred %}
-                  <span class="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400" title="{% trans 'No FK constraint — inferred from the column name' %}">{% trans "inferred" %}</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-raised text-body" title="{% trans 'No FK constraint — inferred from the column name' %}">{% trans "inferred" %}</span>
                 {% else %}
-                  <span class="text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300" title="{{ o.constraint }}">{% trans "NOT VALID" %}</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-warn/15 text-warn" title="{{ o.constraint }}">{% trans "NOT VALID" %}</span>
                 {% endif %}
               </td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
                 <button hx-get="{% url 'orphan_count' connection.pk %}?schema={{ o.schema|urlencode }}&table={{ o.table|urlencode }}{% if o.inferred %}&column={{ o.columns|urlencode }}{% else %}&constraint={{ o.constraint|urlencode }}{% endif %}"
                         hx-target="#orphan-{{ forloop.counter }}" hx-swap="innerHTML"
                         hx-indicator="#orphan-spin-{{ forloop.counter }}"
-                        class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1 hover:border-zinc-600 transition">
+                        class="text-xs text-body border border-line rounded-lg px-3 py-1 hover:border-line-strong transition">
                   {% trans "count orphans →" %}
                   <span id="orphan-spin-{{ forloop.counter }}" class="htmx-indicator">…</span>
                 </button>
@@ -346,31 +346,31 @@
           {% endfor %}
         </tbody>
       </table>
-      <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
+      <div class="px-5 py-2 border-t border-line text-xs text-body">
         {% blocktrans %}A validated foreign key can't have orphans, so only unvalidated FKs and constraint-less <span class="mono">*_id</span> columns appear. Counting scans the table read-only — it never validates or changes anything. A fact, not a rule.{% endblocktrans %}
       </div>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No unvalidated FKs, and every *_id column that names a table is backed by one. 🎉" %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "No unvalidated FKs, and every *_id column that names a table is backed by one. 🎉" %}</p>
     {% endif %}
   </section>
 
   <!-- Dead rows / vacuum: bloat signal + whether (auto)vacuum keeps up -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
-      <span class="text-xs uppercase tracking-wide text-zinc-400">
-        {% trans "Dead rows" %} <span class="mono lowercase text-zinc-500">n_dead_tup · last (auto)vacuum</span>
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-line flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-body">
+        {% trans "Dead rows" %} <span class="mono lowercase text-muted">n_dead_tup · last (auto)vacuum</span>
       </span>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ vacuum_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
-              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
+              class="text-xs text-body border border-line rounded-lg px-3 py-1
+                     hover:border-line-strong transition">{% trans "open in SQL →" %}</button>
     </div>
     {% if not supports_vacuum %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "Not applicable to this engine — InnoDB has no vacuum or dead-tuple model, so there's nothing to report here." %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "Not applicable to this engine — InnoDB has no vacuum or dead-tuple model, so there's nothing to report here." %}</p>
     {% elif vacuum %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
             <th class="px-5 py-2 font-medium text-right">{% trans "Live" %}</th>
             <th class="px-5 py-2 font-medium text-right">{% trans "Dead" %}</th>
@@ -381,44 +381,44 @@
         </thead>
         <tbody>
           {% for v in vacuum %}
-            <tr class="border-b border-zinc-800/60">
+            <tr class="border-b border-line/60">
               <td class="px-5 py-2 mono">{{ v.qualified }}</td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ v.live }}</td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ v.dead }}</td>
+              <td class="px-5 py-2 mono text-body text-right tabular-nums">{{ v.live }}</td>
+              <td class="px-5 py-2 mono text-body text-right tabular-nums">{{ v.dead }}</td>
               <td class="px-5 py-2 text-right tabular-nums">
                 <span class="mono px-1.5 py-0.5 rounded
-                  {% if v.dead_pct >= 50 %}bg-red-500/15 text-red-300
-                  {% elif v.dead_pct >= 20 %}bg-amber-500/15 text-amber-300
-                  {% else %}text-zinc-400{% endif %}">{{ v.dead_pct }}%</span>
+                  {% if v.dead_pct >= 50 %}bg-danger/15 text-danger
+                  {% elif v.dead_pct >= 20 %}bg-warn/15 text-warn
+                  {% else %}text-body{% endif %}">{{ v.dead_pct }}%</span>
               </td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right">{% if v.last_vacuum %}{% blocktrans with t=v.last_vacuum|timesince %}{{ t }} ago{% endblocktrans %}{% else %}{% trans "never" %}{% endif %}</td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right">{% if v.last_analyze %}{% blocktrans with t=v.last_analyze|timesince %}{{ t }} ago{% endblocktrans %}{% else %}{% trans "never" %}{% endif %}</td>
+              <td class="px-5 py-2 mono text-body text-right">{% if v.last_vacuum %}{% blocktrans with t=v.last_vacuum|timesince %}{{ t }} ago{% endblocktrans %}{% else %}{% trans "never" %}{% endif %}</td>
+              <td class="px-5 py-2 mono text-body text-right">{% if v.last_analyze %}{% blocktrans with t=v.last_analyze|timesince %}{{ t }} ago{% endblocktrans %}{% else %}{% trans "never" %}{% endif %}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No table statistics yet." %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "No table statistics yet." %}</p>
     {% endif %}
   </section>
 
   <!-- Bloat estimate: how much space a table wastes (stats-only, approximate) -->
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
-    <div class="px-5 py-2.5 border-b border-zinc-800 flex items-center justify-between gap-3">
-      <span class="text-xs uppercase tracking-wide text-zinc-400">
-        {% trans "Bloat estimate" %} <span class="mono lowercase text-zinc-500">pg_stats · approximate, no scan</span>
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden">
+    <div class="px-5 py-2.5 border-b border-line flex items-center justify-between gap-3">
+      <span class="text-xs uppercase tracking-wide text-body">
+        {% trans "Bloat estimate" %} <span class="mono lowercase text-muted">pg_stats · approximate, no scan</span>
       </span>
       <button hx-get="{% url 'query' connection.pk %}?sql={{ bloat_sql|urlencode }}"
               hx-target="#detail" hx-swap="innerHTML"
-              class="text-xs text-zinc-400 border border-zinc-800 rounded-lg px-3 py-1
-                     hover:border-zinc-600 transition">{% trans "open in SQL →" %}</button>
+              class="text-xs text-body border border-line rounded-lg px-3 py-1
+                     hover:border-line-strong transition">{% trans "open in SQL →" %}</button>
     </div>
     {% if not supports_bloat %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "Not applicable to this engine — there's no MySQL/InnoDB equivalent of the pg_stats bloat estimate." %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "Not applicable to this engine — there's no MySQL/InnoDB equivalent of the pg_stats bloat estimate." %}</p>
     {% elif bloat %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">{% trans "Table" %}</th>
             <th class="px-5 py-2 font-medium text-right">{% trans "Size" %}</th>
             <th class="px-5 py-2 font-medium text-right">{% trans "Wasted (est.)" %}</th>
@@ -428,29 +428,29 @@
         </thead>
         <tbody>
           {% for b in bloat %}
-            <tr class="border-b border-zinc-800/60">
+            <tr class="border-b border-line/60">
               <td class="px-5 py-2 mono">{{ b.qualified }}</td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ b.table_bytes|filesizeformat }}</td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ b.wasted_bytes|filesizeformat }}</td>
+              <td class="px-5 py-2 mono text-body text-right tabular-nums">{{ b.table_bytes|filesizeformat }}</td>
+              <td class="px-5 py-2 mono text-body text-right tabular-nums">{{ b.wasted_bytes|filesizeformat }}</td>
               <td class="px-5 py-2 text-right tabular-nums">
                 <span class="mono px-1.5 py-0.5 rounded
-                  {% if b.wasted_pct >= 50 %}bg-red-500/15 text-red-300
-                  {% elif b.wasted_pct >= 20 %}bg-amber-500/15 text-amber-300
-                  {% else %}text-zinc-400{% endif %}">{{ b.wasted_pct }}%</span>
+                  {% if b.wasted_pct >= 50 %}bg-danger/15 text-danger
+                  {% elif b.wasted_pct >= 20 %}bg-warn/15 text-warn
+                  {% else %}text-body{% endif %}">{{ b.wasted_pct }}%</span>
               </td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right tabular-nums">{{ b.bloat_ratio }}×</td>
+              <td class="px-5 py-2 mono text-body text-right tabular-nums">{{ b.bloat_ratio }}×</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
-      <div class="px-5 py-2 border-t border-zinc-800 text-xs text-zinc-400">
+      <div class="px-5 py-2 border-t border-line text-xs text-body">
         {% blocktrans %}An estimate from planner statistics — run <span class="mono">VACUUM FULL</span> or
         <span class="mono">pg_repack</span> to reclaim. Needs a recent <span class="mono">ANALYZE</span> to be accurate.{% endblocktrans %}
       </div>
     {% elif bloat_error %}
-      <p class="px-5 py-6 text-sm text-amber-300/90">{{ bloat_error }}</p>
+      <p class="px-5 py-6 text-sm text-warn/90">{{ bloat_error }}</p>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">{% trans "No bloat to estimate (or stats not collected yet)." %}</p>
+      <p class="px-5 py-8 text-center text-body text-sm">{% trans "No bloat to estimate (or stats not collected yet)." %}</p>
     {% endif %}
   </section>
 </div>

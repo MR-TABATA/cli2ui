@@ -1,16 +1,16 @@
 {% load i18n %}<div class="space-y-5">
   <div>
     <h2 class="text-lg font-semibold flex items-center gap-2"><span>💾</span> {% trans "Backups" %}</h2>
-    <p class="text-xs text-zinc-400">{% blocktrans %}Automatic safety snapshots taken just before a destructive operation. Restore one into a <span class="text-zinc-300">new</span> database — an existing one is never overwritten.{% endblocktrans %}</p>
+    <p class="text-xs text-body">{% blocktrans %}Automatic safety snapshots taken just before a destructive operation. Restore one into a <span class="text-strong">new</span> database — an existing one is never overwritten.{% endblocktrans %}</p>
   </div>
 
   {% include "partials/_banner.html" %}
 
-  <section class="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+  <section class="bg-panel/60 border border-line rounded-xl overflow-hidden">
     {% if backups %}
       <table class="w-full text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-zinc-400">
-          <tr class="border-b border-zinc-800">
+        <thead class="text-left text-xs uppercase tracking-wide text-body">
+          <tr class="border-b border-line">
             <th class="px-5 py-2 font-medium">{% trans "Before" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Target" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Source DB" %}</th>
@@ -21,34 +21,34 @@
         </thead>
         {% for b in backups %}
           <tbody x-data="{ res: false }">
-            <tr class="border-b border-zinc-800/60">
-              <td class="px-5 py-2 mono text-zinc-300">{{ b.operation }}</td>
-              <td class="px-5 py-2 mono text-zinc-400 truncate max-w-[220px]">{{ b.target }}</td>
-              <td class="px-5 py-2 mono text-zinc-400">{{ b.dbname }}</td>
-              <td class="px-5 py-2 mono text-zinc-400 text-right">{{ b.pretty_size }}</td>
-              <td class="px-5 py-2 text-zinc-400" title="{{ b.created_at }}">{% blocktrans with t=b.created_at|timesince %}{{ t }} ago{% endblocktrans %}</td>
+            <tr class="border-b border-line/60">
+              <td class="px-5 py-2 mono text-strong">{{ b.operation }}</td>
+              <td class="px-5 py-2 mono text-body truncate max-w-[220px]">{{ b.target }}</td>
+              <td class="px-5 py-2 mono text-body">{{ b.dbname }}</td>
+              <td class="px-5 py-2 mono text-body text-right">{{ b.pretty_size }}</td>
+              <td class="px-5 py-2 text-body" title="{{ b.created_at }}">{% blocktrans with t=b.created_at|timesince %}{{ t }} ago{% endblocktrans %}</td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
                 <div x-show="!res" class="flex items-center gap-3 justify-end">
-                  <button @click="res = true" type="button" class="text-xs text-sky-300/80 hover:text-sky-200">{% trans "restore" %}</button>
+                  <button @click="res = true" type="button" class="text-xs text-info/80 hover:text-info">{% trans "restore" %}</button>
                   <a href="{% url 'backup_download' connection.pk %}?id={{ b.pk }}"
-                     class="text-xs text-zinc-400 hover:text-zinc-200">{% trans "download" %}</a>
+                     class="text-xs text-body hover:text-strong">{% trans "download" %}</a>
                   <form hx-post="{% url 'backup_delete' connection.pk %}" hx-target="#detail" hx-swap="innerHTML"
                         hx-confirm="{% trans 'Delete this snapshot? The dump is gone for good.' %}">
                     <input type="hidden" name="id" value="{{ b.pk }}">
-                    <button type="submit" class="text-xs text-red-400/80 hover:text-red-300">{% trans "delete" %}</button>
+                    <button type="submit" class="text-xs text-danger/80 hover:text-danger">{% trans "delete" %}</button>
                   </form>
                 </div>
                 <form x-show="res" x-cloak hx-post="{% url 'backup_restore' connection.pk %}"
                       hx-target="#detail" hx-swap="innerHTML" hx-disabled-elt="find button[type=submit]"
                       class="flex items-center gap-1.5 justify-end">
                   <input type="hidden" name="id" value="{{ b.pk }}">
-                  <span class="text-xs text-zinc-400">{% trans "→ new db" %}</span>
+                  <span class="text-xs text-body">{% trans "→ new db" %}</span>
                   <input name="name" placeholder="new_database" autocomplete="off" required
-                         class="bg-zinc-950 border border-zinc-700 rounded px-2 py-0.5 text-xs mono w-36
-                                text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-sky-400">
-                  <button type="submit" class="text-xs text-sky-300 hover:text-sky-200">{% trans "restore" %}</button>
-                  <span class="htmx-indicator spinner text-sky-300"></span>
-                  <button @click="res = false" type="button" class="text-xs text-zinc-400 hover:text-zinc-300">{% trans "cancel" %}</button>
+                         class="bg-canvas border border-line-strong rounded px-2 py-0.5 text-xs mono w-36
+                                text-heading placeholder-line-strong focus:outline-none focus:border-info">
+                  <button type="submit" class="text-xs text-info hover:text-info">{% trans "restore" %}</button>
+                  <span class="htmx-indicator spinner text-info"></span>
+                  <button @click="res = false" type="button" class="text-xs text-body hover:text-strong">{% trans "cancel" %}</button>
                 </form>
               </td>
             </tr>
@@ -56,7 +56,7 @@
         {% endfor %}
       </table>
     {% else %}
-      <p class="px-5 py-8 text-center text-zinc-400 text-sm">
+      <p class="px-5 py-8 text-center text-body text-sm">
         {% blocktrans %}No snapshots yet. One is taken automatically before you drop or truncate something.{% endblocktrans %}
       </p>
     {% endif %}
