@@ -11,6 +11,10 @@
       try {
         var t = localStorage.getItem("cli2ui-theme") || "dark";
         document.documentElement.setAttribute("data-theme", t);
+        if (t === "custom") {
+          var raw = localStorage.getItem("cli2ui-custom");
+          if (raw) window.__cli2uiCustom = JSON.parse(raw);
+        }
       } catch (e) { /* localStorage が使えなくても既定のダークで動く */ }
     })();
   </script>
@@ -329,6 +333,33 @@ body の高さを画面に固定し、main を伸縮させ、動くのはデー�
                 class="topnav-btn">{% trans "明" %}</button>
         <button type="button" data-set-theme="dark" title="{% trans '暗い' %}"
                 class="topnav-btn">{% trans "暗" %}</button>
+        <div class="relative">
+          <button type="button" data-set-theme="custom" title="{% trans '自分で決める' %}"
+                  class="topnav-btn">{% trans "自作" %}</button>
+          <div data-custom-panel hidden
+               class="absolute right-0 mt-1 w-64 p-3 rounded-lg border border-line bg-panel
+                      shadow-lg z-50 space-y-2.5">
+            <p class="text-xs text-muted leading-relaxed">
+              {% trans "3 色だけ決めます。面・罫線・見出しなどはここから導き、危険/警告/情報の色は意味を保つため触りません。" %}
+            </p>
+            <label class="flex items-center justify-between gap-2 text-sm text-body">
+              {% trans "地" %}   <input type="color" data-c="canvas" class="h-7 w-12 rounded border border-line bg-transparent">
+            </label>
+            <label class="flex items-center justify-between gap-2 text-sm text-body">
+              {% trans "文字" %} <input type="color" data-c="body"   class="h-7 w-12 rounded border border-line bg-transparent">
+            </label>
+            <label class="flex items-center justify-between gap-2 text-sm text-body">
+              {% trans "主操作" %} <input type="color" data-c="accent" class="h-7 w-12 rounded border border-line bg-transparent">
+            </label>
+            <p data-custom-warn hidden
+               class="text-xs leading-relaxed rounded px-2 py-1.5 bg-warn/20 text-warn border border-warn/45">
+              {% trans "地と文字が近すぎます。導出では救えないので、どちらかを離してください。" %}
+              <span data-custom-ratio class="mono"></span>
+            </p>
+            <button type="button" data-custom-reset
+                    class="btn btn-sm btn-neutral w-full">{% trans "既定に戻す" %}</button>
+          </div>
+        </div>
       </div>
       <form action="{% url 'set_language' %}" method="post" class="flex items-center gap-1">
         {% csrf_token %}
@@ -346,21 +377,165 @@ body の高さを画面に固定し、main を伸縮させ、動くのはデー�
   </main>
   <script>
     // テーマの切り替え。押した瞬間に当てて、localStorage に残す。
+    //
+    // 「自作」は 3 色（地・文字・主操作）だけ受け取り、面・罫線・見出しなどは
+    // そこから導く。**危険 / 警告 / 情報 / カタログの色は触らない** ―― 色＝意図で、
+    // 赤が赤でなくなると意味が壊れる（STYLE.md）。地の明るさで明暗どちらの組かを選ぶ。
     (function () {
+      var root = document.documentElement;
+      var KEYS = ["canvas", "body", "accent"];
+      var DEFAULTS = {
+        dark:  { canvas: "#09090b", body: "#a1a1aa", accent: "#34d399" },
+        light: { canvas: "#ffffff", body: "#52525b", accent: "#059669" }
+      };
+
+      function hex2rgb(h) {
+        h = h.replace("#", "");
+        if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+        return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+      }
+      function rgb2hex(c) {
+        return "#" + c.map(function (v) { return Math.round(v).toString(16).padStart(2,"0"); }).join("");
+      }
+      function mix(a, b, t) { return a.map(function (v, i) { return v + (b[i]-v) * t; }); }
+      function lum(c) {
+        var f = function (v) { v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); };
+        return 0.2126*f(c[0]) + 0.7152*f(c[1]) + 0.0722*f(c[2]);
+      }
+      function css(c) { return c.map(function(v){ return Math.round(v); }).join(" "); }
+      function ratio(a, b) {
+        var x = lum(a) + 0.05, y = lum(b) + 0.05;
+        return Math.max(x, y) / Math.min(x, y);
+      }
+      // fg を bg へ t だけ寄せる。ただし比が min を切るなら、切らない所まで戻す。
+      function fade(fg, bg, t, min) {
+        var out = mix(fg, bg, t);
+        if (ratio(out, bg) >= min) return out;
+        var lo = 0, hi = t;
+        for (var i = 0; i < 12; i++) {          // 二分探索で 12 回。十分近づく
+          var mid = (lo + hi) / 2, c = mix(fg, bg, mid);
+          if (ratio(c, bg) >= min) lo = mid; else hi = mid;
+        }
+        return mix(fg, bg, lo);
+      }
+
+      // 3 色から 20 個の役割を導く
+      function derive(cv, bd, ac) {
+        var dark = lum(cv) < 0.5;                 // 地が暗いか
+        var far  = dark ? [255,255,255] : [0,0,0]; // 地から一番遠い側
+        var set = {
+          canvas: cv,
+          panel:      mix(cv, bd, 0.08),
+          raised:     mix(cv, bd, 0.16),
+          input:      dark ? mix(cv, far, 0.02) : cv,
+          line:       mix(cv, bd, 0.20),
+          "line-strong": mix(cv, bd, 0.34),
+          body: bd,
+          heading:    mix(bd, far, 0.62),
+          strong:     mix(bd, far, 0.38),
+          // 薄い文字は「地に寄せる」で作るが、**寄せすぎると地に埋まる**。
+          // Solarized のように地と文字が元々近いテーマで沈んだ（比 2.0）。
+          // 比 3.0 を切らない所で止める。
+          muted:      fade(bd, cv, 0.22, 3.2),
+          faint:      fade(bd, cv, 0.38, 3.0),
+          accent: ac,
+          "on-accent": lum(ac) > 0.45 ? [9,9,11] : [255,255,255]
+        };
+        // 意図の色は触らない。地の明暗に合う組を使う。
+        var intent = dark
+          ? { danger:[248,113,113], warn:[251,191,36], info:[125,211,252], catalog:[196,181,253] }
+          : { danger:[220,38,38],  warn:[217,119,6],  info:[2,132,199],   catalog:[109,40,217] };
+        for (var k in intent) set[k] = intent[k];
+        return set;
+      }
+
+      function apply(c) {
+        var cv = hex2rgb(c.canvas), bd = hex2rgb(c.body);
+        var set = derive(cv, bd, hex2rgb(c.accent));
+        for (var k in set) root.style.setProperty("--c-" + k, css(set[k]));
+        root.style.setProperty("--c-scrim", lum(cv) < 0.5 ? ".5" : ".25");
+        root.style.setProperty("--c-shadow", lum(cv) < 0.5 ? ".45" : ".12");
+
+        // **導出で救えない場合がある。**種の 2 色が近ければ、寄せ方を工夫しても
+        // 本文そのものが読めない。黙って薄い画面を出すより、言う。
+        var q = ratio(bd, cv);
+        var warn = document.querySelector("[data-custom-warn]");
+        var num  = document.querySelector("[data-custom-ratio]");
+        // 閾値は 3.0。4.5 にしたら Solarized Light（4.1）まで鳴った ―― あれは実用されている
+        // テーマなので、あれで鳴るなら誤報。**誤報する警告は、そのうち読まれなくなる。**
+        if (warn) warn.hidden = q >= 3.0;
+        if (num)  num.textContent = "(" + q.toFixed(1) + " : 1)";
+      }
+      function clearInline() {
+        ["canvas","panel","raised","input","line","line-strong","heading","strong","body",
+         "muted","faint","accent","on-accent","danger","warn","info","catalog","scrim","shadow"]
+          .forEach(function (k) { root.style.removeProperty("--c-" + k); });
+      }
+      function read() {
+        try { return JSON.parse(localStorage.getItem("cli2ui-custom")) || null; } catch (e) { return null; }
+      }
+      function save(c) { try { localStorage.setItem("cli2ui-custom", JSON.stringify(c)); } catch (e) {} }
+      function current() {
+        // 保存が無ければ、いま見えているテーマを種にする
+        var got = read();
+        if (got) return got;
+        var was = root.getAttribute("data-theme");
+        var cs = getComputedStyle(root);
+        var pick = function (n) { return rgb2hex(cs.getPropertyValue("--c-" + n).trim().split(/\s+/).map(Number)); };
+        return { canvas: pick("canvas"), body: pick("body"), accent: pick("accent") };
+      }
+
       function mark() {
-        var now = document.documentElement.getAttribute("data-theme");
+        var now = root.getAttribute("data-theme");
         document.querySelectorAll("[data-set-theme]").forEach(function (b) {
           b.classList.toggle("topnav-btn-on", b.dataset.setTheme === now);
         });
+        var panel = document.querySelector("[data-custom-panel]");
+        if (panel) panel.hidden = (now !== "custom");
       }
+
+      // 起動時: custom なら当てる
+      if (root.getAttribute("data-theme") === "custom") {
+        var got = read(); if (got) apply(got);
+      }
+
       document.addEventListener("click", function (e) {
         var b = e.target.closest("[data-set-theme]");
-        if (!b) return;
-        var t = b.dataset.setTheme;
-        document.documentElement.setAttribute("data-theme", t);
-        try { localStorage.setItem("cli2ui-theme", t); } catch (err) {}
-        mark();
+        if (b) {
+          var t = b.dataset.setTheme;
+          if (t === "custom") {
+            var c = current();
+            root.setAttribute("data-theme", "custom");
+            apply(c); save(c);
+            document.querySelectorAll("[data-c]").forEach(function (i) { i.value = c[i.dataset.c]; });
+          } else {
+            clearInline();
+            root.setAttribute("data-theme", t);
+          }
+          try { localStorage.setItem("cli2ui-theme", t); } catch (err) {}
+          mark();
+          return;
+        }
+        if (e.target.closest("[data-custom-reset]")) {
+          var dark = root.getAttribute("data-theme") === "custom"
+                     && lum(hex2rgb(current().canvas)) < 0.5;
+          var d = DEFAULTS[dark ? "dark" : "light"];
+          apply(d); save(d);
+          document.querySelectorAll("[data-c]").forEach(function (i) { i.value = d[i.dataset.c]; });
+          return;
+        }
+        // 自作パネルの外を押したら閉じる（テーマ自体は custom のまま）
+        var panel = document.querySelector("[data-custom-panel]");
+        if (panel && !panel.hidden && !e.target.closest("[data-custom-panel]")) panel.hidden = true;
       });
+
+      document.addEventListener("input", function (e) {
+        var i = e.target.closest("[data-c]");
+        if (!i) return;
+        var c = current(); c[i.dataset.c] = i.value;
+        apply(c); save(c);
+      });
+
       mark();
     })();
   </script>
