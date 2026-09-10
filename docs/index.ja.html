@@ -23,9 +23,19 @@
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: "class" }</script>
+  <!-- 英数は Inter、日本語は Noto Sans JP。ラテン部分に Noto の英数を使わせない。 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Noto+Sans+JP:wght@400..700&display=swap" rel="stylesheet">
   <style>
     html { scroll-behavior: smooth; }
-    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; }
+    /* 明るい下地では文字がにじまないぶん細く見える。日本語（Hiragino Sans）は
+       標準ウェイトが元々細いので、本文だけ 1 段持ち上げる。
+       antialiased（グレースケール描画）は body から外した —— 暗い下地では
+       太りすぎを抑えるために効くが、明るい下地ではただ細くなる。 */
+    body { font-family: "Inter", "Noto Sans JP", ui-sans-serif, system-ui, sans-serif;
+           -webkit-font-smoothing: auto; text-rendering: optimizeLegibility; }
+    p, li, figcaption, .feat-row p, .feat-hero p { font-weight: 500; }
     .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
 
     /* パレットはアプリ（STYLE.md）に準拠: zinc-950=面, emerald=主操作,
@@ -34,42 +44,149 @@
            white-space: nowrap; border: 1px solid transparent; border-radius: .5rem;
            padding: .625rem 1.1rem; font-size: .9rem; font-weight: 500; cursor: pointer;
            transition: color .15s, background-color .15s, border-color .15s; }
-    .btn-primary { background: #34d399; color: #09090b; }
-    .btn-primary:hover { background: #6ee7b7; }
-    .btn-neutral { border-color: #3f3f46; color: #d4d4d8; }
-    .btn-neutral:hover { border-color: #71717a; color: #f4f4f5; }
+    .btn-primary { background: #059669; color: #ffffff; }
+    .btn-primary:hover { background: #047857; }
+    .btn-neutral { border-color: #d4d4d8; color: #3f3f46; }
+    .btn-neutral:hover { border-color: #a1a1aa; color: #09090b; }
 
     .hero-grid {
       background-image:
-        radial-gradient(60rem 30rem at 50% -8rem, rgba(52,211,153,.10), transparent 70%),
-        linear-gradient(rgba(63,63,70,.18) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(63,63,70,.18) 1px, transparent 1px);
+        radial-gradient(60rem 30rem at 50% -8rem, rgba(5,150,105,.09), transparent 70%),
+        linear-gradient(rgba(9,9,11,.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(9,9,11,.05) 1px, transparent 1px);
       background-size: 100% 100%, 2.5rem 2.5rem, 2.5rem 2.5rem;
       -webkit-mask-image: linear-gradient(#000, transparent 92%);
               mask-image: linear-gradient(#000, transparent 92%);
     }
-    .card { background: rgba(24,24,27,.6); border: 1px solid #27272a; border-radius: .75rem; }
-    .prompt::before { content: "$ "; color: #34d399; }
+    /* 暗いスクリーンショットを、明るい紙の上に「置いた」ように見せる。
+       暗いページでは溶けていた部分。 */
+    figure img, .shot img { border-radius: .5rem; }
+    figure > div, .shot { border: 1px solid #e4e4e7; border-radius: .625rem; overflow: hidden;
+                          box-shadow: 0 2px 4px rgba(9,9,11,.06), 0 12px 28px rgba(9,9,11,.10); }
+
+    .card { background: #ffffff; border: 1px solid #e4e4e7; border-radius: .75rem;
+            box-shadow: 0 1px 2px rgba(9,9,11,.04), 0 1px 1px rgba(9,9,11,.03); }
+
+    /* 暗い面では影が効かない（黒に黒を落としても見えない）ので、面を 1 段明るくして
+       上端に 1px のハイライトを置く。色は足さない —— emerald 等は意図（主操作・
+       破壊的・警告）のためのもので、装飾に使うとアプリで覚えた意味に嘘をつく（STYLE.md）。 */
+    .feat-hero {
+      background: #ffffff;
+      border: 1px solid #e4e4e7;
+      border-radius: .75rem;
+      /* 明るい側では影が効く。暗い側では作れなかった奥行きがここで出る。 */
+      box-shadow: 0 1px 2px rgba(9,9,11,.05), 0 4px 12px rgba(9,9,11,.05);
+    }
+    .feat-list {
+      display: grid; gap: 1px;
+      background: #e4e4e7;
+      border: 1px solid #e4e4e7;
+      border-radius: .75rem; overflow: hidden;
+    }
+    .feat-row { background: #ffffff; }
+
+    /* 目玉だけ、絵を大きく置いて左右へ振る。中央の縦線が「まだ続く」を示す。
+       TablePlus の作り。絵が入るぶん、文章は短くせざるを得なくなる。 */
+    .hero-rail { position: relative; }
+    .hero-rail > .hero-item { padding: 3.5rem 0; }
+    .hero-rail > .hero-item:first-child { padding-top: 1rem; }
+    @media (min-width: 1024px) {
+      .hero-rail::before {
+        content: ""; position: absolute; left: 50%; top: 0; bottom: 0;
+        width: 2px; margin-left: -1px; background: #e4e4e7;
+      }
+      .hero-rail > .hero-item { position: relative; }
+      .hero-rail > .hero-item::before {
+        content: ""; position: absolute; left: 50%; top: 50%;
+        width: .625rem; height: .625rem; margin: -.3125rem 0 0 -.3125rem;
+        border-radius: 50%; background: #059669;
+        box-shadow: 0 0 0 4px #ffffff;
+      }
+    }
+
+    /* 6 個をタブに畳む。JS なし（ラジオ + 兄弟セレクタ）。
+       同じ場所で絵が入れ替わるので、縦に 6 個並べるより短く、絵は大きく置ける。 */
+    .tabs .tabin { position: absolute; opacity: 0; pointer-events: none; }
+    .tablist { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .tablist label {
+      cursor: pointer; font-size: .875rem; padding: .4rem .9rem; border-radius: 9999px;
+      border: 1px solid #e4e4e7; color: #52525b; background: #fff;
+      transition: color .15s, border-color .15s, background-color .15s;
+    }
+    .tablist label:hover { border-color: #a1a1aa; color: #18181b; }
+    .panels > .panel { display: none; margin-top: 1.5rem; }
+    #dr0:checked ~ .tablist label:nth-of-type(1) { background: #059669; border-color: #059669; color: #fff; }
+    #dr0:checked ~ .panels > .panel:nth-of-type(1) { display: block; }
+    #dr1:checked ~ .tablist label:nth-of-type(2) { background: #059669; border-color: #059669; color: #fff; }
+    #dr1:checked ~ .panels > .panel:nth-of-type(2) { display: block; }
+    #dr2:checked ~ .tablist label:nth-of-type(3) { background: #059669; border-color: #059669; color: #fff; }
+    #dr2:checked ~ .panels > .panel:nth-of-type(3) { display: block; }
+    #dr3:checked ~ .tablist label:nth-of-type(4) { background: #059669; border-color: #059669; color: #fff; }
+    #dr3:checked ~ .panels > .panel:nth-of-type(4) { display: block; }
+    #dr4:checked ~ .tablist label:nth-of-type(5) { background: #059669; border-color: #059669; color: #fff; }
+    #dr4:checked ~ .panels > .panel:nth-of-type(5) { display: block; }
+    #dr5:checked ~ .tablist label:nth-of-type(6) { background: #059669; border-color: #059669; color: #fff; }
+    #dr5:checked ~ .panels > .panel:nth-of-type(6) { display: block; }
+
+    /* 暗いスクショを、明るい紙の上に直に置くと黒い塊に見える。
+       暗い台（マット）に載せて余白を作ると、「額に入った画面」として読める。
+       アプリ側にライトテーマが無いので、site 側で受ける。 */
+
+    /* 画像を押すと原寸で見られる。JS は使わない（:target）。
+       サイト上の表示は 0.45 倍まで縮むので、読みたい人が原寸に行ける道を作る。 */
+    .shot-zoom { display: block; cursor: zoom-in; }
+    .lightbox {
+      position: fixed; inset: 0; z-index: 100;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(9,9,11,.82); padding: 2rem;
+    }
+    .lightbox:target { display: flex; }
+    .lightbox > img {
+      max-width: min(100%, 1380px); max-height: 90vh; width: auto; height: auto;
+      border-radius: .5rem; box-shadow: 0 24px 60px rgba(0,0,0,.5);
+    }
+    .lightbox-close { position: absolute; inset: 0; cursor: zoom-out; }
+    .shot-big { background: #18181b; padding: .75rem; border: 1px solid #27272a;
+                border-radius: .875rem; overflow: hidden;
+                box-shadow: 0 2px 6px rgba(9,9,11,.10), 0 18px 44px rgba(9,9,11,.16); }
+    .shot-big img { border-radius: .375rem; display: block; }
+    .shot-big figcaption.shot-todo { display: none; }
+    .shot-big.shot-missing { display: grid; place-items: center; min-height: 15rem;
+                             background: repeating-linear-gradient(45deg, #fafafa, #fafafa 12px, #f4f4f5 12px, #f4f4f5 24px);
+                             border-style: dashed; box-shadow: none; }
+    .shot-big.shot-missing figcaption.shot-todo { display: block; color: #a1a1aa; font-size: .8125rem; }
+
+    /* 1 行だけ見せて、仕組みは畳む。ランディングは「何が起きるか」、
+       ドキュメントは「どう動くか」。1 画面に両方を出すと読まれない。 */
+    details.more > summary {
+      list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: .25rem;
+      font-size: .8125rem; color: #71717a; user-select: none;
+    }
+    details.more > summary::-webkit-details-marker { display: none; }
+    details.more > summary::before { content: "▸"; font-size: .7rem; transition: transform .15s; }
+    details.more[open] > summary::before { transform: rotate(90deg); }
+    details.more > summary:hover { color: #059669; }                     /* 面。ページより一段だけ上 */
+    .prompt::before { content: "$ "; color: #059669; }
     .scroll-link { scroll-margin-top: 4rem; }
-    .lang select { background: transparent; color: #a1a1aa; border: 1px solid #3f3f46;
+    .lang select { background: transparent; color: #52525b; border: 1px solid #d4d4d8;
                    border-radius: .5rem; padding: .25rem .5rem; font-size: .8rem; cursor: pointer; }
-    .lang select:hover { color: #f4f4f5; border-color: #71717a; }
-    .lang option { background: #18181b; }
+    .lang select:hover { color: #09090b; border-color: #a1a1aa; }
+    .lang option { background: #ffffff; }
   </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 antialiased selection:bg-emerald-400/30">
+<body class="bg-white text-zinc-900 selection:bg-emerald-200">
 
   <!-- ヘッダー -->
-  <header class="sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950/85 backdrop-blur">
+  <header class="sticky top-0 z-20 border-b border-zinc-200 bg-white/85 backdrop-blur">
     <div class="max-w-6xl mx-auto px-6 h-14 flex items-center gap-4">
       <a href="#top" class="text-lg font-semibold tracking-tight">
-        cli<span class="text-emerald-400">2</span>ui
+        cli<span class="text-emerald-700">2</span>ui
       </a>
-      <nav class="ml-auto flex items-center gap-1 text-sm text-zinc-400">
-        <a href="#how" class="hidden sm:inline px-3 py-1.5 rounded-lg hover:text-zinc-100 hover:bg-zinc-900 transition">仕組み</a>
-        <a href="#screens" class="hidden sm:inline px-3 py-1.5 rounded-lg hover:text-zinc-100 hover:bg-zinc-900 transition">画面</a>
-        <a href="#features" class="hidden md:inline px-3 py-1.5 rounded-lg hover:text-zinc-100 hover:bg-zinc-900 transition">機能</a>
-        <a href="#principles" class="hidden md:inline px-3 py-1.5 rounded-lg hover:text-zinc-100 hover:bg-zinc-900 transition">設計思想</a>
+      <nav class="ml-auto flex items-center gap-1 text-sm text-zinc-700">
+        <a href="#how" class="hidden sm:inline px-3 py-1.5 rounded-lg hover:text-zinc-900 hover:bg-zinc-100 transition">仕組み</a>
+        <a href="#screens" class="hidden sm:inline px-3 py-1.5 rounded-lg hover:text-zinc-900 hover:bg-zinc-100 transition">画面</a>
+        <a href="#features" class="hidden md:inline px-3 py-1.5 rounded-lg hover:text-zinc-900 hover:bg-zinc-100 transition">機能</a>
+        <a href="#principles" class="hidden md:inline px-3 py-1.5 rounded-lg hover:text-zinc-900 hover:bg-zinc-100 transition">設計思想</a>
         <a href="https://github.com/MR-TABATA/cli2ui" class="btn btn-neutral !py-1.5 !px-3 ml-1">GitHub</a>
         <span class="lang ml-1">
           <select onchange="location.href=this.value;" aria-label="言語">
@@ -85,18 +202,18 @@
   <section id="top" class="relative overflow-hidden">
     <div class="hero-grid absolute inset-0 -z-10"></div>
     <div class="max-w-6xl mx-auto px-6 pt-20 pb-16 sm:pt-28 sm:pb-24">
-      <div class="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1 text-xs text-zinc-400 mb-6">
+      <div class="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50/60 px-3 py-1 text-xs text-zinc-700 mb-6">
         <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
         ローカル完結 · AIなし · SaaSなし
       </div>
 
       <h1 class="text-4xl sm:text-6xl font-semibold tracking-tight leading-[1.15] max-w-3xl">
-        CLI のDB操作を、<br><span class="text-emerald-400">ボタンで。</span>
+        CLI のDB操作を、<br><span class="text-emerald-700">ボタンで。</span>
       </h1>
 
-      <p class="mt-6 text-lg text-zinc-300 max-w-2xl leading-relaxed">
+      <p class="mt-6 text-lg text-zinc-700 max-w-2xl leading-relaxed">
         うろ覚えの DB CLI コマンドを Web UI に。AIなし、魔法なし —
-        <span class="mono text-zinc-100">psql / mysql</span> の操作をクリックに変え、
+        <span class="mono text-zinc-900">psql / mysql</span> の操作をクリックに変え、
         すべて自分のマシン上で動きます。
       </p>
 
@@ -112,9 +229,9 @@
         <span class="text-sm text-zinc-500 mono ml-1">MIT · PostgreSQL &amp; MySQL</span>
       </div>
 
-      <p class="mt-10 text-zinc-400 max-w-2xl leading-relaxed">
-        対象は <span class="text-zinc-200">アプリ開発者・個人開発者</span> —— DBA ではありません。
-        コンセプトは <span class="text-zinc-100">「やろうと決めて3分後にはテーブルを眺めている」</span>。
+      <p class="mt-10 text-zinc-700 max-w-2xl leading-relaxed">
+        対象は <span class="text-zinc-800">アプリ開発者・個人開発者</span> —— DBA ではありません。
+        コンセプトは <span class="text-zinc-900">「やろうと決めて3分後にはテーブルを眺めている」</span>。
         インストールの長旅も、接続ウィザードの迷路も、入れ子ツリーの探索もなし。
         そして「デモDBはどこかで探してきてね」の宿題もなし —— サンプルデータは同梱、接続フォームに配線済みです。
       </p>
@@ -122,46 +239,77 @@
   </section>
 
   <!-- 実行の前に: 出荷済みの dry-run 家族 -->
-  <section class="max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
-    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">実行の前に</h2>
+  <section class="max-w-6xl mx-auto px-6 py-16 border-t border-zinc-200">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-700">実行の前に</h2>
     <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">
       押す前に、結果を見る。
     </p>
-    <p class="mt-4 text-zinc-400 max-w-2xl leading-relaxed">
+    <p class="mt-4 text-zinc-700 max-w-2xl leading-relaxed">
       危ないのは操作そのものより、やってみるまで分からないことです。
       答えを出せるものは、先に出します —— どれも本番の DB に何も残しません。
     </p>
-    <div class="mt-8 grid gap-px bg-zinc-800 border border-zinc-800 rounded-xl overflow-hidden sm:grid-cols-2">
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">いつ実行計画が崩れるか、崩れる前に</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">データが100倍でも100倍遅いとは限りません。索引が効いていればほぼ変わらず、崩れたときは桁違いに悪くなる —— 掛け算では予測できない。100倍・10000倍に増えたことにして <span class="mono">EXPLAIN</span> し、<span class="text-zinc-200">崩れる場所に目印を付けます</span>。100倍は同じ形、10000倍で崩れる、が押す前に分かります。分かるのは実行計画の形であって、速度そのものではありません。</p>
+    <div class="tabs mt-10">
+        <input type="radio" name="dryrun" id="dr0" class="tabin" checked>
+        <input type="radio" name="dryrun" id="dr1" class="tabin">
+        <input type="radio" name="dryrun" id="dr2" class="tabin">
+        <div class="tablist">
+          <label for="dr0">制約違反</label>
+          <label for="dr1">削除順</label>
+          <label for="dr2">読み取り専用</label>
+        </div>
+        <div class="panels">
+<div class="panel">
+            <div class="grid gap-6">
+              <div>
+                <figure class="shot-big">
+                  <a href="#shot-dry-fk" class="shot-zoom" aria-label="拡大して見る"><img src="screenshots/dry-fk.png" alt="制約違反は何行あるか" loading="lazy" class="w-full block"
+                       onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-dry-fk" class="lightbox"><a href="#" class="lightbox-close" aria-label="閉じる"></a><img src="screenshots/dry-fk.png" alt=""></div>
+                  <figcaption class="shot-todo">撮影待ち — <span class="mono">screenshots/dry-fk.png</span></figcaption>
+                </figure>
+              </div>
+              <div class="max-w-3xl">
+                <h3 class="text-lg font-semibold text-zinc-950">制約違反は何行あるか</h3>
+                <p class="mt-2 text-sm text-zinc-700 leading-relaxed">NOT VALID な外部キーの違反行を、検証もせず何も変えずに数えます。</p>
+              </div>
+            </div>
+          </div>
+<div class="panel">
+            <div class="grid gap-6">
+              <div>
+                <figure class="shot-big">
+                  <a href="#shot-dry-order" class="shot-zoom" aria-label="拡大して見る"><img src="screenshots/dry-order.png" alt="消していい順番" loading="lazy" class="w-full block"
+                       onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-dry-order" class="lightbox"><a href="#" class="lightbox-close" aria-label="閉じる"></a><img src="screenshots/dry-order.png" alt=""></div>
+                  <figcaption class="shot-todo">撮影待ち — <span class="mono">screenshots/dry-order.png</span></figcaption>
+                </figure>
+              </div>
+              <div class="max-w-3xl">
+                <h3 class="text-lg font-semibold text-zinc-950">消していい順番</h3>
+                <p class="mt-2 text-sm text-zinc-700 leading-relaxed">外部キーを辿って TRUNCATE の安全な順序と、その逆（投入順）を出します。何も消しません。</p>
+              </div>
+            </div>
+          </div>
+<div class="panel">
+            <div class="grid gap-6">
+              <div>
+                <figure class="shot-big">
+                  <a href="#shot-dry-readonly" class="shot-zoom" aria-label="拡大して見る"><img src="screenshots/dry-readonly.png" alt="何を打っても、書き込めない" loading="lazy" class="w-full block"
+                       onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-dry-readonly" class="lightbox"><a href="#" class="lightbox-close" aria-label="閉じる"></a><img src="screenshots/dry-readonly.png" alt=""></div>
+                  <figcaption class="shot-todo">撮影待ち — <span class="mono">screenshots/dry-readonly.png</span></figcaption>
+                </figure>
+              </div>
+              <div class="max-w-3xl">
+                <h3 class="text-lg font-semibold text-zinc-950">何を打っても、書き込めない</h3>
+                <p class="mt-2 text-sm text-zinc-700 leading-relaxed">SQL ランナーは既定で読み取り専用トランザクション。SQL を解析して弾くのではなく、サーバー自身が書き込みを拒否します。</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">その索引は効くのか</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">本物の索引を張って <span class="mono">EXPLAIN ANALYZE</span> の前後を実測し、ロールバック。作る前に速くなるかが分かります。</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">変更の前と後で、実行計画がどう変わるか</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed"><span class="mono">EXPLAIN</span> は、実行せずに答えを出す道具の元祖です。実行計画を保存しておき、索引を足した後のものと木構造で差分を取れます。</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">制約違反は何行あるか</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed"><span class="mono">NOT VALID</span> な外部キーの違反行を、検証もせず何も変えずに数えます。</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">消していい順番</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">外部キーを辿って <span class="mono">TRUNCATE</span> の安全な順序と、その逆（投入順）を出します。何も消しません。</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">何を打っても、書き込めない</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">SQL ランナーは既定で読み取り専用トランザクション。SQL を解析して弾くのではなく、サーバー自身が書き込みを拒否します。だから試すこと自体が安全です。</p>
-      </div>
-    </div>
   </section>
 
   <!-- 仕組み: before → after -->
-  <section id="how" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
-    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">仕組み</h2>
+  <section id="how" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-200">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-700">仕組み</h2>
     <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">
       毎回ググるコマンドを、ワンクリックに畳む。
     </p>
@@ -169,33 +317,33 @@
     <div class="mt-10 grid gap-4 md:grid-cols-3">
       <div class="card p-5">
         <div class="text-xs text-zinc-500 mb-3">本来打つコマンド</div>
-        <code class="mono block text-[13px] text-zinc-300 break-all">psql -c "SELECT * FROM<br>pg_stat_activity"</code>
-        <div class="my-4 flex items-center gap-2 text-zinc-600">
-          <span class="h-px flex-1 bg-zinc-800"></span>
+        <code class="mono block text-[13px] text-zinc-700 break-all">psql -c "SELECT * FROM<br>pg_stat_activity"</code>
+        <div class="my-4 flex items-center gap-2 text-zinc-400">
+          <span class="h-px flex-1 bg-zinc-200"></span>
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
-          <span class="h-px flex-1 bg-zinc-800"></span>
+          <span class="h-px flex-1 bg-zinc-200"></span>
         </div>
-        <div class="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-sm text-emerald-300">▸ 実行中クエリ</div>
+        <div class="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-sm text-emerald-700">▸ 実行中クエリ</div>
       </div>
 
       <div class="card p-5">
         <div class="text-xs text-zinc-500 mb-3">本来打つコマンド</div>
-        <code class="mono block text-[13px] text-zinc-300 break-all">pg_dump -t users mydb</code>
-        <div class="my-4 flex items-center gap-2 text-zinc-600">
-          <span class="h-px flex-1 bg-zinc-800"></span>
+        <code class="mono block text-[13px] text-zinc-700 break-all">pg_dump -t users mydb</code>
+        <div class="my-4 flex items-center gap-2 text-zinc-400">
+          <span class="h-px flex-1 bg-zinc-200"></span>
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
-          <span class="h-px flex-1 bg-zinc-800"></span>
+          <span class="h-px flex-1 bg-zinc-200"></span>
         </div>
-        <div class="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-sm text-emerald-300">▸ このテーブルをバックアップ</div>
+        <div class="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-sm text-emerald-700">▸ このテーブルをバックアップ</div>
       </div>
 
       <div class="card p-5">
         <div class="text-xs text-zinc-500 mb-3">本来打つコマンド</div>
-        <code class="mono block text-[13px] text-zinc-300 break-all">mysql -e "KILL 4242"</code>
-        <div class="my-4 flex items-center gap-2 text-zinc-600">
-          <span class="h-px flex-1 bg-zinc-800"></span>
+        <code class="mono block text-[13px] text-zinc-700 break-all">mysql -e "KILL 4242"</code>
+        <div class="my-4 flex items-center gap-2 text-zinc-400">
+          <span class="h-px flex-1 bg-zinc-200"></span>
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
-          <span class="h-px flex-1 bg-zinc-800"></span>
+          <span class="h-px flex-1 bg-zinc-200"></span>
         </div>
         <div class="inline-flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-sm text-red-300">▸ このプロセスを kill</div>
       </div>
@@ -203,153 +351,249 @@
   </section>
 
   <!-- スクリーンショット -->
-  <section id="screens" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
-    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">実際の画面</h2>
+  <section id="screens" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-200">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-700">実際の画面</h2>
     <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">
       本物の DB クライアントが、自分のマシンで動く。
     </p>
 
     <div class="mt-10 space-y-10 max-w-4xl">
       <figure>
-        <div class="overflow-hidden rounded-xl border border-zinc-800 shadow-2xl shadow-black/40">
-          <img src="screenshots/overview.png" alt="cli2ui ワークスペース概要 — 全パネルの bento" loading="lazy" class="w-full block">
+        <div class="overflow-hidden rounded-xl border border-zinc-200 shadow-2xl shadow-black/40">
+          <a href="#shot-overview" class="shot-zoom" aria-label="拡大して見る"><img src="screenshots/overview.png" alt="cli2ui ワークスペース概要 — 全パネルの bento" loading="lazy" class="w-full block"></a><div id="shot-overview" class="lightbox"><a href="#" class="lightbox-close" aria-label="閉じる"></a><img src="screenshots/overview.png" alt=""></div>
         </div>
-        <figcaption class="mt-3 text-sm text-zinc-400">ワークスペース概要 —— 各パネルがワンクリック、ライブな件数つき。</figcaption>
+        <figcaption class="mt-3 text-sm text-zinc-700">ワークスペース概要 —— 各パネルがワンクリック、ライブな件数つき。</figcaption>
       </figure>
 
       <div class="grid gap-10 md:grid-cols-2">
         <figure>
-          <div class="overflow-hidden rounded-xl border border-zinc-800 shadow-2xl shadow-black/40">
-            <img src="screenshots/table-detail.png" alt="cli2ui テーブル詳細 — 列・型・デフォルト" loading="lazy" class="w-full block">
+          <div class="overflow-hidden rounded-xl border border-zinc-200 shadow-2xl shadow-black/40">
+            <a href="#shot-table-detail" class="shot-zoom" aria-label="拡大して見る"><img src="screenshots/table-detail.png" alt="cli2ui テーブル詳細 — 列・型・デフォルト" loading="lazy" class="w-full block"></a><div id="shot-table-detail" class="lightbox"><a href="#" class="lightbox-close" aria-label="閉じる"></a><img src="screenshots/table-detail.png" alt=""></div>
           </div>
-          <figcaption class="mt-3 text-sm text-zinc-400">テーブル詳細 —— 列（列・テーブルの COMMENT・生成列の式・<span class="mono">jsonb</span> 列のオンデマンド JSON 構造サンプリング付き）・インデックス・行プレビュー・フィルタビルダー・CSV インポート/エクスポート、ワンクリックでバックアップやリネーム。</figcaption>
+          <figcaption class="mt-3 text-sm text-zinc-700">テーブル詳細 —— 列（列・テーブルの COMMENT・生成列の式・<span class="mono">jsonb</span> 列のオンデマンド JSON 構造サンプリング付き）・インデックス・行プレビュー・フィルタビルダー・CSV インポート/エクスポート、ワンクリックでバックアップやリネーム。</figcaption>
         </figure>
         <figure>
-          <div class="overflow-hidden rounded-xl border border-zinc-800 shadow-2xl shadow-black/40">
-            <img src="screenshots/sql-runner.png" alt="cli2ui SQL ランナー — リードオンリーのクエリと結果" loading="lazy" class="w-full block">
+          <div class="overflow-hidden rounded-xl border border-zinc-200 shadow-2xl shadow-black/40">
+            <a href="#shot-sql-runner-2" class="shot-zoom" aria-label="拡大して見る"><img src="screenshots/sql-runner.png" alt="cli2ui SQL ランナー — リードオンリーのクエリと結果" loading="lazy" class="w-full block"></a><div id="shot-sql-runner-2" class="lightbox"><a href="#" class="lightbox-close" aria-label="閉じる"></a><img src="screenshots/sql-runner.png" alt=""></div>
           </div>
-          <figcaption class="mt-3 text-sm text-zinc-400">SQL ランナー —— 既定はリードオンリー。EXPLAIN・スケール・インデックスの what-if も。</figcaption>
+          <figcaption class="mt-3 text-sm text-zinc-700">SQL ランナー —— 既定はリードオンリー。EXPLAIN・スケール・インデックスの what-if も。</figcaption>
         </figure>
       </div>
     </div>
   </section>
 
   <!-- 機能 -->
-  <section id="features" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
-    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">できること</h2>
+  <section id="features" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-200">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-700">できること</h2>
     <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">
       本物の DB クライアント風レイアウト。1仕事＝1パネル。
     </p>
 
-    <p class="mt-4 text-sm text-zinc-400 leading-relaxed max-w-2xl">
-      <span class="text-zinc-200">PostgreSQL と MySQL（8.0+）に対応</span> — 同じパネル群がどちらのエンジンでも動き、既定リードオンリー・ローカル限定の UI も同じです。以下のカードは Postgres の用語（<span class="mono">pg_stat_activity</span>、<span class="mono">postgresql.conf</span>）で書いていますが、MySQL では相当機能（<span class="mono">SHOW PROCESSLIST</span>、<span class="mono">performance_schema</span>、<span class="mono">SET PERSIST</span>）を使います。MySQL に相当機能がないもの（vacuum/bloat、プランナー what-if、レプリケーションスロット）は、空カードではなく「対象外」と表示します。
+    <p class="mt-4 text-sm text-zinc-700 leading-relaxed max-w-2xl">
+      <span class="text-zinc-800">PostgreSQL と MySQL（8.0+）に対応</span> — 同じパネル群がどちらのエンジンでも動き、既定リードオンリー・ローカル限定の UI も同じです。以下のカードは Postgres の用語（<span class="mono">pg_stat_activity</span>、<span class="mono">postgresql.conf</span>）で書いていますが、MySQL では相当機能（<span class="mono">SHOW PROCESSLIST</span>、<span class="mono">performance_schema</span>、<span class="mono">SET PERSIST</span>）を使います。MySQL に相当機能がないもの（vacuum/bloat、プランナー what-if、レプリケーションスロット）は、空カードではなく「対象外」と表示します。
     </p>
 
-    <div class="mt-10 grid gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 lg:grid-cols-3">
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">SQL ランナー</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">既定はリードオンリーのアドホッククエリ（<span class="mono">READ ONLY</span> + 文タイムアウト + 1000行上限）。明示オプトインの書込みモードはコミットしますが、毎回 DB 全体の安全スナップショットと、DDL ボタンと同じ 2 秒の <span class="mono">lock_timeout</span>（チェックボックスなので、待つつもりのときは外せます）で保護されます。クエリ結果やテーブル全体を CSV / JSON でエクスポート可能。</p>
+    <div class="mt-10">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-zinc-500">やる前に、試す</h2>
+        <p class="mt-1.5 text-sm text-zinc-700 max-w-2xl">本番に当てる前に、捨てられるトランザクションの中で確かめる。ここが cli2ui の中心です。</p>
+        <div class="mt-12 hero-rail">
+        <div class="hero-item grid gap-8 lg:grid-cols-12 lg:gap-12 items-center">
+          <div class="lg:col-span-5 lg:text-right">
+            <h3 class="text-xl font-semibold text-zinc-950">インデックス ラボ</h3>
+            <p class="mt-2 text-zinc-700 leading-relaxed">作る前に、そのインデックスが効くか測る。</p>
+            <p class="mt-3 text-sm text-zinc-600 leading-relaxed">仮想インデックスを 1 トランザクション内で作り、EXPLAIN ANALYZE で前後を比べて ROLLBACK。本当に効くか確かめてから作れます。</p>
+          </div>
+          <div class="lg:col-span-7">
+            <figure class="shot-big">
+              <a href="#shot-index-lab" class="shot-zoom" aria-label="拡大して見る"><img src="screenshots/index-lab.png" alt="インデックス ラボ — 作成前に効果を計測" loading="lazy" class="w-full block"
+                   onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-index-lab" class="lightbox"><a href="#" class="lightbox-close" aria-label="閉じる"></a><img src="screenshots/index-lab.png" alt=""></div>
+              <figcaption class="shot-todo">撮影待ち — <span class="mono">screenshots/index-lab.png</span></figcaption>
+            </figure>
+          </div>
+        </div>
+        <div class="hero-item grid gap-8 lg:grid-cols-12 lg:gap-12 items-center">
+          <div class="lg:col-span-5 lg:order-2 lg:text-left">
+            <h3 class="text-xl font-semibold text-zinc-950">詰まらせない DDL</h3>
+            <p class="mt-2 text-zinc-700 leading-relaxed">ロックが取れなければ 2 秒で諦める。誰も待たせない。</p>
+            <p class="mt-3 text-sm text-zinc-600 leading-relaxed">ALTER / DROP / TRUNCATE / リネームは短い lock_timeout 付きで実行。開いたトランザクションの後ろで待ち続け、その後ろに全クエリが並ぶ事故を防ぎます。</p>
+          </div>
+          <div class="lg:col-span-7 lg:order-1">
+            <figure class="shot-big">
+              <a href="#shot-ddl" class="shot-zoom" aria-label="拡大して見る"><img src="screenshots/ddl.png" alt="詰まらせない DDL — lock_timeout つきの実行" loading="lazy" class="w-full block"
+                   onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-ddl" class="lightbox"><a href="#" class="lightbox-close" aria-label="閉じる"></a><img src="screenshots/ddl.png" alt=""></div>
+              <figcaption class="shot-todo">撮影待ち — <span class="mono">screenshots/ddl.png</span></figcaption>
+            </figure>
+          </div>
+        </div>
+        <div class="hero-item grid gap-8 lg:grid-cols-12 lg:gap-12 items-center">
+          <div class="lg:col-span-5 lg:text-right">
+            <h3 class="text-xl font-semibold text-zinc-950">EXPLAIN スナップショット + 差分</h3>
+            <p class="mt-2 text-zinc-700 leading-relaxed">実行計画を保存して、前と後を差分で見る。</p>
+            <p class="mt-3 text-sm text-zinc-600 leading-relaxed">インデックス追加の前後など、2 つの計画を差分表示。計画をメモ帳にコピペして見比べる作業から解放されます。</p>
+          </div>
+          <div class="lg:col-span-7">
+            <figure class="shot-big">
+              <a href="#shot-explain-diff" class="shot-zoom" aria-label="拡大して見る"><img src="screenshots/explain-diff.png" alt="EXPLAIN 差分 — 2 つの計画を並べて比較" loading="lazy" class="w-full block"
+                   onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-explain-diff" class="lightbox"><a href="#" class="lightbox-close" aria-label="閉じる"></a><img src="screenshots/explain-diff.png" alt=""></div>
+              <figcaption class="shot-todo">撮影待ち — <span class="mono">screenshots/explain-diff.png</span></figcaption>
+            </figure>
+          </div>
+        </div>
+        <div class="hero-item grid gap-8 lg:grid-cols-12 lg:gap-12 items-center">
+          <div class="lg:col-span-5 lg:order-2 lg:text-left">
+            <h3 class="text-xl font-semibold text-zinc-950">スケールシミュレーション</h3>
+            <p class="mt-2 text-zinc-700 leading-relaxed">行数が 100 倍になったら、計画がどこで崩れるか。</p>
+            <p class="mt-3 text-sm text-zinc-600 leading-relaxed">同じクエリを実際の行数の 1× / 100× / 10000× で EXPLAIN（pg_class を一時改変し必ず ROLLBACK）。データ増加で計画の形が崩れる地点が見えます。</p>
+          </div>
+          <div class="lg:col-span-7 lg:order-1">
+            <figure class="shot-big">
+              <a href="#shot-scale" class="shot-zoom" aria-label="拡大して見る"><img src="screenshots/scale.png" alt="スケールシミュレーション — 1× / 100× / 10000×" loading="lazy" class="w-full block"
+                   onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-scale" class="lightbox"><a href="#" class="lightbox-close" aria-label="閉じる"></a><img src="screenshots/scale.png" alt=""></div>
+              <figcaption class="shot-todo">撮影待ち — <span class="mono">screenshots/scale.png</span></figcaption>
+            </figure>
+          </div>
+        </div>
       </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">EXPLAIN スナップショット + 差分</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">実行計画を保存し、インデックス追加の前後など2つを差分表示。計画をメモ帳にコピペして見比べる作業から解放されます。</p>
       </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">スケールシミュレーション</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">同じクエリを実際の行数の 1× / 100× / 10000× で EXPLAIN（<span class="mono">pg_class</span> を一時改変し必ず ROLLBACK）。データ増加で実行計画の形が崩れる地点が見えます。</p>
+      <div class="mt-14">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-zinc-500">いま何が起きているか</h2>
+        <p class="mt-1.5 text-sm text-zinc-700 max-w-2xl">1 回聞けば分かることを、1 クリックで。</p>
+        <div class="feat-list mt-5 sm:grid-cols-2">
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">アクティビティ</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">いま動いているクエリと接続。ワンクリックで止める。</p>
+            <details class="more mt-2">
+              <summary>詳しく</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed"><span class="mono">pg_stat_activity</span> から実行中クエリと接続を表示。ワンクリックで cancel / kill。</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">ロック</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">待たせている大元が、ツリーの先頭に出る。</p>
+            <details class="more mt-2">
+              <summary>詳しく</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">待機連鎖をツリー表示：先頭に <span class="text-zinc-800">大元のブロッカー</span>（cancel / kill でその下すべてを解放）、その下に待たされているセッションを入れ子（<span class="mono">pg_blocking_pids</span>）。循環も検出。どのセッションもワンクリックで cancel / kill。</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">ヘルス · インデックス / bloat の事実</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">未使用・重複・bloat。事実だけで、助言はしない。</p>
+            <details class="more mt-2">
+              <summary>詳しく</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">テーブルサイズ・未使用インデックス・インデックスのない外部キー・冗長（重複 / 先頭一致）インデックス・孤児行（<span class="mono">NOT VALID</span> な FK と制約のない <span class="mono">*_id</span> 列を、オンデマンドで read-only カウント）・dead-rows / vacuum・統計ベースの bloat 推定。すべて read-only の catalog 事実で、助言はしません。</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">依存関係</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">安全な TRUNCATE の順番を、外部キーから出す。</p>
+            <details class="more mt-2">
+              <summary>詳しく</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">外部キーのグラフをトポロジカルソートし、安全な <span class="mono">TRUNCATE</span> / load 順を提示。外部キーの循環も検知して名指しします。リードオンリー — 実際に truncate はしません。</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">拡張機能</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">入っている拡張と、入れられる拡張。更新できるものに印。</p>
+            <details class="more mt-2">
+              <summary>詳しく</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">このデータベースに導入済みの拡張と、サーバーが導入可能な拡張を一覧（<span class="mono">\dx</span> ＋ <span class="mono">pg_available_extensions</span>）。更新可能バッジ付き。リードオンリー — <span class="mono">CREATE EXTENSION</span> は SQL ランナーで。</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">オブジェクトブラウザ</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">DB・スキーマ・ロールの一覧と、postgresql.conf の編集。</p>
+            <details class="more mt-2">
+              <summary>詳しく</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">データベース・スキーマ・ロール（<span class="mono">\l \dn \du</span>）の一覧に加え、作成 / リネーム / 変更 / 削除（DB の <span class="mono">TEMPLATE</span> クローンも）を確認ゲート付きで。reload / restart バッジ付きの <span class="mono">postgresql.conf</span> エディタも。</p>
+            </details>
+          </div>
+        </div>
       </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">インデックス ラボ</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">仮想インデックスの効果を作成前に計測（<span class="mono">EXPLAIN ANALYZE</span> で前後比較、インデックスは1トランザクション内で作成し ROLLBACK）。本当に効くか確かめてから作れます。</p>
+      <div class="mt-14">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-zinc-500">実行する</h2>
+        <p class="mt-1.5 text-sm text-zinc-700 max-w-2xl">書き込む操作は、毎回スナップショットとタイムアウトの内側。</p>
+        <div class="feat-list mt-5 sm:grid-cols-2">
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">SQL ランナー</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">既定はリードオンリー。書き込むと決めたときだけ書く。</p>
+            <details class="more mt-2">
+              <summary>詳しく</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">既定はリードオンリーのアドホッククエリ（<span class="mono">READ ONLY</span> + 文タイムアウト + 1000行上限）。明示オプトインの書込みモードはコミットしますが、毎回 DB 全体の安全スナップショットと、DDL ボタンと同じ 2 秒の <span class="mono">lock_timeout</span>（チェックボックスなので、待つつもりのときは外せます）で保護されます。クエリ結果やテーブル全体を CSV / JSON でエクスポート可能。</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">バックアップ / リストア</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">危ない操作の前に、自動でスナップショット。</p>
+            <details class="more mt-2">
+              <summary>詳しく</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">破壊的・構造的な変更の前に自動でテーブルスナップショット。アップロードしたダンプの復元は、メモリに溜め込まずクライアントツールへストリーミング。</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">レプリケーション</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">準備状況・WAL 位置・接続中のスタンバイ・スロット。</p>
+            <details class="more mt-2">
+              <summary>詳しく</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">準備状況チェック（<span class="mono">wal_level</span> / <span class="mono">max_wal_senders</span>）+ WAL 位置、接続中のスタンバイ、スロットの作成 / 削除。</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">コマンド履歴</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">実行した SQL を結果と時間つきで。ワンクリックで再実行。</p>
+            <details class="more mt-2">
+              <summary>詳しく</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">実行した SQL をステータス・行数・所要時間つきで記録。ワンクリックで再オープンして再実行。</p>
+            </details>
+          </div>
+        </div>
       </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">アクティビティ</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed"><span class="mono">pg_stat_activity</span> から実行中クエリと接続を表示。ワンクリックで cancel / kill。</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">ロック</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">待機連鎖をツリー表示：先頭に <span class="text-zinc-200">大元のブロッカー</span>（cancel / kill でその下すべてを解放）、その下に待たされているセッションを入れ子（<span class="mono">pg_blocking_pids</span>）。循環も検出。どのセッションもワンクリックで cancel / kill。</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">バックアップ / リストア</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">破壊的・構造的な変更の前に自動でテーブルスナップショット。アップロードしたダンプの復元は、メモリに溜め込まずクライアントツールへストリーミング。</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">詰まらせない DDL</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">テーブル・列・スキーマ・ロールに対する <span class="mono">ALTER</span> / <span class="mono">DROP</span> / <span class="mono">TRUNCATE</span> / リネームは、短い <span class="mono">lock_timeout</span> 付きで実行。排他ロックが取れない変更は 2 秒で諦めて失敗します（<span class="text-zinc-200">変更は行われません</span>）。開いたトランザクションの後ろで待ち続け、その後ろに通常の <span class="mono">SELECT</span> まで含めた全クエリが並ぶ——という事故を防ぎます。並行インデックス構築は意図的に対象外。</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">レプリケーション</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">準備状況チェック（<span class="mono">wal_level</span> / <span class="mono">max_wal_senders</span>）+ WAL 位置、接続中のスタンバイ、スロットの作成 / 削除。</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">ヘルス · インデックス / bloat の事実</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">テーブルサイズ・未使用インデックス・インデックスのない外部キー・冗長（重複 / 先頭一致）インデックス・孤児行（<span class="mono">NOT VALID</span> な FK と制約のない <span class="mono">*_id</span> 列を、オンデマンドで read-only カウント）・dead-rows / vacuum・統計ベースの bloat 推定。すべて read-only の catalog 事実で、助言はしません。</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">依存関係</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">外部キーのグラフをトポロジカルソートし、安全な <span class="mono">TRUNCATE</span> / load 順を提示。外部キーの循環も検知して名指しします。リードオンリー — 実際に truncate はしません。</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">拡張機能</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">このデータベースに導入済みの拡張と、サーバーが導入可能な拡張を一覧（<span class="mono">\dx</span> ＋ <span class="mono">pg_available_extensions</span>）。更新可能バッジ付き。リードオンリー — <span class="mono">CREATE EXTENSION</span> は SQL ランナーで。</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">オブジェクトブラウザ</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">データベース・スキーマ・ロール（<span class="mono">\l \dn \du</span>）の一覧に加え、作成 / リネーム / 変更 / 削除（DB の <span class="mono">TEMPLATE</span> クローンも）を確認ゲート付きで。reload / restart バッジ付きの <span class="mono">postgresql.conf</span> エディタも。</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">コマンド履歴</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">実行した SQL をステータス・行数・所要時間つきで記録。ワンクリックで再オープンして再実行。</p>
-      </div>
-    </div>
   </section>
 
   <!-- 設計思想 -->
-  <section id="principles" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
-    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">あえて、やらないこと</h2>
+  <section id="principles" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-200">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-700">あえて、やらないこと</h2>
     <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">制約こそがプロダクト。</p>
 
     <div class="mt-10 grid gap-4 md:grid-cols-2">
       <div class="card p-6">
-        <h3 class="font-medium text-zinc-100 flex items-center gap-2"><span class="text-amber-400">⊘</span> AIなし</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">API キー管理に加え、スキーマを第三者へ送ること自体が、想定ユーザーにとっては論外です。クリックしたコマンドだけを、推測なしで正確に実行します。</p>
+        <h3 class="font-medium text-zinc-900 flex items-center gap-2"><span class="text-amber-700">⊘</span> AIなし</h3>
+        <p class="mt-2 text-sm text-zinc-700 leading-relaxed">API キー管理に加え、スキーマを第三者へ送ること自体が、想定ユーザーにとっては論外です。クリックしたコマンドだけを、推測なしで正確に実行します。</p>
       </div>
       <div class="card p-6">
-        <h3 class="font-medium text-zinc-100 flex items-center gap-2"><span class="text-amber-400">⊘</span> SaaSなし</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">DB 接続情報を預かった瞬間、責任と暗号化の話がプロジェクトを飲み込みます。ローカル完結だから誠実 —— DB 認証情報がネットワーク外に出ることはありません。</p>
+        <h3 class="font-medium text-zinc-900 flex items-center gap-2"><span class="text-amber-700">⊘</span> SaaSなし</h3>
+        <p class="mt-2 text-sm text-zinc-700 leading-relaxed">DB 接続情報を預かった瞬間、責任と暗号化の話がプロジェクトを飲み込みます。ローカル完結だから誠実 —— DB 認証情報がネットワーク外に出ることはありません。</p>
       </div>
     </div>
 
-    <div class="mt-12 overflow-hidden rounded-xl border border-zinc-800">
+    <div class="mt-12 overflow-hidden rounded-xl border border-zinc-200">
       <table class="w-full text-sm">
-        <thead class="bg-zinc-900/60 text-zinc-400">
+        <thead class="bg-zinc-50/60 text-zinc-700">
           <tr><th class="text-left font-medium px-5 py-2.5">レイヤ</th><th class="text-left font-medium px-5 py-2.5">採用</th><th class="text-left font-medium px-5 py-2.5 hidden sm:table-cell">理由</th></tr>
         </thead>
-        <tbody class="divide-y divide-zinc-800 text-zinc-300">
-          <tr><td class="px-5 py-3">フロント</td><td class="px-5 py-3 mono text-emerald-300">htmx + Alpine.js</td><td class="px-5 py-3 text-zinc-400 hidden sm:table-cell">クリック → HTML を差し替え。SPA ビルド不要。</td></tr>
-          <tr><td class="px-5 py-3">バックエンド</td><td class="px-5 py-3 mono text-emerald-300">Django</td><td class="px-5 py-3 text-zinc-400 hidden sm:table-cell">実績ある psycopg2。管理まわりが標準で揃う。</td></tr>
-          <tr><td class="px-5 py-3">管理用DB</td><td class="px-5 py-3 mono text-emerald-300">SQLite</td><td class="px-5 py-3 text-zinc-400 hidden sm:table-cell">保存済み接続 + 履歴。追加インフラ不要。</td></tr>
-          <tr><td class="px-5 py-3">インフラ</td><td class="px-5 py-3 mono text-emerald-300">Docker</td><td class="px-5 py-3 text-zinc-400 hidden sm:table-cell">ローカル完結・自己完結。</td></tr>
+        <tbody class="divide-y divide-zinc-200 text-zinc-700">
+          <tr><td class="px-5 py-3">フロント</td><td class="px-5 py-3 mono text-emerald-700">htmx + Alpine.js</td><td class="px-5 py-3 text-zinc-700 hidden sm:table-cell">クリック → HTML を差し替え。SPA ビルド不要。</td></tr>
+          <tr><td class="px-5 py-3">バックエンド</td><td class="px-5 py-3 mono text-emerald-700">Django</td><td class="px-5 py-3 text-zinc-700 hidden sm:table-cell">実績ある psycopg2。管理まわりが標準で揃う。</td></tr>
+          <tr><td class="px-5 py-3">管理用DB</td><td class="px-5 py-3 mono text-emerald-700">SQLite</td><td class="px-5 py-3 text-zinc-700 hidden sm:table-cell">保存済み接続 + 履歴。追加インフラ不要。</td></tr>
+          <tr><td class="px-5 py-3">インフラ</td><td class="px-5 py-3 mono text-emerald-700">Docker</td><td class="px-5 py-3 text-zinc-700 hidden sm:table-cell">ローカル完結・自己完結。</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
   <!-- クイックスタート -->
-  <section id="quickstart" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
+  <section id="quickstart" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-200">
     <div class="card p-8 sm:p-10">
       <h2 class="text-2xl font-semibold tracking-tight">1コマンドで起動</h2>
-      <p class="mt-2 text-zinc-400 max-w-xl">接続フォームは同梱のサンプル DB を指す状態で初期入力済み。<span class="text-emerald-300">Connect</span> を押せば、もうテーブルを眺めています。リアルなデータ量が欲しければ、opt-in の Airlines デモ DB（チケット83万行超・<span class="mono">jsonb</span> 列つき）もコマンド2つで — 詳しくは README へ。</p>
+      <p class="mt-2 text-zinc-700 max-w-xl">接続フォームは同梱のサンプル DB を指す状態で初期入力済み。<span class="text-emerald-700">Connect</span> を押せば、もうテーブルを眺めています。リアルなデータ量が欲しければ、opt-in の Airlines デモ DB（チケット83万行超・<span class="mono">jsonb</span> 列つき）もコマンド2つで — 詳しくは README へ。</p>
 
-      <div class="mt-6 rounded-lg border border-zinc-800 bg-black/40 p-4 font-mono text-sm">
+      <div class="mt-6 rounded-lg border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm">
         <div class="prompt text-zinc-100">docker compose up</div>
-        <div class="mt-2 text-zinc-500"># 公開イメージを pull する（ビルド待ちなし）</div>
-        <div class="mt-2 text-zinc-500"># ブラウザで <span class="text-sky-300">http://localhost:8000</span> を開く</div>
-        <div class="mt-1 text-zinc-600"># 8000 が使用中なら docker-compose.yml で変更: <span class="text-zinc-400">"8001:8000"</span></div>
+        <div class="mt-2 text-zinc-400"># 公開イメージを pull する（ビルド待ちなし）</div>
+        <div class="mt-2 text-zinc-500"># ブラウザで <span class="text-sky-700">http://localhost:8000</span> を開く</div>
+        <div class="mt-1 text-zinc-400"># 8000 が使用中なら docker-compose.yml で変更: <span class="text-zinc-700">"8001:8000"</span></div>
       </div>
 
-      <p class="mt-4 text-sm text-amber-300/90">⚠️ ローカル完結の設計で認証はありません。localhost か信頼できるネットワーク内で動かし、公開インターネットには絶対に晒さないでください。</p>
+      <p class="mt-4 text-sm text-amber-700/90">⚠️ ローカル完結の設計で認証はありません。localhost か信頼できるネットワーク内で動かし、公開インターネットには絶対に晒さないでください。</p>
 
       <div class="mt-8 flex flex-wrap gap-3">
         <a href="https://github.com/MR-TABATA/cli2ui" class="btn btn-primary">
@@ -362,14 +606,14 @@
   </section>
 
   <!-- フッター -->
-  <footer class="border-t border-zinc-900">
+  <footer class="border-t border-zinc-200">
     <div class="max-w-6xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between text-sm text-zinc-500">
       <div>
-        <span class="text-zinc-300 font-semibold">cli<span class="text-emerald-400">2</span>ui</span>
+        <span class="text-zinc-700 font-semibold">cli<span class="text-emerald-700">2</span>ui</span>
         <span class="mx-2">·</span> CLI のDB操作を、ボタンで。
       </div>
       <div class="flex items-center gap-4">
-        <a href="https://github.com/MR-TABATA/cli2ui" class="hover:text-zinc-200 transition">GitHub</a>
+        <a href="https://github.com/MR-TABATA/cli2ui" class="hover:text-zinc-800 transition">GitHub</a>
         <span>MIT &copy; TABATA Hitoshi</span>
       </div>
     </div>

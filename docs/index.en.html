@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>cli2ui — CLI database ops, as buttons</title>
+  <title>cli2ui — CLI database ops, as buttons.</title>
   <meta name="description" content="A web UI over the psql / mysql operations you keep half-remembering. No AI, no SaaS — just CLI database ops turned into clicks, running fully on your machine.">
 
   <meta property="og:type" content="website">
@@ -23,353 +23,566 @@
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: "class" }</script>
+  <!-- 英数は Inter、日本語は Noto Sans JP。ラテン部分に Noto の英数を使わせない。 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap" rel="stylesheet">
   <style>
     html { scroll-behavior: smooth; }
-    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    /* 明るい下地では文字がにじまないぶん細く見える。日本語（Hiragino Sans）は
+       標準ウェイトが元々細いので、本文だけ 1 段持ち上げる。
+       antialiased（グレースケール描画）は body から外した —— 暗い下地では
+       太りすぎを抑えるために効くが、明るい下地ではただ細くなる。 */
+    body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+           -webkit-font-smoothing: auto; text-rendering: optimizeLegibility; }
+    p, li, figcaption, .feat-row p, .feat-hero p { font-weight: 500; }
     .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
 
-    /* Palette mirrors the app (STYLE.md): zinc-950 surface, emerald primary,
-       red destructive, amber warning, sky info. Colour = intent, never decoration. */
+    /* パレットはアプリ（STYLE.md）に準拠: zinc-950=面, emerald=主操作,
+       red=破壊的, amber=警告, sky=情報。色＝意図、装飾には使わない。 */
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
            white-space: nowrap; border: 1px solid transparent; border-radius: .5rem;
            padding: .625rem 1.1rem; font-size: .9rem; font-weight: 500; cursor: pointer;
            transition: color .15s, background-color .15s, border-color .15s; }
-    .btn-primary { background: #34d399; color: #09090b; }
-    .btn-primary:hover { background: #6ee7b7; }
-    .btn-neutral { border-color: #3f3f46; color: #d4d4d8; }
-    .btn-neutral:hover { border-color: #71717a; color: #f4f4f5; }
+    .btn-primary { background: #059669; color: #ffffff; }
+    .btn-primary:hover { background: #047857; }
+    .btn-neutral { border-color: #d4d4d8; color: #3f3f46; }
+    .btn-neutral:hover { border-color: #a1a1aa; color: #09090b; }
 
     .hero-grid {
       background-image:
-        radial-gradient(60rem 30rem at 50% -8rem, rgba(52,211,153,.10), transparent 70%),
-        linear-gradient(rgba(63,63,70,.18) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(63,63,70,.18) 1px, transparent 1px);
+        radial-gradient(60rem 30rem at 50% -8rem, rgba(5,150,105,.09), transparent 70%),
+        linear-gradient(rgba(9,9,11,.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(9,9,11,.05) 1px, transparent 1px);
       background-size: 100% 100%, 2.5rem 2.5rem, 2.5rem 2.5rem;
       -webkit-mask-image: linear-gradient(#000, transparent 92%);
               mask-image: linear-gradient(#000, transparent 92%);
     }
-    .card { background: rgba(24,24,27,.6); border: 1px solid #27272a; border-radius: .75rem; }
-    .prompt::before { content: "$ "; color: #34d399; }
+    /* 暗いスクリーンショットを、明るい紙の上に「置いた」ように見せる。
+       暗いページでは溶けていた部分。 */
+    figure img, .shot img { border-radius: .5rem; }
+    figure > div, .shot { border: 1px solid #e4e4e7; border-radius: .625rem; overflow: hidden;
+                          box-shadow: 0 2px 4px rgba(9,9,11,.06), 0 12px 28px rgba(9,9,11,.10); }
+
+    .card { background: #ffffff; border: 1px solid #e4e4e7; border-radius: .75rem;
+            box-shadow: 0 1px 2px rgba(9,9,11,.04), 0 1px 1px rgba(9,9,11,.03); }
+
+    /* 暗い面では影が効かない（黒に黒を落としても見えない）ので、面を 1 段明るくして
+       上端に 1px のハイライトを置く。色は足さない —— emerald 等は意図（主操作・
+       破壊的・警告）のためのもので、装飾に使うとアプリで覚えた意味に嘘をつく（STYLE.md）。 */
+    .feat-hero {
+      background: #ffffff;
+      border: 1px solid #e4e4e7;
+      border-radius: .75rem;
+      /* 明るい側では影が効く。暗い側では作れなかった奥行きがここで出る。 */
+      box-shadow: 0 1px 2px rgba(9,9,11,.05), 0 4px 12px rgba(9,9,11,.05);
+    }
+    .feat-list {
+      display: grid; gap: 1px;
+      background: #e4e4e7;
+      border: 1px solid #e4e4e7;
+      border-radius: .75rem; overflow: hidden;
+    }
+    .feat-row { background: #ffffff; }
+
+    /* 目玉だけ、絵を大きく置いて左右へ振る。中央の縦線が「まだ続く」を示す。
+       TablePlus の作り。絵が入るぶん、文章は短くせざるを得なくなる。 */
+    .hero-rail { position: relative; }
+    .hero-rail > .hero-item { padding: 3.5rem 0; }
+    .hero-rail > .hero-item:first-child { padding-top: 1rem; }
+    @media (min-width: 1024px) {
+      .hero-rail::before {
+        content: ""; position: absolute; left: 50%; top: 0; bottom: 0;
+        width: 2px; margin-left: -1px; background: #e4e4e7;
+      }
+      .hero-rail > .hero-item { position: relative; }
+      .hero-rail > .hero-item::before {
+        content: ""; position: absolute; left: 50%; top: 50%;
+        width: .625rem; height: .625rem; margin: -.3125rem 0 0 -.3125rem;
+        border-radius: 50%; background: #059669;
+        box-shadow: 0 0 0 4px #ffffff;
+      }
+    }
+
+    /* 6 個をタブに畳む。JS なし（ラジオ + 兄弟セレクタ）。
+       同じ場所で絵が入れ替わるので、縦に 6 個並べるより短く、絵は大きく置ける。 */
+    .tabs .tabin { position: absolute; opacity: 0; pointer-events: none; }
+    .tablist { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .tablist label {
+      cursor: pointer; font-size: .875rem; padding: .4rem .9rem; border-radius: 9999px;
+      border: 1px solid #e4e4e7; color: #52525b; background: #fff;
+      transition: color .15s, border-color .15s, background-color .15s;
+    }
+    .tablist label:hover { border-color: #a1a1aa; color: #18181b; }
+    .panels > .panel { display: none; margin-top: 1.5rem; }
+    #dr0:checked ~ .tablist label:nth-of-type(1) { background: #059669; border-color: #059669; color: #fff; }
+    #dr0:checked ~ .panels > .panel:nth-of-type(1) { display: block; }
+    #dr1:checked ~ .tablist label:nth-of-type(2) { background: #059669; border-color: #059669; color: #fff; }
+    #dr1:checked ~ .panels > .panel:nth-of-type(2) { display: block; }
+    #dr2:checked ~ .tablist label:nth-of-type(3) { background: #059669; border-color: #059669; color: #fff; }
+    #dr2:checked ~ .panels > .panel:nth-of-type(3) { display: block; }
+    #dr3:checked ~ .tablist label:nth-of-type(4) { background: #059669; border-color: #059669; color: #fff; }
+    #dr3:checked ~ .panels > .panel:nth-of-type(4) { display: block; }
+    #dr4:checked ~ .tablist label:nth-of-type(5) { background: #059669; border-color: #059669; color: #fff; }
+    #dr4:checked ~ .panels > .panel:nth-of-type(5) { display: block; }
+    #dr5:checked ~ .tablist label:nth-of-type(6) { background: #059669; border-color: #059669; color: #fff; }
+    #dr5:checked ~ .panels > .panel:nth-of-type(6) { display: block; }
+
+    /* 暗いスクショを、明るい紙の上に直に置くと黒い塊に見える。
+       暗い台（マット）に載せて余白を作ると、「額に入った画面」として読める。
+       アプリ側にライトテーマが無いので、site 側で受ける。 */
+
+    /* 画像を押すと原寸で見られる。JS は使わない（:target）。
+       サイト上の表示は 0.45 倍まで縮むので、読みたい人が原寸に行ける道を作る。 */
+    .shot-zoom { display: block; cursor: zoom-in; }
+    .lightbox {
+      position: fixed; inset: 0; z-index: 100;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(9,9,11,.82); padding: 2rem;
+    }
+    .lightbox:target { display: flex; }
+    .lightbox > img {
+      max-width: min(100%, 1380px); max-height: 90vh; width: auto; height: auto;
+      border-radius: .5rem; box-shadow: 0 24px 60px rgba(0,0,0,.5);
+    }
+    .lightbox-close { position: absolute; inset: 0; cursor: zoom-out; }
+    .shot-big { background: #18181b; padding: .75rem; border: 1px solid #27272a;
+                border-radius: .875rem; overflow: hidden;
+                box-shadow: 0 2px 6px rgba(9,9,11,.10), 0 18px 44px rgba(9,9,11,.16); }
+    .shot-big img { border-radius: .375rem; display: block; }
+    .shot-big figcaption.shot-todo { display: none; }
+    .shot-big.shot-missing { display: grid; place-items: center; min-height: 15rem;
+                             background: repeating-linear-gradient(45deg, #fafafa, #fafafa 12px, #f4f4f5 12px, #f4f4f5 24px);
+                             border-style: dashed; box-shadow: none; }
+    .shot-big.shot-missing figcaption.shot-todo { display: block; color: #a1a1aa; font-size: .8125rem; }
+
+    /* 1 行だけ見せて、仕組みは畳む。ランディングは「何が起きるか」、
+       ドキュメントは「どう動くか」。1 画面に両方を出すと読まれない。 */
+    details.more > summary {
+      list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: .25rem;
+      font-size: .8125rem; color: #71717a; user-select: none;
+    }
+    details.more > summary::-webkit-details-marker { display: none; }
+    details.more > summary::before { content: "▸"; font-size: .7rem; transition: transform .15s; }
+    details.more[open] > summary::before { transform: rotate(90deg); }
+    details.more > summary:hover { color: #059669; }                     /* 面。ページより一段だけ上 */
+    .prompt::before { content: "$ "; color: #059669; }
     .scroll-link { scroll-margin-top: 4rem; }
-    .lang select { background: transparent; color: #a1a1aa; border: 1px solid #3f3f46;
+    .lang select { background: transparent; color: #52525b; border: 1px solid #d4d4d8;
                    border-radius: .5rem; padding: .25rem .5rem; font-size: .8rem; cursor: pointer; }
-    .lang select:hover { color: #f4f4f5; border-color: #71717a; }
-    .lang option { background: #18181b; }
+    .lang select:hover { color: #09090b; border-color: #a1a1aa; }
+    .lang option { background: #ffffff; }
   </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 antialiased selection:bg-emerald-400/30">
+<body class="bg-white text-zinc-900 selection:bg-emerald-200">
 
-  <!-- Header -->
-  <header class="sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950/85 backdrop-blur">
+  <!-- ヘッダー -->
+  <header class="sticky top-0 z-20 border-b border-zinc-200 bg-white/85 backdrop-blur">
     <div class="max-w-6xl mx-auto px-6 h-14 flex items-center gap-4">
       <a href="#top" class="text-lg font-semibold tracking-tight">
-        cli<span class="text-emerald-400">2</span>ui
+        cli<span class="text-emerald-700">2</span>ui
       </a>
-      <nav class="ml-auto flex items-center gap-1 text-sm text-zinc-400">
-        <a href="#how" class="hidden sm:inline px-3 py-1.5 rounded-lg hover:text-zinc-100 hover:bg-zinc-900 transition">How it works</a>
-        <a href="#screens" class="hidden sm:inline px-3 py-1.5 rounded-lg hover:text-zinc-100 hover:bg-zinc-900 transition">Screens</a>
-        <a href="#features" class="hidden md:inline px-3 py-1.5 rounded-lg hover:text-zinc-100 hover:bg-zinc-900 transition">Features</a>
-        <a href="#principles" class="hidden md:inline px-3 py-1.5 rounded-lg hover:text-zinc-100 hover:bg-zinc-900 transition">Principles</a>
+      <nav class="ml-auto flex items-center gap-1 text-sm text-zinc-700">
+        <a href="#how" class="hidden sm:inline px-3 py-1.5 rounded-lg hover:text-zinc-900 hover:bg-zinc-100 transition">How it works</a>
+        <a href="#screens" class="hidden sm:inline px-3 py-1.5 rounded-lg hover:text-zinc-900 hover:bg-zinc-100 transition">Screens</a>
+        <a href="#features" class="hidden md:inline px-3 py-1.5 rounded-lg hover:text-zinc-900 hover:bg-zinc-100 transition">Features</a>
+        <a href="#principles" class="hidden md:inline px-3 py-1.5 rounded-lg hover:text-zinc-900 hover:bg-zinc-100 transition">Principles</a>
         <a href="https://github.com/MR-TABATA/cli2ui" class="btn btn-neutral !py-1.5 !px-3 ml-1">GitHub</a>
         <span class="lang ml-1">
           <select onchange="location.href=this.value;" aria-label="Language">
-            <option value="index.en.html" selected>EN</option>
             <option value="index.ja.html">JP</option>
+            <option value="index.en.html" selected>EN</option>
           </select>
         </span>
       </nav>
     </div>
   </header>
 
-  <!-- Hero -->
+  <!-- ヒーロー -->
   <section id="top" class="relative overflow-hidden">
     <div class="hero-grid absolute inset-0 -z-10"></div>
     <div class="max-w-6xl mx-auto px-6 pt-20 pb-16 sm:pt-28 sm:pb-24">
-      <div class="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1 text-xs text-zinc-400 mb-6">
-        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-        Local-only · No AI · No SaaS
-      </div>
+      <div class="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50/60 px-3 py-1 text-xs text-zinc-700 mb-6">
+        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Local-only · No AI · No SaaS </div>
 
-      <h1 class="text-4xl sm:text-6xl font-semibold tracking-tight leading-[1.05] max-w-3xl">
-        CLI database ops,<br><span class="text-emerald-400">as buttons.</span>
+      <h1 class="text-4xl sm:text-6xl font-semibold tracking-tight leading-[1.15] max-w-3xl"> CLI database ops,<br><span class="text-emerald-700">as buttons.</span>
       </h1>
 
-      <p class="mt-6 text-lg text-zinc-300 max-w-2xl leading-relaxed">
-        A web UI over the database CLI commands you keep half-remembering.
-        No AI, no magic — just <span class="mono text-zinc-100">psql / mysql</span> operations turned into clicks,
-        running fully on your machine.
-      </p>
+      <p class="mt-6 text-lg text-zinc-700 max-w-2xl leading-relaxed"> A web UI over the database CLI commands you keep half-remembering. No AI, no magic — just <span class="mono text-zinc-900">psql / mysql</span> operations turned into clicks, running fully on your machine. </p>
 
       <div class="mt-8 flex flex-wrap items-center gap-3">
         <a href="#quickstart" class="btn btn-primary">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-          Get started
-        </a>
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Get started </a>
         <a href="https://github.com/MR-TABATA/cli2ui" class="btn btn-neutral">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12 11.5 11.5 0 0 0 8.36 23c.6.11.82-.26.82-.58v-2c-3.34.73-4.04-1.6-4.04-1.6-.55-1.39-1.34-1.76-1.34-1.76-1.1-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.8 1.3 3.49 1 .1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.3-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
-          View on GitHub
-        </a>
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12 11.5 11.5 0 0 0 8.36 23c.6.11.82-.26.82-.58v-2c-3.34.73-4.04-1.6-4.04-1.6-.55-1.39-1.34-1.76-1.34-1.76-1.1-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.8 1.3 3.49 1 .1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.3-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg> View on GitHub </a>
         <span class="text-sm text-zinc-500 mono ml-1">MIT · PostgreSQL &amp; MySQL</span>
       </div>
 
-      <p class="mt-10 text-zinc-400 max-w-2xl">
-        Built for <span class="text-zinc-200">app developers and solo developers</span> — not DBAs.
-        The pitch is <span class="text-zinc-100">“you're looking at your tables 3 minutes after deciding to”</span>:
-        no install marathon, no connection-wizard maze, no digging through nested trees —
-        and no hunting for a demo database, either. Sample data ships in the box, pre-wired into the connection form.
-      </p>
+      <p class="mt-10 text-zinc-700 max-w-2xl leading-relaxed"> Built for <span class="text-zinc-800">app developers and solo developers</span> — not DBAs. The pitch is <span class="text-zinc-900">“you're looking at your tables 3 minutes after deciding to”</span>: no install marathon, no connection-wizard maze, no digging through nested trees — and no hunting for a demo database, either. Sample data ships in the box, pre-wired into the connection form. </p>
     </div>
   </section>
 
-  <!-- Before you run it: the dry-run family that already ships -->
-  <section class="max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
-    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">Before you run it</h2>
-    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">
-      See the result before you commit to it.
-    </p>
-    <p class="mt-4 text-zinc-400 max-w-2xl leading-relaxed">
-      The dangerous part usually isn't the operation — it's not knowing until you've done it.
-      Whatever can be answered first, is — and none of it leaves anything behind in your database.
-    </p>
-    <div class="mt-8 grid gap-px bg-zinc-800 border border-zinc-800 rounded-xl overflow-hidden sm:grid-cols-2">
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">When the plan gives way — before it does</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">100× the data isn't 100× slower: with the right index it barely moves, and when the plan gives way it falls off a cliff — multiplication won't tell you which. <span class="mono">EXPLAIN</span> the query as if the tables were 100× or 10,000× bigger, and cli2ui <span class="text-zinc-200">marks where it gives way</span>. Same shape at 100×, broken at 10,000× — before you get there. What you learn is the shape of the plan, not the runtime.</p>
+  <!-- 実行の前に: 出荷済みの dry-run 家族 -->
+  <section class="max-w-6xl mx-auto px-6 py-16 border-t border-zinc-200">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-700">Before you run it</h2>
+    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl"> See the result before you commit to it. </p>
+    <p class="mt-4 text-zinc-700 max-w-2xl leading-relaxed"> The dangerous part usually isn't the operation — it's not knowing until you've done it. Whatever can be answered first, is — and none of it leaves anything behind in your database. </p>
+    <div class="tabs mt-10">
+        <input type="radio" name="dryrun" id="dr0" class="tabin" checked>
+        <input type="radio" name="dryrun" id="dr1" class="tabin">
+        <input type="radio" name="dryrun" id="dr2" class="tabin">
+        <div class="tablist">
+          <label for="dr0">Violations</label>
+          <label for="dr1">Delete order</label>
+          <label for="dr2">Read-only</label>
+        </div>
+        <div class="panels">
+<div class="panel">
+            <div class="grid gap-6">
+              <div>
+                <figure class="shot-big">
+                  <a href="#shot-dry-fk" class="shot-zoom" aria-label="View larger"><img src="screenshots/en/dry-fk.png" alt="How many rows violate a constraint" loading="lazy" class="w-full block"
+                       onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-dry-fk" class="lightbox"><a href="#" class="lightbox-close" aria-label="Close"></a><img src="screenshots/en/dry-fk.png" alt=""></div>
+                  <figcaption class="shot-todo">Screenshot pending — <span class="mono">screenshots/en/dry-fk.png</span></figcaption>
+                </figure>
+              </div>
+              <div class="max-w-3xl">
+                <h3 class="text-lg font-semibold text-zinc-950">How many rows violate a constraint</h3>
+                <p class="mt-2 text-sm text-zinc-700 leading-relaxed">Count the rows a NOT VALID foreign key never checked — without validating it, and without changing anything.</p>
+              </div>
+            </div>
+          </div>
+<div class="panel">
+            <div class="grid gap-6">
+              <div>
+                <figure class="shot-big">
+                  <a href="#shot-dry-order" class="shot-zoom" aria-label="View larger"><img src="screenshots/en/dry-order.png" alt="What order is safe to delete" loading="lazy" class="w-full block"
+                       onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-dry-order" class="lightbox"><a href="#" class="lightbox-close" aria-label="Close"></a><img src="screenshots/en/dry-order.png" alt=""></div>
+                  <figcaption class="shot-todo">Screenshot pending — <span class="mono">screenshots/en/dry-order.png</span></figcaption>
+                </figure>
+              </div>
+              <div class="max-w-3xl">
+                <h3 class="text-lg font-semibold text-zinc-950">What order is safe to delete</h3>
+                <p class="mt-2 text-sm text-zinc-700 leading-relaxed">The foreign-key graph sorted into a safe TRUNCATE order and its reverse. Nothing is truncated.</p>
+              </div>
+            </div>
+          </div>
+<div class="panel">
+            <div class="grid gap-6">
+              <div>
+                <figure class="shot-big">
+                  <a href="#shot-dry-readonly" class="shot-zoom" aria-label="View larger"><img src="screenshots/en/dry-readonly.png" alt="Nothing you type can write" loading="lazy" class="w-full block"
+                       onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-dry-readonly" class="lightbox"><a href="#" class="lightbox-close" aria-label="Close"></a><img src="screenshots/en/dry-readonly.png" alt=""></div>
+                  <figcaption class="shot-todo">Screenshot pending — <span class="mono">screenshots/en/dry-readonly.png</span></figcaption>
+                </figure>
+              </div>
+              <div class="max-w-3xl">
+                <h3 class="text-lg font-semibold text-zinc-950">Nothing you type can write</h3>
+                <p class="mt-2 text-sm text-zinc-700 leading-relaxed">The SQL runner opens a read-only transaction by default. No SQL is parsed to guess your intent — the server itself refuses the write, which is what makes trying things safe.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">Whether that index helps</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Build it for real, measure <span class="mono">EXPLAIN ANALYZE</span> before and after, roll it back. You know before you commit to creating it.</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">How the plan changes, before and after</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed"><span class="mono">EXPLAIN</span> is the original dry run. Save a plan, then diff it against the one you get after adding an index — as trees, not text.</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">How many rows violate a constraint</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Count the rows a <span class="mono">NOT VALID</span> foreign key never checked — without validating it, and without changing anything.</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">What order is safe to delete</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">The foreign-key graph sorted into a safe <span class="mono">TRUNCATE</span> order and its reverse. Nothing is truncated.</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">Nothing you type can write</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">The SQL runner opens a read-only transaction by default. No SQL is parsed to guess your intent — the server itself refuses the write, which is what makes trying things safe.</p>
-      </div>
-    </div>
   </section>
 
-  <!-- How it works: before → after -->
-  <section id="how" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
-    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">How it works</h2>
-    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">
-      The command you'd have to look up &mdash; collapsed into one click.
-    </p>
+  <!-- 仕組み: before → after -->
+  <section id="how" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-200">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-700">How it works</h2>
+    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl"> The command you'd have to look up &mdash; collapsed into one click. </p>
 
     <div class="mt-10 grid gap-4 md:grid-cols-3">
       <div class="card p-5">
         <div class="text-xs text-zinc-500 mb-3">You'd type</div>
-        <code class="mono block text-[13px] text-zinc-300 break-all">psql -c "SELECT * FROM<br>pg_stat_activity"</code>
-        <div class="my-4 flex items-center gap-2 text-zinc-600">
-          <span class="h-px flex-1 bg-zinc-800"></span>
+        <code class="mono block text-[13px] text-zinc-700 break-all">psql -c "SELECT * FROM<br>pg_stat_activity"</code>
+        <div class="my-4 flex items-center gap-2 text-zinc-400">
+          <span class="h-px flex-1 bg-zinc-200"></span>
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
-          <span class="h-px flex-1 bg-zinc-800"></span>
+          <span class="h-px flex-1 bg-zinc-200"></span>
         </div>
-        <div class="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-sm text-emerald-300">▸ Running queries</div>
+        <div class="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-sm text-emerald-700">▸ Running queries</div>
       </div>
 
       <div class="card p-5">
         <div class="text-xs text-zinc-500 mb-3">You'd type</div>
-        <code class="mono block text-[13px] text-zinc-300 break-all">pg_dump -t users mydb</code>
-        <div class="my-4 flex items-center gap-2 text-zinc-600">
-          <span class="h-px flex-1 bg-zinc-800"></span>
+        <code class="mono block text-[13px] text-zinc-700 break-all">pg_dump -t users mydb</code>
+        <div class="my-4 flex items-center gap-2 text-zinc-400">
+          <span class="h-px flex-1 bg-zinc-200"></span>
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
-          <span class="h-px flex-1 bg-zinc-800"></span>
+          <span class="h-px flex-1 bg-zinc-200"></span>
         </div>
-        <div class="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-sm text-emerald-300">▸ Back up this table</div>
+        <div class="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-sm text-emerald-700">▸ Back up this table</div>
       </div>
 
       <div class="card p-5">
         <div class="text-xs text-zinc-500 mb-3">You'd type</div>
-        <code class="mono block text-[13px] text-zinc-300 break-all">mysql -e "KILL 4242"</code>
-        <div class="my-4 flex items-center gap-2 text-zinc-600">
-          <span class="h-px flex-1 bg-zinc-800"></span>
+        <code class="mono block text-[13px] text-zinc-700 break-all">mysql -e "KILL 4242"</code>
+        <div class="my-4 flex items-center gap-2 text-zinc-400">
+          <span class="h-px flex-1 bg-zinc-200"></span>
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
-          <span class="h-px flex-1 bg-zinc-800"></span>
+          <span class="h-px flex-1 bg-zinc-200"></span>
         </div>
         <div class="inline-flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-sm text-red-300">▸ Kill this process</div>
       </div>
     </div>
   </section>
 
-  <!-- Screenshots -->
-  <section id="screens" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
-    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">See it</h2>
-    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">
-      A real DB client, running on your machine.
-    </p>
+  <!-- スクリーンショット -->
+  <section id="screens" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-200">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-700">See it</h2>
+    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl"> A real DB client, running on your machine. </p>
 
     <div class="mt-10 space-y-10 max-w-4xl">
       <figure>
-        <div class="overflow-hidden rounded-xl border border-zinc-800 shadow-2xl shadow-black/40">
-          <img src="screenshots/overview.png" alt="cli2ui workspace overview — bento of every panel" loading="lazy" class="w-full block">
+        <div class="overflow-hidden rounded-xl border border-zinc-200 shadow-2xl shadow-black/40">
+          <a href="#shot-overview" class="shot-zoom" aria-label="View larger"><img src="screenshots/en/overview.png" alt="cli2ui workspace overview — every panel in one bento" loading="lazy" class="w-full block"></a><div id="shot-overview" class="lightbox"><a href="#" class="lightbox-close" aria-label="Close"></a><img src="screenshots/en/overview.png" alt=""></div>
         </div>
-        <figcaption class="mt-3 text-sm text-zinc-400">The workspace overview — every panel one click away, with live counts.</figcaption>
+        <figcaption class="mt-3 text-sm text-zinc-700">The workspace overview — every panel one click away, with live counts.</figcaption>
       </figure>
 
       <div class="grid gap-10 md:grid-cols-2">
         <figure>
-          <div class="overflow-hidden rounded-xl border border-zinc-800 shadow-2xl shadow-black/40">
-            <img src="screenshots/table-detail.png" alt="cli2ui table detail — columns, types, defaults" loading="lazy" class="w-full block">
+          <div class="overflow-hidden rounded-xl border border-zinc-200 shadow-2xl shadow-black/40">
+            <a href="#shot-table-detail" class="shot-zoom" aria-label="View larger"><img src="screenshots/en/table-detail.png" alt="cli2ui table detail — columns, types and defaults" loading="lazy" class="w-full block"></a><div id="shot-table-detail" class="lightbox"><a href="#" class="lightbox-close" aria-label="Close"></a><img src="screenshots/en/table-detail.png" alt=""></div>
           </div>
-          <figcaption class="mt-3 text-sm text-zinc-400">Table detail — columns (with column &amp; table comments, generated-column expressions, and an on-demand JSON shape sample on <span class="mono">jsonb</span> columns), indexes, row preview, a filter builder, CSV import/export, plus one-click backup or rename.</figcaption>
+          <figcaption class="mt-3 text-sm text-zinc-700">Table detail — columns (with column &amp; table comments, generated-column expressions, and an on-demand JSON shape sample on<span class="mono">jsonb</span> columns), indexes, row preview, a filter builder, CSV import/export, plus one-click backup or rename.</figcaption>
         </figure>
         <figure>
-          <div class="overflow-hidden rounded-xl border border-zinc-800 shadow-2xl shadow-black/40">
-            <img src="screenshots/sql-runner.png" alt="cli2ui SQL runner — read-only query with results" loading="lazy" class="w-full block">
+          <div class="overflow-hidden rounded-xl border border-zinc-200 shadow-2xl shadow-black/40">
+            <a href="#shot-sql-runner-2" class="shot-zoom" aria-label="View larger"><img src="screenshots/en/sql-runner.png" alt="cli2ui SQL runner — a read-only query and its result" loading="lazy" class="w-full block"></a><div id="shot-sql-runner-2" class="lightbox"><a href="#" class="lightbox-close" aria-label="Close"></a><img src="screenshots/en/sql-runner.png" alt=""></div>
           </div>
-          <figcaption class="mt-3 text-sm text-zinc-400">SQL runner — read-only by default, with EXPLAIN, scale and index what-ifs.</figcaption>
+          <figcaption class="mt-3 text-sm text-zinc-700">SQL runner — read-only by default, with EXPLAIN, scale and index what-ifs.</figcaption>
         </figure>
       </div>
     </div>
   </section>
 
-  <!-- Features -->
-  <section id="features" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
-    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">What's in the box</h2>
-    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">
-      A real DB-client layout, one panel per job.
-    </p>
+  <!-- 機能 -->
+  <section id="features" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-200">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-700">What's in the box</h2>
+    <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl"> A real DB-client layout, one panel per job. </p>
 
-    <p class="mt-4 text-sm text-zinc-400 leading-relaxed max-w-2xl">
-      <span class="text-zinc-200">Works with PostgreSQL and MySQL (8.0+)</span> — the same panels over either engine, behind the same read-only-by-default, local-only UI. The cards below use Postgres wording (<span class="mono">pg_stat_activity</span>, <span class="mono">postgresql.conf</span>); MySQL uses its own equivalents (<span class="mono">SHOW PROCESSLIST</span>, <span class="mono">performance_schema</span>, <span class="mono">SET PERSIST</span>). Where a feature has no MySQL equivalent (vacuum/bloat, the planner what-if lab, replication slots), the panel shows &ldquo;not applicable&rdquo; rather than a misleading empty card.
-    </p>
+    <p class="mt-4 text-sm text-zinc-700 leading-relaxed max-w-2xl">
+      <span class="text-zinc-800">Works with PostgreSQL and MySQL (8.0+)</span> — the same panels over either engine, behind the same read-only-by-default, local-only UI. The cards below use Postgres wording (<span class="mono">pg_stat_activity</span>, <span class="mono">postgresql.conf</span>); MySQL uses its own equivalents (<span class="mono">SHOW PROCESSLIST</span>, <span class="mono">performance_schema</span>, <span class="mono">SET PERSIST</span>). Where a feature has no MySQL equivalent (vacuum/bloat, the planner what-if lab, replication slots), the panel shows &ldquo;not applicable&rdquo; rather than a misleading empty card. </p>
 
-    <div class="mt-10 grid gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 lg:grid-cols-3">
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">SQL runner</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Read-only ad-hoc queries by default (<span class="mono">READ ONLY</span> + statement timeout + 1000-row cap), with an opt-in write mode that commits — guarded by a whole-database safety snapshot before each write, and by the same 2s <span class="mono">lock_timeout</span> the DDL buttons take (a checkbox, so you can wait when you mean to). Export a full query result — or a whole table — as CSV or JSON.</p>
+    <div class="mt-10">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-zinc-500">Rehearse it first</h2>
+        <p class="mt-1.5 text-sm text-zinc-700 max-w-2xl">Try it inside a transaction you throw away. This is the heart of cli2ui.</p>
+        <div class="mt-12 hero-rail">
+        <div class="hero-item grid gap-8 lg:grid-cols-12 lg:gap-12 items-center">
+          <div class="lg:col-span-5 lg:text-right">
+            <h3 class="text-xl font-semibold text-zinc-950">Index lab</h3>
+            <p class="mt-2 text-zinc-700 leading-relaxed">Measure whether an index helps, before you create it.</p>
+            <p class="mt-3 text-sm text-zinc-600 leading-relaxed">Measure a hypothetical index before you create it — EXPLAIN ANALYZE before and after, the index built and rolled back in one transaction.</p>
+          </div>
+          <div class="lg:col-span-7">
+            <figure class="shot-big">
+              <a href="#shot-index-lab" class="shot-zoom" aria-label="View larger"><img src="screenshots/en/index-lab.png" alt="Index lab — measuring the effect before creating the index" loading="lazy" class="w-full block"
+                   onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-index-lab" class="lightbox"><a href="#" class="lightbox-close" aria-label="Close"></a><img src="screenshots/en/index-lab.png" alt=""></div>
+              <figcaption class="shot-todo">Screenshot pending — <span class="mono">screenshots/en/index-lab.png</span></figcaption>
+            </figure>
+          </div>
+        </div>
+        <div class="hero-item grid gap-8 lg:grid-cols-12 lg:gap-12 items-center">
+          <div class="lg:col-span-5 lg:order-2 lg:text-left">
+            <h3 class="text-xl font-semibold text-zinc-950">DDL that gives up, not piles up</h3>
+            <p class="mt-2 text-zinc-700 leading-relaxed">If it can't take the lock in two seconds, it gives up. Nobody queues behind it.</p>
+            <p class="mt-3 text-sm text-zinc-600 leading-relaxed">Every ALTER / DROP / TRUNCATE / rename runs under a short lock_timeout, so a change that cannot take its exclusive lock fails in two seconds — nothing changed — instead of waiting behind an open transaction while every later query queues behind it.</p>
+          </div>
+          <div class="lg:col-span-7 lg:order-1">
+            <figure class="shot-big">
+              <a href="#shot-ddl" class="shot-zoom" aria-label="View larger"><img src="screenshots/en/ddl.png" alt="DDL that gives up — a statement run under lock_timeout" loading="lazy" class="w-full block"
+                   onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-ddl" class="lightbox"><a href="#" class="lightbox-close" aria-label="Close"></a><img src="screenshots/en/ddl.png" alt=""></div>
+              <figcaption class="shot-todo">Screenshot pending — <span class="mono">screenshots/en/ddl.png</span></figcaption>
+            </figure>
+          </div>
+        </div>
+        <div class="hero-item grid gap-8 lg:grid-cols-12 lg:gap-12 items-center">
+          <div class="lg:col-span-5 lg:text-right">
+            <h3 class="text-xl font-semibold text-zinc-950">EXPLAIN snapshots + diff</h3>
+            <p class="mt-2 text-zinc-700 leading-relaxed">Save a plan, then diff it against the one you get after.</p>
+            <p class="mt-3 text-sm text-zinc-600 leading-relaxed">Save query plans and diff two of them — before and after an index — instead of copy-pasting plans into a scratch file.</p>
+          </div>
+          <div class="lg:col-span-7">
+            <figure class="shot-big">
+              <a href="#shot-explain-diff" class="shot-zoom" aria-label="View larger"><img src="screenshots/en/explain-diff.png" alt="EXPLAIN diff — two plans compared side by side" loading="lazy" class="w-full block"
+                   onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-explain-diff" class="lightbox"><a href="#" class="lightbox-close" aria-label="Close"></a><img src="screenshots/en/explain-diff.png" alt=""></div>
+              <figcaption class="shot-todo">Screenshot pending — <span class="mono">screenshots/en/explain-diff.png</span></figcaption>
+            </figure>
+          </div>
+        </div>
+        <div class="hero-item grid gap-8 lg:grid-cols-12 lg:gap-12 items-center">
+          <div class="lg:col-span-5 lg:order-2 lg:text-left">
+            <h3 class="text-xl font-semibold text-zinc-950">Scale simulation</h3>
+            <p class="mt-2 text-zinc-700 leading-relaxed">At 100× the rows, where does the plan give way?</p>
+            <p class="mt-3 text-sm text-zinc-600 leading-relaxed">EXPLAIN the same query at 1× / 100× / 10000× the real row counts (a what-if pg_class edit, always rolled back) to see where the plan shape breaks as data grows.</p>
+          </div>
+          <div class="lg:col-span-7 lg:order-1">
+            <figure class="shot-big">
+              <a href="#shot-scale" class="shot-zoom" aria-label="View larger"><img src="screenshots/en/scale.png" alt="Scale simulation — 1× / 100× / 10000×" loading="lazy" class="w-full block"
+                   onerror="this.closest('figure').classList.add('shot-missing');this.remove();"></a><div id="shot-scale" class="lightbox"><a href="#" class="lightbox-close" aria-label="Close"></a><img src="screenshots/en/scale.png" alt=""></div>
+              <figcaption class="shot-todo">Screenshot pending — <span class="mono">screenshots/en/scale.png</span></figcaption>
+            </figure>
+          </div>
+        </div>
       </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">EXPLAIN snapshots + diff</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Save query plans and diff two of them — before/after an index — instead of copy-pasting plans into a scratch file.</p>
       </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">Scale simulation</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">EXPLAIN the same query at 1× / 100× / 10000× the real row counts (a what-if <span class="mono">pg_class</span> edit, always rolled back) to see where the plan shape breaks as data grows.</p>
+      <div class="mt-14">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-zinc-500">What's happening right now</h2>
+        <p class="mt-1.5 text-sm text-zinc-700 max-w-2xl">One click for what would otherwise be one more query.</p>
+        <div class="feat-list mt-5 sm:grid-cols-2">
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">Activity</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">Running queries and connections. Stop one in a click.</p>
+            <details class="more mt-2">
+              <summary>More</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed"><span class="mono">pg_stat_activity</span> gives the running queries and connections, with one-click cancel / kill.</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">Locks</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">The session everyone is waiting on sits at the top of the tree.</p>
+            <details class="more mt-2">
+              <summary>More</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">The wait-for chain as a tree: at the top, the <span class="text-zinc-800">head blocker</span>(cancel / kill it to free everything beneath), with blocked sessions nested under it (<span class="mono">pg_blocking_pids</span>). Cycles are flagged. One-click cancel / kill on any session.</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">Health · index &amp; bloat facts</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">Unused, duplicate, bloated. Facts only — no advice.</p>
+            <details class="more mt-2">
+              <summary>More</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">Table sizes, unused indexes, unindexed foreign keys, redundant (duplicate / prefix) indexes, orphan rows (<span class="mono">NOT VALID</span> FKs and constraint-less <span class="mono">*_id</span> columns, counted read-only on demand), dead rows / vacuum, and a stats-only bloat estimate — read-only catalog facts, no advice.</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">Dependencies</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">A safe TRUNCATE order, derived from the foreign keys.</p>
+            <details class="more mt-2">
+              <summary>More</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">The foreign-key graph, topologically sorted into a safe <span class="mono">TRUNCATE</span> / load order — with FK cycles detected and named. Read-only; nothing is truncated.</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">Extensions</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">What's installed, what the server could install, and what has an update.</p>
+            <details class="more mt-2">
+              <summary>More</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">What's installed in this database and what the server could install (<span class="mono">\dx</span> ＋ <span class="mono">pg_available_extensions</span>), with an update-available badge. Read-only; <span class="mono">CREATE EXTENSION</span> stays in the SQL runner.</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">Objects browser</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">Databases, schemas and roles — plus a postgresql.conf editor.</p>
+            <details class="more mt-2">
+              <summary>More</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">List databases, schemas and roles (<span class="mono">\l \dn \du</span>), plus create / rename / alter / drop (and DB clone via <span class="mono">TEMPLATE</span> ) behind confirm gates — and a <span class="mono">postgresql.conf</span> editor with reload-vs-restart badges.</p>
+            </details>
+          </div>
+        </div>
       </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">Index lab</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Measure a hypothetical index before you create it — <span class="mono">EXPLAIN ANALYZE</span> before/after, the index built and rolled back in one transaction.</p>
+      <div class="mt-14">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-zinc-500">Run it</h2>
+        <p class="mt-1.5 text-sm text-zinc-700 max-w-2xl">Anything that writes runs inside a snapshot and a timeout.</p>
+        <div class="feat-list mt-5 sm:grid-cols-2">
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">SQL runner</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">Read-only by default. It writes only when you say so.</p>
+            <details class="more mt-2">
+              <summary>More</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">Read-only ad-hoc queries by default (<span class="mono">READ ONLY</span> + statement timeout + 1000-row cap), with an opt-in write mode that commits — guarded by a whole-database safety snapshot before each write, and by the same 2s <span class="mono">lock_timeout</span>the DDL buttons take (a checkbox, so you can wait when you mean to). Export a full query result — or a whole table — as CSV or JSON.</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">Backup / restore</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">A snapshot is taken before anything destructive.</p>
+            <details class="more mt-2">
+              <summary>More</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">Automatic table snapshots before every destructive or structural change, plus restore of an uploaded dump — streamed to the client tool, not buffered in memory.</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">Replication</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">Readiness, WAL position, connected standbys, slots.</p>
+            <details class="more mt-2">
+              <summary>More</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">Readiness check (<span class="mono">wal_level</span> / <span class="mono">max_wal_senders</span>) + WAL position, connected standbys, and slot create / drop.</p>
+            </details>
+          </div>
+          <div class="feat-row px-5 py-4">
+            <h3 class="text-sm font-semibold text-zinc-900">Command history</h3>
+            <p class="mt-1.5 text-sm text-zinc-700 leading-relaxed">Every run logged with its result and timing. Re-run in a click.</p>
+            <details class="more mt-2">
+              <summary>More</summary>
+              <p class="mt-2 text-sm text-zinc-600 leading-relaxed">Every SQL run logged with status, row count and timing — and one-click re-open to run it again.</p>
+            </details>
+          </div>
+        </div>
       </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">Activity</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Running queries + connections from <span class="mono">pg_stat_activity</span>, with one-click cancel / kill.</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">Locks</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">The wait-for chain as a tree: the <span class="text-zinc-200">head blocker</span> at the top (cancel / kill it to free everything beneath), blocked sessions nested under it (<span class="mono">pg_blocking_pids</span>), cycles flagged. One-click cancel / kill on any session.</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">Backup / restore</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Automatic table snapshots before every destructive or structural change, plus restore of an uploaded dump — streamed to the client tool, not buffered in memory.</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">DDL that gives up, not piles up</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Every <span class="mono">ALTER</span> / <span class="mono">DROP</span> / <span class="mono">TRUNCATE</span> / rename on a table, column, schema or role runs under a short <span class="mono">lock_timeout</span>, so a change that can't get its exclusive lock fails in two seconds — <span class="text-zinc-200">nothing changed</span> — instead of waiting behind an open transaction while every later query, plain <span class="mono">SELECT</span>s included, queues behind <em>it</em>. Concurrent index builds are exempt on purpose.</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">Replication</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Readiness check (<span class="mono">wal_level</span> / <span class="mono">max_wal_senders</span>) + WAL position, connected standbys, and slot create / drop.</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">Health · index &amp; bloat facts</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Table sizes, unused indexes, unindexed foreign keys, redundant (duplicate / prefix) indexes, orphan rows (<span class="mono">NOT VALID</span> FKs &amp; constraint-less <span class="mono">*_id</span> columns, counted read-only on demand), dead rows / vacuum, and a stats-only bloat estimate — read-only catalog facts, no advice.</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">Dependencies</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">The foreign-key graph, topologically sorted into a safe <span class="mono">TRUNCATE</span> / load order — with FK cycles detected and named. Read-only; nothing is truncated.</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">Extensions</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">What's installed in this database and what the server could install (<span class="mono">\dx</span> + <span class="mono">pg_available_extensions</span>), with an update-available badge. Read-only; <span class="mono">CREATE EXTENSION</span> stays in the SQL runner.</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">Objects browser</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">List databases, schemas and roles (<span class="mono">\l \dn \du</span>), plus create / rename / alter / drop (and DB clone via <span class="mono">TEMPLATE</span>) behind confirm gates — and a <span class="mono">postgresql.conf</span> editor with reload-vs-restart badges.</p>
-      </div>
-      <div class="bg-zinc-950 p-6">
-        <h3 class="font-medium text-zinc-100">Command history</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">Every SQL run logged with status, row count and timing — and one-click re-open to run it again.</p>
-      </div>
-    </div>
   </section>
 
-  <!-- Principles -->
-  <section id="principles" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
-    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">Not doing &mdash; on purpose</h2>
+  <!-- 設計思想 -->
+  <section id="principles" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-200">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-700">Not doing &mdash; on purpose</h2>
     <p class="mt-2 text-2xl font-semibold tracking-tight max-w-2xl">The constraints are the product.</p>
 
     <div class="mt-10 grid gap-4 md:grid-cols-2">
       <div class="card p-6">
-        <h3 class="font-medium text-zinc-100 flex items-center gap-2"><span class="text-amber-400">⊘</span> No AI</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">API-key management plus sending your schema to a third party is a non-starter for the people this is for. The tool does exactly the command you clicked — nothing it guessed.</p>
+        <h3 class="font-medium text-zinc-900 flex items-center gap-2"><span class="text-amber-700">⊘</span> No AI</h3>
+        <p class="mt-2 text-sm text-zinc-700 leading-relaxed">API-key management plus sending your schema to a third party is a non-starter for the people this is for. The tool does exactly the command you clicked — nothing it guessed.</p>
       </div>
       <div class="card p-6">
-        <h3 class="font-medium text-zinc-100 flex items-center gap-2"><span class="text-amber-400">⊘</span> No SaaS</h3>
-        <p class="mt-2 text-sm text-zinc-400 leading-relaxed">The moment we'd hold your DB connection info, the liability and encryption story swamps the project. Local-only keeps it honest — no DB creds ever leave your network.</p>
+        <h3 class="font-medium text-zinc-900 flex items-center gap-2"><span class="text-amber-700">⊘</span> No SaaS</h3>
+        <p class="mt-2 text-sm text-zinc-700 leading-relaxed">The moment we'd hold your DB connection info, the liability and encryption story swamps the project. Local-only keeps it honest — no DB creds ever leave your network.</p>
       </div>
     </div>
 
-    <div class="mt-12 overflow-hidden rounded-xl border border-zinc-800">
+    <div class="mt-12 overflow-hidden rounded-xl border border-zinc-200">
       <table class="w-full text-sm">
-        <thead class="bg-zinc-900/60 text-zinc-400">
+        <thead class="bg-zinc-50/60 text-zinc-700">
           <tr><th class="text-left font-medium px-5 py-2.5">Layer</th><th class="text-left font-medium px-5 py-2.5">Choice</th><th class="text-left font-medium px-5 py-2.5 hidden sm:table-cell">Why</th></tr>
         </thead>
-        <tbody class="divide-y divide-zinc-800 text-zinc-300">
-          <tr><td class="px-5 py-3">Frontend</td><td class="px-5 py-3 mono text-emerald-300">htmx + Alpine.js</td><td class="px-5 py-3 text-zinc-400 hidden sm:table-cell">Click → swap in HTML. No SPA build needed.</td></tr>
-          <tr><td class="px-5 py-3">Backend</td><td class="px-5 py-3 mono text-emerald-300">Django</td><td class="px-5 py-3 text-zinc-400 hidden sm:table-cell">Battle-tested psycopg2; management plumbing for free.</td></tr>
-          <tr><td class="px-5 py-3">Management DB</td><td class="px-5 py-3 mono text-emerald-300">SQLite</td><td class="px-5 py-3 text-zinc-400 hidden sm:table-cell">Saved connections + history. Zero extra infra.</td></tr>
-          <tr><td class="px-5 py-3">Infra</td><td class="px-5 py-3 mono text-emerald-300">Docker</td><td class="px-5 py-3 text-zinc-400 hidden sm:table-cell">Local-only, self-contained.</td></tr>
+        <tbody class="divide-y divide-zinc-200 text-zinc-700">
+          <tr><td class="px-5 py-3">Frontend</td><td class="px-5 py-3 mono text-emerald-700">htmx + Alpine.js</td><td class="px-5 py-3 text-zinc-700 hidden sm:table-cell">Click → swap in HTML. No SPA build needed.</td></tr>
+          <tr><td class="px-5 py-3">Backend</td><td class="px-5 py-3 mono text-emerald-700">Django</td><td class="px-5 py-3 text-zinc-700 hidden sm:table-cell">Battle-tested psycopg2; management plumbing for free.</td></tr>
+          <tr><td class="px-5 py-3">Management DB</td><td class="px-5 py-3 mono text-emerald-700">SQLite</td><td class="px-5 py-3 text-zinc-700 hidden sm:table-cell">Saved connections + history. Zero extra infra.</td></tr>
+          <tr><td class="px-5 py-3">Infra</td><td class="px-5 py-3 mono text-emerald-700">Docker</td><td class="px-5 py-3 text-zinc-700 hidden sm:table-cell">Local-only, self-contained.</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
-  <!-- Quick start -->
-  <section id="quickstart" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-900">
+  <!-- クイックスタート -->
+  <section id="quickstart" class="scroll-link max-w-6xl mx-auto px-6 py-16 border-t border-zinc-200">
     <div class="card p-8 sm:p-10">
       <h2 class="text-2xl font-semibold tracking-tight">Up and running in one command</h2>
-      <p class="mt-2 text-zinc-400 max-w-xl">The connection form is pre-filled to point at a bundled sample database — hit <span class="text-emerald-300">Connect</span> and you're looking at its tables. Want realistic volume? An opt-in Airlines demo database (830k+ tickets, <span class="mono">jsonb</span> columns) is two commands away — see the README.</p>
+      <p class="mt-2 text-zinc-700 max-w-xl">The connection form is pre-filled to point at a bundled sample database — hit<span class="text-emerald-700">Connect</span> and you're looking at its tables. Want realistic volume? An opt-in Airlines demo database (830k+ tickets,<span class="mono">jsonb</span> columns) is two commands away — see the README.</p>
 
-      <div class="mt-6 rounded-lg border border-zinc-800 bg-black/40 p-4 font-mono text-sm">
+      <div class="mt-6 rounded-lg border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm">
         <div class="prompt text-zinc-100">docker compose up</div>
-        <div class="mt-2 text-zinc-500"># pulls the published image — nothing to build</div>
-        <div class="mt-2 text-zinc-500"># then open <span class="text-sky-300">http://localhost:8000</span></div>
-        <div class="mt-1 text-zinc-600"># port 8000 taken? remap in docker-compose.yml: <span class="text-zinc-400">"8001:8000"</span></div>
+        <div class="mt-2 text-zinc-400"># pulls the published image — nothing to build</div>
+        <div class="mt-2 text-zinc-500"># then open <span class="text-sky-700">http://localhost:8000</span></div>
+        <div class="mt-1 text-zinc-400"># port 8000 taken? remap in docker-compose.yml: <span class="text-zinc-700">"8001:8000"</span></div>
       </div>
 
-      <p class="mt-4 text-sm text-amber-300/90">⚠️ Local-only by design — no authentication. Run it on localhost or a trusted network, never on the public internet.</p>
+      <p class="mt-4 text-sm text-amber-700/90">⚠️ Local-only by design — no authentication. Run it on localhost or a trusted network, never on the public internet.</p>
 
       <div class="mt-8 flex flex-wrap gap-3">
         <a href="https://github.com/MR-TABATA/cli2ui" class="btn btn-primary">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12 11.5 11.5 0 0 0 8.36 23c.6.11.82-.26.82-.58v-2c-3.34.73-4.04-1.6-4.04-1.6-.55-1.39-1.34-1.76-1.34-1.76-1.1-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.8 1.3 3.49 1 .1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.3-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
-          Clone the repo
-        </a>
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12 11.5 11.5 0 0 0 8.36 23c.6.11.82-.26.82-.58v-2c-3.34.73-4.04-1.6-4.04-1.6-.55-1.39-1.34-1.76-1.34-1.76-1.1-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.8 1.3 3.49 1 .1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.3-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg> Clone the repo </a>
         <span class="text-sm text-zinc-500 self-center mono">requires Docker</span>
       </div>
     </div>
   </section>
 
-  <!-- Footer -->
-  <footer class="border-t border-zinc-900">
+  <!-- フッター -->
+  <footer class="border-t border-zinc-200">
     <div class="max-w-6xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between text-sm text-zinc-500">
       <div>
-        <span class="text-zinc-300 font-semibold">cli<span class="text-emerald-400">2</span>ui</span>
-        <span class="mx-2">·</span> CLI database ops, as buttons.
-      </div>
+        <span class="text-zinc-700 font-semibold">cli<span class="text-emerald-700">2</span>ui</span>
+        <span class="mx-2">·</span> CLI database ops, as buttons. </div>
       <div class="flex items-center gap-4">
-        <a href="https://github.com/MR-TABATA/cli2ui" class="hover:text-zinc-200 transition">GitHub</a>
+        <a href="https://github.com/MR-TABATA/cli2ui" class="hover:text-zinc-800 transition">GitHub</a>
         <span>MIT &copy; TABATA Hitoshi</span>
       </div>
     </div>
