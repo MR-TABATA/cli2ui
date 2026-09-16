@@ -65,6 +65,11 @@ services:
   airlines:
     image: postgres:16
     profiles: ["demo"]
+    # Multi-minute reload on every restart otherwise: unless-stopped means a
+    # Docker Desktop restart (or the host coming back from sleep) brings it
+    # straight back up instead of leaving it exited until someone notices and
+    # re-runs the --profile demo command by hand.
+    restart: unless-stopped
     environment:
       POSTGRES_USER: demo
       POSTGRES_PASSWORD: demo
