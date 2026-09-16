@@ -1,0 +1,60 @@
+name: history
+
+# The development-history page (docs/history.{ja,en}.html) is built from
+# every commit on main, not from merged pull requests — a PR-only generator
+# silently drops whatever landed by a direct push, and cli2ui does both
+# depending on the day.
+#
+# This is not a "fails if stale" gate. A gate would turn main red on every
+# push whose commit has no translated pair yet, purely to make someone go
+# fix the page before they can move on. Instead this regenerates on every
+# push to main and commits only when something actually changed. A commit
+# with no entry in scripts/build_history.py's COMMITS yet is not an error —
+# it shows its own raw subject line on both pages until someone adds a
+# translated pair.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Serialize: two runs from back-to-back pushes must not race to push the
+# same file.
+concurrency:
+  group: history-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Default is a shallow clone (1 commit). The script counts commits
+          # and reads the first commit's date from full git history, so a
+          # shallow checkout would publish "1 day, 1 commit".
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Rebuild the history page
+        run: python3 scripts/build_history.py
+
+      - name: Commit if it changed
+        run: |
+          if git diff --quiet -- docs/history.ja.html docs/history.en.html; then
+            echo "No change — the page already matches the commit history."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/history.ja.html docs/history.en.html
+          # [skip ci]: no test/E2E run is worth it for this diff, and it also
+          # keeps this push from recursively re-triggering this workflow.
+          git commit -m "docs: rebuild the development-history page [skip ci]"
+          git push
