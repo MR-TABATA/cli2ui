@@ -17,6 +17,8 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-09-16
+
 ### Added
 
 - **A light theme, and a custom one.** The header carries four choices — 自動 /
@@ -61,6 +63,17 @@ Versioning convention for this project:
   amber. Seed a dark ground with a dark accent and the label went white on amber:
   1.9 : 1. They use the ground colour now, which is the readable side of a fixed
   intent colour by construction: 11.1 : 1.
+
+- **The table list could hide entire objects, or blur two different ones
+  together.** It read `pg_class` filtered to `relkind IN ('r', 'p')` —
+  ordinary and partitioned tables only, so materialized views and foreign
+  tables never showed up at all. Partition children did show up, but
+  alphabetized flat alongside everything else: a table with fifty monthly
+  partitions buried every unrelated table in between them. And an `UNLOGGED`
+  table looked identical to a regular one, with nothing on screen to say a
+  crash empties it. One query now covers materialized views and foreign
+  tables too, nests each partition under its own parent instead of the
+  alphabet, and flags `UNLOGGED`.
 
 ## [1.8.0] - 2026-09-04
 
@@ -616,7 +629,13 @@ reserved for multi-DB support).
 - Internationalisation (English / Japanese).
 - Workspace overview dashboard and unified UI (design system).
 
-[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.8.0...v1.9.0
+[1.8.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.7.0...v1.8.0
+[1.7.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.6.1...v1.7.0
+[1.6.1]: https://github.com/MR-TABATA/cli2ui/compare/v1.6.0...v1.6.1
+[1.6.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.1.0...v1.2.0

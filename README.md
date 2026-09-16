@@ -135,7 +135,9 @@ v1.3.0 — a multi-DB (PostgreSQL & MySQL) ops console. `docker compose up` →
 connect → browse your tables in a DB-client layout (table list in the sidebar,
 table detail in the main pane).
 
-- ✅ PostgreSQL: connect + list tables (estimated row counts)
+- ✅ PostgreSQL: connect + list tables (estimated row counts, materialized
+  views and foreign tables included, partitions nested under their parent,
+  `UNLOGGED` flagged)
 - ✅ Table detail: column definitions with column & table comments and
   generated-column expressions (`\d+ table`), an on-demand **JSON shape** view
   on `json`/`jsonb` columns (sampled top-level keys, value types, nesting depth,
