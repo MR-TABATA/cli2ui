@@ -51,7 +51,8 @@
     .chart-title { font-size: .75rem; font-weight: 700; color: #71717a; text-transform: uppercase;
                    letter-spacing: .05em; margin-bottom: 1.1rem; }
     .chart { display: flex; align-items: flex-end; gap: 3px; height: 100px; }
-    .bar-col { flex: 1; min-width: 0; }
+    .bar-col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column;
+               justify-content: flex-end; }
     .bar { width: 100%; border-radius: 3px 3px 0 0; background: #059669; min-height: 2px; }
     .bar.zero { background: #e4e4e7; }
 
@@ -101,7 +102,7 @@
 <p>Every commit, in order. A pull-request-only list drops whatever landed by a direct push to main — dates, line counts and totals are re-measured from git on every build, never hand-maintained.</p>
 <div class="stats">
 <div class="stat"><div class="stat-value">100</div><div class="stat-label">Days</div></div>
-<div class="stat"><div class="stat-value">149</div><div class="stat-label">Commits</div></div>
+<div class="stat"><div class="stat-value">150</div><div class="stat-label">Commits</div></div>
 <div class="stat"><div class="stat-value">13</div><div class="stat-label">Releases</div></div>
 </div></div></header>
 <section><div class="container"><div class="chart-wrap">
@@ -121,824 +122,151 @@
 <div class="bar-col"><div class="bar" style="height:7%"></div></div>
 <div class="bar-col"><div class="bar" style="height:15%"></div></div>
 <div class="bar-col"><div class="bar" style="height:7%"></div></div>
-<div class="bar-col"><div class="bar" style="height:6%"></div></div>
+<div class="bar-col"><div class="bar" style="height:7%"></div></div>
 </div></div></div></section>
 <section><div class="container">
-<div class="version" id="v0.8.0"><div class="version-head">
-<div class="version-tag">2026-06-09 – 2026-06-17</div><h2>v0.8.0</h2>
+<div class="version" id="unreleased"><div class="version-head">
+<div class="version-tag">2026-09-16</div><h2>Unreleased</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-06-09
+<div class="entry-date">2026-09-16
 </div>
-<div class="entry-text">Initial commit: cli2ui MVP — PostgreSQL table list</div>
-<div class="entry-diff"><span class="add">+783</span> <span class="del">-0</span></div>
+<div class="entry-text">docs: rebuild the development-history page [skip ci]</div>
+<div class="entry-diff"><span class="add">+24</span> <span class="del">-4</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-06-09
+<div class="entry-date">2026-09-16
 </div>
-<div class="entry-text">Add DB-client workspace and postgresql.conf editor</div>
-<div class="entry-diff"><span class="add">+676</span> <span class="del">-212</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-09
-</div>
-<div class="entry-text">Add restart-command helper for pending-restart settings</div>
-<div class="entry-diff"><span class="add">+65</span> <span class="del">-15</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-09
-</div>
-<div class="entry-text">Add Objects browser: databases, schemas, roles (\l, \dn, \du)</div>
-<div class="entry-diff"><span class="add">+245</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-09
-</div>
-<div class="entry-text">Document Objects browser in README status list</div>
-<div class="entry-diff"><span class="add">+1</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-09
-</div>
-<div class="entry-text">Enable CSRF protection (htmx sends token via X-CSRFToken header)</div>
-<div class="entry-diff"><span class="add">+8</span> <span class="del">-3</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-09
-</div>
-<div class="entry-text">Add schema create/drop to the Objects browser</div>
-<div class="entry-diff"><span class="add">+95</span> <span class="del">-4</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-09
-</div>
-<div class="entry-text">Add role create/drop to the Objects browser</div>
-<div class="entry-diff"><span class="add">+105</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-10
-</div>
-<div class="entry-text">Add read-only SQL runner</div>
-<div class="entry-diff"><span class="add">+199</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-10
-</div>
-<div class="entry-text">Add EXPLAIN plan snapshots: save, view plan, and diff</div>
-<div class="entry-diff"><span class="add">+359</span> <span class="del">-8</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-10
-</div>
-<div class="entry-text">Show a clear message when a query returns no rows</div>
-<div class="entry-diff"><span class="add">+6</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-10
-</div>
-<div class="entry-text">Add Activity panel and workspace overview</div>
-<div class="entry-diff"><span class="add">+317</span> <span class="del">-14</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">Add MIT LICENSE</div>
-<div class="entry-diff"><span class="add">+25</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">Add structured EXPLAIN diff and scale simulation</div>
-<div class="entry-diff"><span class="add">+1079</span> <span class="del">-3</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">Add index management: list, create, drop per table</div>
-<div class="entry-diff"><span class="add">+341</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">Add E2E smoke test for index create/drop; share browser scaffolding</div>
-<div class="entry-diff"><span class="add">+57</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">Address index review: ordered columns, valid flag, robust column parse</div>
-<div class="entry-diff"><span class="add">+93</span> <span class="del">-34</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">Add what-if index lab: try an index, measure it, then create it</div>
-<div class="entry-diff"><span class="add">+398</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">Validate name in schema_delete / role_delete</div>
-<div class="entry-diff"><span class="add">+6</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">Security hardening: deps, clickjacking, audit doc</div>
-<div class="entry-diff"><span class="add">+94</span> <span class="del">-5</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">Add Health panel: table sizes and unused indexes</div>
-<div class="entry-diff"><span class="add">+284</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">Add dead-rows / vacuum card to the Health panel</div>
-<div class="entry-diff"><span class="add">+125</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">Add database create / clone / rename / drop</div>
-<div class="entry-diff"><span class="add">+243</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">Add ALTER for schemas and roles (rename, owner, attributes)</div>
-<div class="entry-diff"><span class="add">+238</span> <span class="del">-14</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">Add table-level operations: rename / truncate / drop</div>
-<div class="entry-diff"><span class="add">+252</span> <span class="del">-31</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">Add column ops, pg_dump backup/restore, and an automatic safety-net snapshot</div>
-<div class="entry-diff"><span class="add">+1429</span> <span class="del">-36</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">Add locks/blocking and replication panels</div>
-<div class="entry-diff"><span class="add">+635</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">Document reaching DBs in other containers + replication trial</div>
-<div class="entry-diff"><span class="add">+136</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">Add table bloat estimate to the Health panel</div>
-<div class="entry-diff"><span class="add">+166</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">Add command history panel</div>
-<div class="entry-diff"><span class="add">+178</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">Add write mode to the SQL runner</div>
-<div class="entry-diff"><span class="add">+57</span> <span class="del">-22</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">Stream restores and allow restoring into an existing database</div>
-<div class="entry-diff"><span class="add">+113</span> <span class="del">-32</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">Extend the auto-snapshot safety net to rename / alter</div>
-<div class="entry-diff"><span class="add">+24</span> <span class="del">-7</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">Extract PostgreSQL query text into pg_sql.py</div>
-<div class="entry-diff"><span class="add">+300</span> <span class="del">-268</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">Split views.py into a core/views package by domain</div>
-<div class="entry-diff"><span class="add">+1424</span> <span class="del">-1360</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">Add UI design-system foundation (STYLE.md, .btn-*/.field, _banner)</div>
-<div class="entry-diff"><span class="add">+92</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Redesign the table detail panel: subtabs + shared drawer</div>
-<div class="entry-diff"><span class="add">+348</span> <span class="del">-324</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Redesign the Objects panel: subtabs + shared drawer</div>
-<div class="entry-diff"><span class="add">+291</span> <span class="del">-254</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Make the workspace home a live operational bento</div>
-<div class="entry-diff"><span class="add">+124</span> <span class="del">-31</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Adopt shared design-system classes in the remaining panels</div>
-<div class="entry-diff"><span class="add">+14</span> <span class="del">-41</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Extract a .nav-btn class for the sidebar section switcher</div>
-<div class="entry-diff"><span class="add">+31</span> <span class="del">-36</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Lift muted text contrast across the panels</div>
-<div class="entry-diff"><span class="add">+140</span> <span class="del">-140</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Move the section nav from the sidebar into a top bar</div>
-<div class="entry-diff"><span class="add">+69</span> <span class="del">-100</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Make the overview a hover mega-menu (grouped section bento)</div>
-<div class="entry-diff"><span class="add">+206</span> <span class="del">-140</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Make the bento a walled box and show it on overview click too</div>
-<div class="entry-diff"><span class="add">+151</span> <span class="del">-156</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Vary the bento cell sizes and fix the Tables link</div>
-<div class="entry-diff"><span class="add">+31</span> <span class="del">-38</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Lay the bento out as an interlocking size-varied mosaic</div>
-<div class="entry-diff"><span class="add">+63</span> <span class="del">-54</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Switch the bento to equal square tiles (Windows-style)</div>
-<div class="entry-diff"><span class="add">+131</span> <span class="del">-123</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Use a 4-column tile grid (bigger tiles)</div>
-<div class="entry-diff"><span class="add">+1</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Lay out the bento per the sketch: two feature tiles + tile grid</div>
-<div class="entry-diff"><span class="add">+87</span> <span class="del">-105</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Add SVG icons and per-group accent colour to the bento tiles</div>
-<div class="entry-diff"><span class="add">+51</span> <span class="del">-35</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Add faint decorative SVG motifs to the feature tiles</div>
-<div class="entry-diff"><span class="add">+10</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Switch bento to uniform 4x3 tiles with per-group colour bands</div>
-<div class="entry-diff"><span class="add">+124</span> <span class="del">-101</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Lead the bento with the headline tools (SQL runner, Index lab)</div>
-<div class="entry-diff"><span class="add">+57</span> <span class="del">-56</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Make the overview hover menu scroll when it overflows</div>
-<div class="entry-diff"><span class="add">+1</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Make the overview hover menu a compact text list</div>
-<div class="entry-diff"><span class="add">+43</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Make the overview landing a text dashboard to match the menu</div>
-<div class="entry-diff"><span class="add">+85</span> <span class="del">-155</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Loosen the overview dashboard row spacing</div>
-<div class="entry-diff"><span class="add">+12</span> <span class="del">-12</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Add bilingual landing page under docs/</div>
-<div class="entry-diff"><span class="add">+654</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Add JP/EN internationalization across the app</div>
-<div class="entry-diff"><span class="add">+2216</span> <span class="del">-514</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Prep public release docs: README refresh, CONTRIBUTING, SECURITY</div>
-<div class="entry-diff"><span class="add">+173</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">Re-run security static checks for the i18n / release diff</div>
-<div class="entry-diff"><span class="add">+6</span> <span class="del">-3</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-14
-</div>
-<div class="entry-text">Add local-only / no-auth warning to README and EN/JA landing pages</div>
-<div class="entry-diff"><span class="add">+8</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-14
-</div>
-<div class="entry-text">Gather the workspace overview over one DB connection</div>
-<div class="entry-diff"><span class="add">+108</span> <span class="del">-20</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-14
-</div>
-<div class="entry-text">Docs: port-clash note + Docker networking guide (EN/JA)</div>
-<div class="entry-diff"><span class="add">+502</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-14
-</div>
-<div class="entry-text">Drop MySQL from the marketing copy (not implemented yet)</div>
-<div class="entry-diff"><span class="add">+6</span> <span class="del">-8</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-14
-</div>
-<div class="entry-text">Set cli2ui.com as the GitHub Pages custom domain</div>
-<div class="entry-diff"><span class="add">+1</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-14
-</div>
-<div class="entry-text">Point OG/Twitter meta URLs at the cli2ui.com custom domain</div>
-<div class="entry-diff"><span class="add">+9</span> <span class="del">-9</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-15
-</div>
-<div class="entry-text">Cap auto-backup storage per connection by total size</div>
-<div class="entry-diff"><span class="add">+77</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-15
-</div>
-<div class="entry-text">Docs: note auto-backup retention cap + log its nosec</div>
-<div class="entry-diff"><span class="add">+8</span> <span class="del">-3</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-15
-</div>
-<div class="entry-text">Replication: generate a standby-setup recipe with current values</div>
-<div class="entry-diff"><span class="add">+428</span> <span class="del">-66</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-15
-</div>
-<div class="entry-text">Networking guide: document running cli2ui inside your project&#x27;s compose</div>
-<div class="entry-diff"><span class="add">+100</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-16
-</div>
-<div class="entry-text">Add CSV / JSON export of query results</div>
-<div class="entry-diff"><span class="add">+358</span> <span class="del">-96</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-16
-</div>
-<div class="entry-text">Bring README/LP in line with what&#x27;s actually implemented</div>
-<div class="entry-diff"><span class="add">+30</span> <span class="del">-5</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-17
-</div>
-<div class="entry-text">Split scale simulation and the index lab out into the planner_lab app</div>
-<div class="entry-diff"><span class="add">+756</span> <span class="del">-614</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-17
-</div>
-<div class="entry-text">CONTRIBUTING: document the optional-feature-app pattern (planner_lab)</div>
-<div class="entry-diff"><span class="add">+10</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-17
-</div>
-<div class="entry-text">Neutralize wording in comments (the planner_lab description)</div>
-<div class="entry-diff"><span class="add">+5</span> <span class="del">-5</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-17
-</div>
-<div class="entry-text">Neutralize wording in features.py&#x27;s comments</div>
-<div class="entry-diff"><span class="add">+1</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-17
-</div>
-<div class="entry-text">Introduce versioning: __version__ / CHANGELOG / footer display</div>
-<div class="entry-diff"><span class="add">+62</span> <span class="del">-0</span></div>
+<div class="entry-text">開発の記録ページを追加。コミット単位で生成し、PRの有無で漏れない</div>
+<div class="entry-diff"><span class="add">+2817</span> <span class="del">-0</span></div>
 </div>
 </div></div>
-<div class="version" id="v0.9.0"><div class="version-head">
-<div class="version-tag">2026-06-17</div><h2>v0.9.0</h2>
+<div class="version" id="v1.9.0"><div class="version-head">
+<div class="version-tag">2026-09-05 – 2026-09-16</div><h2>v1.9.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-06-17
+<div class="entry-date">2026-09-16
 </div>
-<div class="entry-text">v0.9.0: filter builder / CSV import / table export / CLI2UI_DB_PATH</div>
-<div class="entry-diff"><span class="add">+905</span> <span class="del">-268</span></div>
+<div class="entry-text">1.9.0: version bump, CHANGELOG, and fixing gaps in translation</div>
+<div class="entry-diff"><span class="add">+374</span> <span class="del">-334</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-16
+</div>
+<div class="entry-text">Add restart: unless-stopped to the airlines sample database</div>
+<div class="entry-diff"><span class="add">+5</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-16
+</div>
+<div class="entry-text">Move the table list onto pg_class — one query fixes UNLOGGED, partitions, materialized views, and foreign tables</div>
+<div class="entry-diff"><span class="add">+220</span> <span class="del">-12</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-10
+</div>
+<div class="entry-text">Make the site light, and stop saying the same feature twice</div>
+<div class="entry-diff"><span class="add">+839</span> <span class="del">-382</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-10
+</div>
+<div class="entry-text">Two things the theme work missed — an unreadable combination, and text that never went through translation</div>
+<div class="entry-diff"><span class="add">+267</span> <span class="del">-53</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-10
+</div>
+<div class="entry-text">A custom theme — pick three colours, derive the rest</div>
+<div class="entry-diff"><span class="add">+181</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-10
+</div>
+<div class="entry-text">Bring planner_lab&#x27;s templates onto roles too (a leftover from the previous commit)</div>
+<div class="entry-diff"><span class="add">+68</span> <span class="del">-68</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-10
+</div>
+<div class="entry-text">Hold colour by role so the theme can be swapped</div>
+<div class="entry-diff"><span class="add">+1089</span> <span class="del">-960</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-05
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/29">#29</a>
+</div>
+<div class="entry-text">Stop tracking CLAUDE.md in git</div>
+<div class="entry-diff"><span class="add">+4</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-05
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/28">#28</a>
+</div>
+<div class="entry-text">Rework the table screen&#x27;s layout (the grid now reaches the bottom of the window / sections stay visible)</div>
+<div class="entry-diff"><span class="add">+498</span> <span class="del">-286</span></div>
 </div>
 </div></div>
-<div class="version" id="v1.0.0"><div class="version-head">
-<div class="version-tag">2026-06-17 – 2026-06-20</div><h2>v1.0.0</h2>
+<div class="version" id="v1.8.0"><div class="version-head">
+<div class="version-tag">2026-09-04</div><h2>v1.8.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-06-17
+<div class="entry-date">2026-09-04
 </div>
-<div class="entry-text">MySQL engine Phase 1: browsing / queries / DDL support</div>
-<div class="entry-diff"><span class="add">+1087</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-18
-</div>
-<div class="entry-text">Re-run security static checks on the MySQL engine</div>
-<div class="entry-diff"><span class="add">+10</span> <span class="del">-6</span></div>
+<div class="entry-text">1.8.0: version bump and CHANGELOG</div>
+<div class="entry-diff"><span class="add">+6</span> <span class="del">-1</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-06-18
+<div class="entry-date">2026-09-04
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/27">#27</a>
 </div>
-<div class="entry-text">MySQL engine Phase 2: lock-contention detection, closing false negatives</div>
-<div class="entry-diff"><span class="add">+354</span> <span class="del">-21</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-18
-</div>
-<div class="entry-text">CHANGELOG: log MySQL Phase 2 under Unreleased</div>
-<div class="entry-diff"><span class="add">+19</span> <span class="del">-4</span></div>
+<div class="entry-text">Clicking a table now shows its rows, 1,000 at a time</div>
+<div class="entry-diff"><span class="add">+638</span> <span class="del">-189</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-06-18
+<div class="entry-date">2026-09-04
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/26">#26</a>
 </div>
-<div class="entry-text">MySQL Phase 3a: backup (mysqldump/mysql) and repair for destructive operations</div>
-<div class="entry-diff"><span class="add">+186</span> <span class="del">-7</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-18
-</div>
-<div class="entry-text">MySQL Phase 3b: settings editor (SET PERSIST)</div>
-<div class="entry-diff"><span class="add">+201</span> <span class="del">-14</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-18
-</div>
-<div class="entry-text">MySQL Phase 3c: replication (status + setup recipe)</div>
-<div class="entry-diff"><span class="add">+393</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-18
-</div>
-<div class="entry-text">CHANGELOG: log MySQL Phase 3 (backup/settings/replication) under Unreleased</div>
-<div class="entry-diff"><span class="add">+23</span> <span class="del">-9</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-18
-</div>
-<div class="entry-text">MySQL: send SET PERSIST for numeric system variables unquoted</div>
-<div class="entry-diff"><span class="add">+27</span> <span class="del">-7</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-20
-</div>
-<div class="entry-text">Release v1.0.0: MySQL support (multi-DB ops console)</div>
-<div class="entry-diff"><span class="add">+21</span> <span class="del">-5</span></div>
+<div class="entry-text">Fix the table list calling a non-empty table &quot;0 rows&quot;</div>
+<div class="entry-diff"><span class="add">+216</span> <span class="del">-69</span></div>
 </div>
 </div></div>
-<div class="version" id="v1.1.0"><div class="version-head">
-<div class="version-tag">2026-06-20 – 2026-07-04</div><h2>v1.1.0</h2>
+<div class="version" id="v1.7.0"><div class="version-head">
+<div class="version-tag">2026-09-01 – 2026-09-04</div><h2>v1.7.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-06-20
+<div class="entry-date">2026-09-04
 </div>
-<div class="entry-text">LP: add a &quot;supported databases&quot; note (PostgreSQL &amp; MySQL)</div>
-<div class="entry-diff"><span class="add">+8</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-20
-</div>
-<div class="entry-text">LP: hero copy says &quot;psql / mysql&quot; (not just psql)</div>
-<div class="entry-diff"><span class="add">+2</span> <span class="del">-2</span></div>
+<div class="entry-text">1.7.0: version bump and CHANGELOG</div>
+<div class="entry-diff"><span class="add">+6</span> <span class="del">-1</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-06-20
+<div class="entry-date">2026-09-04
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/25">#25</a>
 </div>
-<div class="entry-text">LP: multi-DB in EN meta + a MySQL command example</div>
-<div class="entry-diff"><span class="add">+5</span> <span class="del">-5</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-22
-</div>
-<div class="entry-text">Activity: show connection headroom (used vs max_connections)</div>
-<div class="entry-diff"><span class="add">+180</span> <span class="del">-3</span></div>
+<div class="entry-text">Fix the screen rewriting timestamps that came from the database</div>
+<div class="entry-diff"><span class="add">+147</span> <span class="del">-6</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-06-22
+<div class="entry-date">2026-09-02
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/20">#20</a>
 </div>
-<div class="entry-text">i18n(ja): translate the MySQL UI strings (untranslated since Phase work)</div>
-<div class="entry-diff"><span class="add">+356</span> <span class="del">-162</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-22
-</div>
-<div class="entry-text">docs: sync multi-DB wording in LP metadata + README status</div>
-<div class="entry-diff"><span class="add">+8</span> <span class="del">-7</span></div>
+<div class="entry-text">DDL rehearsal (v1.7.0): run a real ALTER, then throw it away</div>
+<div class="entry-diff"><span class="add">+593</span> <span class="del">-60</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-06-22
+<div class="entry-date">2026-09-01
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/24">#24</a>
 </div>
-<div class="entry-text">Table detail: surface column comments</div>
-<div class="entry-diff"><span class="add">+51</span> <span class="del">-12</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-25
-</div>
-<div class="entry-text">Table detail: surface the table comment</div>
-<div class="entry-diff"><span class="add">+57</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-25
-</div>
-<div class="entry-text">docs: mention column &amp; table comments in README + LP (en/ja)</div>
-<div class="entry-diff"><span class="add">+5</span> <span class="del">-5</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-26
-</div>
-<div class="entry-text">Column viewer: surface generated columns</div>
-<div class="entry-diff"><span class="add">+412</span> <span class="del">-243</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-26
-</div>
-<div class="entry-text">docs: mention generated columns in README + LP (en/ja)</div>
-<div class="entry-diff"><span class="add">+4</span> <span class="del">-3</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-04
-</div>
-<div class="entry-text">Dependencies panel: safe TRUNCATE order + FK cycle detection</div>
-<div class="entry-diff"><span class="add">+519</span> <span class="del">-43</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-04
-</div>
-<div class="entry-text">Release v1.1.0</div>
+<div class="entry-text">Correct the 1.6.1 heading to match reality (two bugs, not one)</div>
 <div class="entry-diff"><span class="add">+5</span> <span class="del">-2</span></div>
 </div>
-</div></div>
-<div class="version" id="v1.2.0"><div class="version-head">
-<div class="version-tag">2026-07-05</div><h2>v1.2.0</h2>
-</div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-07-05
+<div class="entry-date">2026-09-01
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/22">#22</a>
 </div>
-<div class="entry-text">Health: unindexed foreign keys &amp; redundant index detection</div>
-<div class="entry-diff"><span class="add">+505</span> <span class="del">-76</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-05
-</div>
-<div class="entry-text">Release v1.2.0</div>
-<div class="entry-diff"><span class="add">+5</span> <span class="del">-2</span></div>
-</div>
-</div></div>
-<div class="version" id="v1.3.0"><div class="version-head">
-<div class="version-tag">2026-07-06 – 2026-08-08</div><h2>v1.3.0</h2>
-</div><div class="entries">
-<div class="entry">
-<div class="entry-date">2026-07-06
-</div>
-<div class="entry-text">Fix inaccurate self-referential FK note in ForeignKeyEdge docstring</div>
-<div class="entry-diff"><span class="add">+3</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-10
-</div>
-<div class="entry-text">Health: partial and invalid indexes no longer count as an FK&#x27;s index</div>
-<div class="entry-diff"><span class="add">+63</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-15
-</div>
-<div class="entry-text">Extensions panel: \dx GUI showing installed + available extensions</div>
-<div class="entry-diff"><span class="add">+321</span> <span class="del">-48</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-15
-</div>
-<div class="entry-text">Docs: list the Extensions panel in README and the landing page</div>
-<div class="entry-diff"><span class="add">+12</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-16
-</div>
-<div class="entry-text">JSONB shape: on-demand sampling of a JSON column&#x27;s observed structure</div>
-<div class="entry-diff"><span class="add">+574</span> <span class="del">-91</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-16
-</div>
-<div class="entry-text">Demo data: opt-in Airlines database service (compose profile &quot;demo&quot;)</div>
-<div class="entry-diff"><span class="add">+129</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-16
-</div>
-<div class="entry-text">Docs: sync README, landing page, and CHANGELOG with what shipped</div>
-<div class="entry-diff"><span class="add">+35</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-17
-</div>
-<div class="entry-text">Docs: pitch the bundled demo data as a first-class selling point</div>
-<div class="entry-diff"><span class="add">+7</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-17
-</div>
-<div class="entry-text">Health: orphan rows — NOT VALID FKs + inferred *_id references</div>
-<div class="entry-diff"><span class="add">+673</span> <span class="del">-57</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-17
-</div>
-<div class="entry-text">Locks: fold the wait-for graph into head-blocker trees</div>
-<div class="entry-diff"><span class="add">+283</span> <span class="del">-69</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-29
-</div>
-<div class="entry-text">Replication: show standby replay lag in time, not just bytes</div>
-<div class="entry-diff"><span class="add">+71</span> <span class="del">-7</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-30
-</div>
-<div class="entry-text">DDL: bound the lock wait so a change can&#x27;t stall the table</div>
-<div class="entry-diff"><span class="add">+357</span> <span class="del">-59</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-30
-</div>
-<div class="entry-text">Runner: offer the DDL lock guard in write mode — and actually send the toggles</div>
-<div class="entry-diff"><span class="add">+294</span> <span class="del">-96</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-08
-</div>
-<div class="entry-text">Release v1.3.0</div>
-<div class="entry-diff"><span class="add">+4</span> <span class="del">-2</span></div>
-</div>
-</div></div>
-<div class="version" id="v1.4.0"><div class="version-head">
-<div class="version-tag">2026-08-10 – 2026-08-23</div><h2>v1.4.0</h2>
-</div><div class="entries">
-<div class="entry">
-<div class="entry-date">2026-08-10
-</div>
-<div class="entry-text">Landing page: lead with what the tool answers before you run it</div>
-<div class="entry-diff"><span class="add">+76</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-12
-</div>
-<div class="entry-text">Locks: stop the workspace from queueing behind the lock it should explain</div>
-<div class="entry-diff"><span class="add">+392</span> <span class="del">-117</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-23
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/13">#13</a>
-</div>
-<div class="entry-text">Metrics: keep the download numbers GitHub throws away after 14 days</div>
-<div class="entry-diff"><span class="add">+362</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-23
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/14">#14</a>
-</div>
-<div class="entry-text">Distribution: start from the published image instead of building it</div>
-<div class="entry-diff"><span class="add">+58</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-23
-</div>
-<div class="entry-text">Release 1.4.0</div>
-<div class="entry-diff"><span class="add">+23</span> <span class="del">-2</span></div>
-</div>
-</div></div>
-<div class="version" id="v1.5.0"><div class="version-head">
-<div class="version-tag">2026-08-28</div><h2>v1.5.0</h2>
-</div><div class="entries">
-<div class="entry">
-<div class="entry-date">2026-08-28
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/15">#15</a>
-</div>
-<div class="entry-text">v1.5.0&#x27;s two pieces: a cross-table view of invalid indexes, and NULLs slipping through a composite UNIQUE</div>
-<div class="entry-diff"><span class="add">+770</span> <span class="del">-99</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-28
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/16">#16</a>
-</div>
-<div class="entry-text">1.5.0: version bump and CHANGELOG</div>
-<div class="entry-diff"><span class="add">+39</span> <span class="del">-1</span></div>
-</div>
-</div></div>
-<div class="version" id="v1.6.0"><div class="version-head">
-<div class="version-tag">2026-08-28</div><h2>v1.6.0</h2>
-</div><div class="entries">
-<div class="entry">
-<div class="entry-date">2026-08-28
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/17">#17</a>
-</div>
-<div class="entry-text">See it before you press it (v1.6.0): the SQL about to run, and what TRUNCATE / DROP will take with it</div>
-<div class="entry-diff"><span class="add">+436</span> <span class="del">-53</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-28
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/18">#18</a>
-</div>
-<div class="entry-text">Show what DROP … CASCADE takes with it, before you press it</div>
-<div class="entry-diff"><span class="add">+89</span> <span class="del">-24</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-28
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/19">#19</a>
-</div>
-<div class="entry-text">1.6.0: version bump and CHANGELOG</div>
-<div class="entry-diff"><span class="add">+44</span> <span class="del">-1</span></div>
+<div class="entry-text">Run the test suite on pull requests</div>
+<div class="entry-diff"><span class="add">+87</span> <span class="del">-0</span></div>
 </div>
 </div></div>
 <div class="version" id="v1.6.1"><div class="version-head">
@@ -952,142 +280,821 @@
 <div class="entry-diff"><span class="add">+319</span> <span class="del">-66</span></div>
 </div>
 </div></div>
-<div class="version" id="v1.7.0"><div class="version-head">
-<div class="version-tag">2026-09-01 – 2026-09-04</div><h2>v1.7.0</h2>
+<div class="version" id="v1.6.0"><div class="version-head">
+<div class="version-tag">2026-08-28</div><h2>v1.6.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-09-01
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/22">#22</a>
+<div class="entry-date">2026-08-28
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/19">#19</a>
 </div>
-<div class="entry-text">Run the test suite on pull requests</div>
-<div class="entry-diff"><span class="add">+87</span> <span class="del">-0</span></div>
+<div class="entry-text">1.6.0: version bump and CHANGELOG</div>
+<div class="entry-diff"><span class="add">+44</span> <span class="del">-1</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-01
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/24">#24</a>
+<div class="entry-date">2026-08-28
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/18">#18</a>
 </div>
-<div class="entry-text">Correct the 1.6.1 heading to match reality (two bugs, not one)</div>
+<div class="entry-text">Show what DROP … CASCADE takes with it, before you press it</div>
+<div class="entry-diff"><span class="add">+89</span> <span class="del">-24</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-08-28
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/17">#17</a>
+</div>
+<div class="entry-text">See it before you press it (v1.6.0): the SQL about to run, and what TRUNCATE / DROP will take with it</div>
+<div class="entry-diff"><span class="add">+436</span> <span class="del">-53</span></div>
+</div>
+</div></div>
+<div class="version" id="v1.5.0"><div class="version-head">
+<div class="version-tag">2026-08-28</div><h2>v1.5.0</h2>
+</div><div class="entries">
+<div class="entry">
+<div class="entry-date">2026-08-28
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/16">#16</a>
+</div>
+<div class="entry-text">1.5.0: version bump and CHANGELOG</div>
+<div class="entry-diff"><span class="add">+39</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-08-28
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/15">#15</a>
+</div>
+<div class="entry-text">v1.5.0&#x27;s two pieces: a cross-table view of invalid indexes, and NULLs slipping through a composite UNIQUE</div>
+<div class="entry-diff"><span class="add">+770</span> <span class="del">-99</span></div>
+</div>
+</div></div>
+<div class="version" id="v1.4.0"><div class="version-head">
+<div class="version-tag">2026-08-10 – 2026-08-23</div><h2>v1.4.0</h2>
+</div><div class="entries">
+<div class="entry">
+<div class="entry-date">2026-08-23
+</div>
+<div class="entry-text">Release 1.4.0</div>
+<div class="entry-diff"><span class="add">+23</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-08-23
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/14">#14</a>
+</div>
+<div class="entry-text">Distribution: start from the published image instead of building it</div>
+<div class="entry-diff"><span class="add">+58</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-08-23
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/13">#13</a>
+</div>
+<div class="entry-text">Metrics: keep the download numbers GitHub throws away after 14 days</div>
+<div class="entry-diff"><span class="add">+362</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-08-12
+</div>
+<div class="entry-text">Locks: stop the workspace from queueing behind the lock it should explain</div>
+<div class="entry-diff"><span class="add">+392</span> <span class="del">-117</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-08-10
+</div>
+<div class="entry-text">Landing page: lead with what the tool answers before you run it</div>
+<div class="entry-diff"><span class="add">+76</span> <span class="del">-0</span></div>
+</div>
+</div></div>
+<div class="version" id="v1.3.0"><div class="version-head">
+<div class="version-tag">2026-07-06 – 2026-08-08</div><h2>v1.3.0</h2>
+</div><div class="entries">
+<div class="entry">
+<div class="entry-date">2026-08-08
+</div>
+<div class="entry-text">Release v1.3.0</div>
+<div class="entry-diff"><span class="add">+4</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-30
+</div>
+<div class="entry-text">Runner: offer the DDL lock guard in write mode — and actually send the toggles</div>
+<div class="entry-diff"><span class="add">+294</span> <span class="del">-96</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-30
+</div>
+<div class="entry-text">DDL: bound the lock wait so a change can&#x27;t stall the table</div>
+<div class="entry-diff"><span class="add">+357</span> <span class="del">-59</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-29
+</div>
+<div class="entry-text">Replication: show standby replay lag in time, not just bytes</div>
+<div class="entry-diff"><span class="add">+71</span> <span class="del">-7</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-17
+</div>
+<div class="entry-text">Locks: fold the wait-for graph into head-blocker trees</div>
+<div class="entry-diff"><span class="add">+283</span> <span class="del">-69</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-17
+</div>
+<div class="entry-text">Health: orphan rows — NOT VALID FKs + inferred *_id references</div>
+<div class="entry-diff"><span class="add">+673</span> <span class="del">-57</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-17
+</div>
+<div class="entry-text">Docs: pitch the bundled demo data as a first-class selling point</div>
+<div class="entry-diff"><span class="add">+7</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-16
+</div>
+<div class="entry-text">Docs: sync README, landing page, and CHANGELOG with what shipped</div>
+<div class="entry-diff"><span class="add">+35</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-16
+</div>
+<div class="entry-text">Demo data: opt-in Airlines database service (compose profile &quot;demo&quot;)</div>
+<div class="entry-diff"><span class="add">+129</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-16
+</div>
+<div class="entry-text">JSONB shape: on-demand sampling of a JSON column&#x27;s observed structure</div>
+<div class="entry-diff"><span class="add">+574</span> <span class="del">-91</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-15
+</div>
+<div class="entry-text">Docs: list the Extensions panel in README and the landing page</div>
+<div class="entry-diff"><span class="add">+12</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-15
+</div>
+<div class="entry-text">Extensions panel: \dx GUI showing installed + available extensions</div>
+<div class="entry-diff"><span class="add">+321</span> <span class="del">-48</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-10
+</div>
+<div class="entry-text">Health: partial and invalid indexes no longer count as an FK&#x27;s index</div>
+<div class="entry-diff"><span class="add">+63</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-06
+</div>
+<div class="entry-text">Fix inaccurate self-referential FK note in ForeignKeyEdge docstring</div>
+<div class="entry-diff"><span class="add">+3</span> <span class="del">-2</span></div>
+</div>
+</div></div>
+<div class="version" id="v1.2.0"><div class="version-head">
+<div class="version-tag">2026-07-05</div><h2>v1.2.0</h2>
+</div><div class="entries">
+<div class="entry">
+<div class="entry-date">2026-07-05
+</div>
+<div class="entry-text">Release v1.2.0</div>
 <div class="entry-diff"><span class="add">+5</span> <span class="del">-2</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-02
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/20">#20</a>
+<div class="entry-date">2026-07-05
 </div>
-<div class="entry-text">DDL rehearsal (v1.7.0): run a real ALTER, then throw it away</div>
-<div class="entry-diff"><span class="add">+593</span> <span class="del">-60</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-04
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/25">#25</a>
-</div>
-<div class="entry-text">Fix the screen rewriting timestamps that came from the database</div>
-<div class="entry-diff"><span class="add">+147</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-04
-</div>
-<div class="entry-text">1.7.0: version bump and CHANGELOG</div>
-<div class="entry-diff"><span class="add">+6</span> <span class="del">-1</span></div>
+<div class="entry-text">Health: unindexed foreign keys &amp; redundant index detection</div>
+<div class="entry-diff"><span class="add">+505</span> <span class="del">-76</span></div>
 </div>
 </div></div>
-<div class="version" id="v1.8.0"><div class="version-head">
-<div class="version-tag">2026-09-04</div><h2>v1.8.0</h2>
+<div class="version" id="v1.1.0"><div class="version-head">
+<div class="version-tag">2026-06-20 – 2026-07-04</div><h2>v1.1.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-09-04
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/26">#26</a>
+<div class="entry-date">2026-07-04
 </div>
-<div class="entry-text">Fix the table list calling a non-empty table &quot;0 rows&quot;</div>
-<div class="entry-diff"><span class="add">+216</span> <span class="del">-69</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-04
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/27">#27</a>
-</div>
-<div class="entry-text">Clicking a table now shows its rows, 1,000 at a time</div>
-<div class="entry-diff"><span class="add">+638</span> <span class="del">-189</span></div>
+<div class="entry-text">Release v1.1.0</div>
+<div class="entry-diff"><span class="add">+5</span> <span class="del">-2</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-04
+<div class="entry-date">2026-07-04
 </div>
-<div class="entry-text">1.8.0: version bump and CHANGELOG</div>
-<div class="entry-diff"><span class="add">+6</span> <span class="del">-1</span></div>
+<div class="entry-text">Dependencies panel: safe TRUNCATE order + FK cycle detection</div>
+<div class="entry-diff"><span class="add">+519</span> <span class="del">-43</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-26
+</div>
+<div class="entry-text">docs: mention generated columns in README + LP (en/ja)</div>
+<div class="entry-diff"><span class="add">+4</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-26
+</div>
+<div class="entry-text">Column viewer: surface generated columns</div>
+<div class="entry-diff"><span class="add">+412</span> <span class="del">-243</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-25
+</div>
+<div class="entry-text">docs: mention column &amp; table comments in README + LP (en/ja)</div>
+<div class="entry-diff"><span class="add">+5</span> <span class="del">-5</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-25
+</div>
+<div class="entry-text">Table detail: surface the table comment</div>
+<div class="entry-diff"><span class="add">+57</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-22
+</div>
+<div class="entry-text">Table detail: surface column comments</div>
+<div class="entry-diff"><span class="add">+51</span> <span class="del">-12</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-22
+</div>
+<div class="entry-text">docs: sync multi-DB wording in LP metadata + README status</div>
+<div class="entry-diff"><span class="add">+8</span> <span class="del">-7</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-22
+</div>
+<div class="entry-text">i18n(ja): translate the MySQL UI strings (untranslated since Phase work)</div>
+<div class="entry-diff"><span class="add">+356</span> <span class="del">-162</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-22
+</div>
+<div class="entry-text">Activity: show connection headroom (used vs max_connections)</div>
+<div class="entry-diff"><span class="add">+180</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-20
+</div>
+<div class="entry-text">LP: multi-DB in EN meta + a MySQL command example</div>
+<div class="entry-diff"><span class="add">+5</span> <span class="del">-5</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-20
+</div>
+<div class="entry-text">LP: hero copy says &quot;psql / mysql&quot; (not just psql)</div>
+<div class="entry-diff"><span class="add">+2</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-20
+</div>
+<div class="entry-text">LP: add a &quot;supported databases&quot; note (PostgreSQL &amp; MySQL)</div>
+<div class="entry-diff"><span class="add">+8</span> <span class="del">-0</span></div>
 </div>
 </div></div>
-<div class="version" id="v1.9.0"><div class="version-head">
-<div class="version-tag">2026-09-05 – 2026-09-16</div><h2>v1.9.0</h2>
+<div class="version" id="v1.0.0"><div class="version-head">
+<div class="version-tag">2026-06-17 – 2026-06-20</div><h2>v1.0.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-09-05
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/28">#28</a>
+<div class="entry-date">2026-06-20
 </div>
-<div class="entry-text">Rework the table screen&#x27;s layout (the grid now reaches the bottom of the window / sections stay visible)</div>
-<div class="entry-diff"><span class="add">+498</span> <span class="del">-286</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-05
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/29">#29</a>
-</div>
-<div class="entry-text">Stop tracking CLAUDE.md in git</div>
-<div class="entry-diff"><span class="add">+4</span> <span class="del">-1</span></div>
+<div class="entry-text">Release v1.0.0: MySQL support (multi-DB ops console)</div>
+<div class="entry-diff"><span class="add">+21</span> <span class="del">-5</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-10
+<div class="entry-date">2026-06-18
 </div>
-<div class="entry-text">Hold colour by role so the theme can be swapped</div>
-<div class="entry-diff"><span class="add">+1089</span> <span class="del">-960</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-10
-</div>
-<div class="entry-text">Bring planner_lab&#x27;s templates onto roles too (a leftover from the previous commit)</div>
-<div class="entry-diff"><span class="add">+68</span> <span class="del">-68</span></div>
+<div class="entry-text">MySQL: send SET PERSIST for numeric system variables unquoted</div>
+<div class="entry-diff"><span class="add">+27</span> <span class="del">-7</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-10
+<div class="entry-date">2026-06-18
 </div>
-<div class="entry-text">A custom theme — pick three colours, derive the rest</div>
-<div class="entry-diff"><span class="add">+181</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-10
-</div>
-<div class="entry-text">Two things the theme work missed — an unreadable combination, and text that never went through translation</div>
-<div class="entry-diff"><span class="add">+267</span> <span class="del">-53</span></div>
+<div class="entry-text">CHANGELOG: log MySQL Phase 3 (backup/settings/replication) under Unreleased</div>
+<div class="entry-diff"><span class="add">+23</span> <span class="del">-9</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-10
+<div class="entry-date">2026-06-18
 </div>
-<div class="entry-text">Make the site light, and stop saying the same feature twice</div>
-<div class="entry-diff"><span class="add">+839</span> <span class="del">-382</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-16
-</div>
-<div class="entry-text">Move the table list onto pg_class — one query fixes UNLOGGED, partitions, materialized views, and foreign tables</div>
-<div class="entry-diff"><span class="add">+220</span> <span class="del">-12</span></div>
+<div class="entry-text">MySQL Phase 3c: replication (status + setup recipe)</div>
+<div class="entry-diff"><span class="add">+393</span> <span class="del">-1</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-16
+<div class="entry-date">2026-06-18
 </div>
-<div class="entry-text">Add restart: unless-stopped to the airlines sample database</div>
-<div class="entry-diff"><span class="add">+5</span> <span class="del">-0</span></div>
+<div class="entry-text">MySQL Phase 3b: settings editor (SET PERSIST)</div>
+<div class="entry-diff"><span class="add">+201</span> <span class="del">-14</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-16
+<div class="entry-date">2026-06-18
 </div>
-<div class="entry-text">1.9.0: version bump, CHANGELOG, and fixing gaps in translation</div>
-<div class="entry-diff"><span class="add">+374</span> <span class="del">-334</span></div>
+<div class="entry-text">MySQL Phase 3a: backup (mysqldump/mysql) and repair for destructive operations</div>
+<div class="entry-diff"><span class="add">+186</span> <span class="del">-7</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-18
+</div>
+<div class="entry-text">CHANGELOG: log MySQL Phase 2 under Unreleased</div>
+<div class="entry-diff"><span class="add">+19</span> <span class="del">-4</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-18
+</div>
+<div class="entry-text">MySQL engine Phase 2: lock-contention detection, closing false negatives</div>
+<div class="entry-diff"><span class="add">+354</span> <span class="del">-21</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-18
+</div>
+<div class="entry-text">Re-run security static checks on the MySQL engine</div>
+<div class="entry-diff"><span class="add">+10</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-17
+</div>
+<div class="entry-text">MySQL engine Phase 1: browsing / queries / DDL support</div>
+<div class="entry-diff"><span class="add">+1087</span> <span class="del">-6</span></div>
 </div>
 </div></div>
-<div class="version" id="unreleased"><div class="version-head">
-<div class="version-tag">2026-09-16</div><h2>Unreleased</h2>
+<div class="version" id="v0.9.0"><div class="version-head">
+<div class="version-tag">2026-06-17</div><h2>v0.9.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-09-16
+<div class="entry-date">2026-06-17
 </div>
-<div class="entry-text">開発の記録ページを追加。コミット単位で生成し、PRの有無で漏れない</div>
-<div class="entry-diff"><span class="add">+2817</span> <span class="del">-0</span></div>
+<div class="entry-text">v0.9.0: filter builder / CSV import / table export / CLI2UI_DB_PATH</div>
+<div class="entry-diff"><span class="add">+905</span> <span class="del">-268</span></div>
+</div>
+</div></div>
+<div class="version" id="v0.8.0"><div class="version-head">
+<div class="version-tag">2026-06-09 – 2026-06-17</div><h2>v0.8.0</h2>
+</div><div class="entries">
+<div class="entry">
+<div class="entry-date">2026-06-17
+</div>
+<div class="entry-text">Introduce versioning: __version__ / CHANGELOG / footer display</div>
+<div class="entry-diff"><span class="add">+62</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-17
+</div>
+<div class="entry-text">Neutralize wording in features.py&#x27;s comments</div>
+<div class="entry-diff"><span class="add">+1</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-17
+</div>
+<div class="entry-text">Neutralize wording in comments (the planner_lab description)</div>
+<div class="entry-diff"><span class="add">+5</span> <span class="del">-5</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-17
+</div>
+<div class="entry-text">CONTRIBUTING: document the optional-feature-app pattern (planner_lab)</div>
+<div class="entry-diff"><span class="add">+10</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-17
+</div>
+<div class="entry-text">Split scale simulation and the index lab out into the planner_lab app</div>
+<div class="entry-diff"><span class="add">+756</span> <span class="del">-614</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-16
+</div>
+<div class="entry-text">Bring README/LP in line with what&#x27;s actually implemented</div>
+<div class="entry-diff"><span class="add">+30</span> <span class="del">-5</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-16
+</div>
+<div class="entry-text">Add CSV / JSON export of query results</div>
+<div class="entry-diff"><span class="add">+358</span> <span class="del">-96</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-15
+</div>
+<div class="entry-text">Networking guide: document running cli2ui inside your project&#x27;s compose</div>
+<div class="entry-diff"><span class="add">+100</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-15
+</div>
+<div class="entry-text">Replication: generate a standby-setup recipe with current values</div>
+<div class="entry-diff"><span class="add">+428</span> <span class="del">-66</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-15
+</div>
+<div class="entry-text">Docs: note auto-backup retention cap + log its nosec</div>
+<div class="entry-diff"><span class="add">+8</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-15
+</div>
+<div class="entry-text">Cap auto-backup storage per connection by total size</div>
+<div class="entry-diff"><span class="add">+77</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-14
+</div>
+<div class="entry-text">Point OG/Twitter meta URLs at the cli2ui.com custom domain</div>
+<div class="entry-diff"><span class="add">+9</span> <span class="del">-9</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-14
+</div>
+<div class="entry-text">Set cli2ui.com as the GitHub Pages custom domain</div>
+<div class="entry-diff"><span class="add">+1</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-14
+</div>
+<div class="entry-text">Drop MySQL from the marketing copy (not implemented yet)</div>
+<div class="entry-diff"><span class="add">+6</span> <span class="del">-8</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-14
+</div>
+<div class="entry-text">Docs: port-clash note + Docker networking guide (EN/JA)</div>
+<div class="entry-diff"><span class="add">+502</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-14
+</div>
+<div class="entry-text">Gather the workspace overview over one DB connection</div>
+<div class="entry-diff"><span class="add">+108</span> <span class="del">-20</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-14
+</div>
+<div class="entry-text">Add local-only / no-auth warning to README and EN/JA landing pages</div>
+<div class="entry-diff"><span class="add">+8</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Re-run security static checks for the i18n / release diff</div>
+<div class="entry-diff"><span class="add">+6</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Prep public release docs: README refresh, CONTRIBUTING, SECURITY</div>
+<div class="entry-diff"><span class="add">+173</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Add JP/EN internationalization across the app</div>
+<div class="entry-diff"><span class="add">+2216</span> <span class="del">-514</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Add bilingual landing page under docs/</div>
+<div class="entry-diff"><span class="add">+654</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Loosen the overview dashboard row spacing</div>
+<div class="entry-diff"><span class="add">+12</span> <span class="del">-12</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Make the overview landing a text dashboard to match the menu</div>
+<div class="entry-diff"><span class="add">+85</span> <span class="del">-155</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Make the overview hover menu a compact text list</div>
+<div class="entry-diff"><span class="add">+43</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Make the overview hover menu scroll when it overflows</div>
+<div class="entry-diff"><span class="add">+1</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Lead the bento with the headline tools (SQL runner, Index lab)</div>
+<div class="entry-diff"><span class="add">+57</span> <span class="del">-56</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Switch bento to uniform 4x3 tiles with per-group colour bands</div>
+<div class="entry-diff"><span class="add">+124</span> <span class="del">-101</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Add faint decorative SVG motifs to the feature tiles</div>
+<div class="entry-diff"><span class="add">+10</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Add SVG icons and per-group accent colour to the bento tiles</div>
+<div class="entry-diff"><span class="add">+51</span> <span class="del">-35</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Lay out the bento per the sketch: two feature tiles + tile grid</div>
+<div class="entry-diff"><span class="add">+87</span> <span class="del">-105</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Use a 4-column tile grid (bigger tiles)</div>
+<div class="entry-diff"><span class="add">+1</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Switch the bento to equal square tiles (Windows-style)</div>
+<div class="entry-diff"><span class="add">+131</span> <span class="del">-123</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Lay the bento out as an interlocking size-varied mosaic</div>
+<div class="entry-diff"><span class="add">+63</span> <span class="del">-54</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Vary the bento cell sizes and fix the Tables link</div>
+<div class="entry-diff"><span class="add">+31</span> <span class="del">-38</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Make the bento a walled box and show it on overview click too</div>
+<div class="entry-diff"><span class="add">+151</span> <span class="del">-156</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Make the overview a hover mega-menu (grouped section bento)</div>
+<div class="entry-diff"><span class="add">+206</span> <span class="del">-140</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Move the section nav from the sidebar into a top bar</div>
+<div class="entry-diff"><span class="add">+69</span> <span class="del">-100</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Lift muted text contrast across the panels</div>
+<div class="entry-diff"><span class="add">+140</span> <span class="del">-140</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Extract a .nav-btn class for the sidebar section switcher</div>
+<div class="entry-diff"><span class="add">+31</span> <span class="del">-36</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Adopt shared design-system classes in the remaining panels</div>
+<div class="entry-diff"><span class="add">+14</span> <span class="del">-41</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Make the workspace home a live operational bento</div>
+<div class="entry-diff"><span class="add">+124</span> <span class="del">-31</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Redesign the Objects panel: subtabs + shared drawer</div>
+<div class="entry-diff"><span class="add">+291</span> <span class="del">-254</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">Redesign the table detail panel: subtabs + shared drawer</div>
+<div class="entry-diff"><span class="add">+348</span> <span class="del">-324</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">Add UI design-system foundation (STYLE.md, .btn-*/.field, _banner)</div>
+<div class="entry-diff"><span class="add">+92</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">Split views.py into a core/views package by domain</div>
+<div class="entry-diff"><span class="add">+1424</span> <span class="del">-1360</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">Extract PostgreSQL query text into pg_sql.py</div>
+<div class="entry-diff"><span class="add">+300</span> <span class="del">-268</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">Extend the auto-snapshot safety net to rename / alter</div>
+<div class="entry-diff"><span class="add">+24</span> <span class="del">-7</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">Stream restores and allow restoring into an existing database</div>
+<div class="entry-diff"><span class="add">+113</span> <span class="del">-32</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">Add write mode to the SQL runner</div>
+<div class="entry-diff"><span class="add">+57</span> <span class="del">-22</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">Add command history panel</div>
+<div class="entry-diff"><span class="add">+178</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">Add table bloat estimate to the Health panel</div>
+<div class="entry-diff"><span class="add">+166</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">Document reaching DBs in other containers + replication trial</div>
+<div class="entry-diff"><span class="add">+136</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">Add locks/blocking and replication panels</div>
+<div class="entry-diff"><span class="add">+635</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">Add column ops, pg_dump backup/restore, and an automatic safety-net snapshot</div>
+<div class="entry-diff"><span class="add">+1429</span> <span class="del">-36</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">Add table-level operations: rename / truncate / drop</div>
+<div class="entry-diff"><span class="add">+252</span> <span class="del">-31</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">Add ALTER for schemas and roles (rename, owner, attributes)</div>
+<div class="entry-diff"><span class="add">+238</span> <span class="del">-14</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">Add database create / clone / rename / drop</div>
+<div class="entry-diff"><span class="add">+243</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">Add dead-rows / vacuum card to the Health panel</div>
+<div class="entry-diff"><span class="add">+125</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">Add Health panel: table sizes and unused indexes</div>
+<div class="entry-diff"><span class="add">+284</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">Security hardening: deps, clickjacking, audit doc</div>
+<div class="entry-diff"><span class="add">+94</span> <span class="del">-5</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">Validate name in schema_delete / role_delete</div>
+<div class="entry-diff"><span class="add">+6</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">Add what-if index lab: try an index, measure it, then create it</div>
+<div class="entry-diff"><span class="add">+398</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">Address index review: ordered columns, valid flag, robust column parse</div>
+<div class="entry-diff"><span class="add">+93</span> <span class="del">-34</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">Add E2E smoke test for index create/drop; share browser scaffolding</div>
+<div class="entry-diff"><span class="add">+57</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">Add index management: list, create, drop per table</div>
+<div class="entry-diff"><span class="add">+341</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">Add structured EXPLAIN diff and scale simulation</div>
+<div class="entry-diff"><span class="add">+1079</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">Add MIT LICENSE</div>
+<div class="entry-diff"><span class="add">+25</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-10
+</div>
+<div class="entry-text">Add Activity panel and workspace overview</div>
+<div class="entry-diff"><span class="add">+317</span> <span class="del">-14</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-10
+</div>
+<div class="entry-text">Show a clear message when a query returns no rows</div>
+<div class="entry-diff"><span class="add">+6</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-10
+</div>
+<div class="entry-text">Add EXPLAIN plan snapshots: save, view plan, and diff</div>
+<div class="entry-diff"><span class="add">+359</span> <span class="del">-8</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-10
+</div>
+<div class="entry-text">Add read-only SQL runner</div>
+<div class="entry-diff"><span class="add">+199</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">Add role create/drop to the Objects browser</div>
+<div class="entry-diff"><span class="add">+105</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">Add schema create/drop to the Objects browser</div>
+<div class="entry-diff"><span class="add">+95</span> <span class="del">-4</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">Enable CSRF protection (htmx sends token via X-CSRFToken header)</div>
+<div class="entry-diff"><span class="add">+8</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">Document Objects browser in README status list</div>
+<div class="entry-diff"><span class="add">+1</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">Add Objects browser: databases, schemas, roles (\l, \dn, \du)</div>
+<div class="entry-diff"><span class="add">+245</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">Add restart-command helper for pending-restart settings</div>
+<div class="entry-diff"><span class="add">+65</span> <span class="del">-15</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">Add DB-client workspace and postgresql.conf editor</div>
+<div class="entry-diff"><span class="add">+676</span> <span class="del">-212</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">Initial commit: cli2ui MVP — PostgreSQL table list</div>
+<div class="entry-diff"><span class="add">+783</span> <span class="del">-0</span></div>
 </div>
 </div></div>
 <div class="note"><h3>About this page</h3><ul>

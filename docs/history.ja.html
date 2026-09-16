@@ -51,7 +51,8 @@
     .chart-title { font-size: .75rem; font-weight: 700; color: #71717a; text-transform: uppercase;
                    letter-spacing: .05em; margin-bottom: 1.1rem; }
     .chart { display: flex; align-items: flex-end; gap: 3px; height: 100px; }
-    .bar-col { flex: 1; min-width: 0; }
+    .bar-col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column;
+               justify-content: flex-end; }
     .bar { width: 100%; border-radius: 3px 3px 0 0; background: #059669; min-height: 2px; }
     .bar.zero { background: #e4e4e7; }
 
@@ -101,7 +102,7 @@
 <p>全コミットを時系列で並べたもの。プルリクエストだけを見ると、main へ直接積んだ変更が抜け落ちる ── 日付・行数・件数は毎回 git から測り直しており、手で足していない。</p>
 <div class="stats">
 <div class="stat"><div class="stat-value">100</div><div class="stat-label">開発日数</div></div>
-<div class="stat"><div class="stat-value">149</div><div class="stat-label">コミット</div></div>
+<div class="stat"><div class="stat-value">150</div><div class="stat-label">コミット</div></div>
 <div class="stat"><div class="stat-value">13</div><div class="stat-label">リリース</div></div>
 </div></div></header>
 <section><div class="container"><div class="chart-wrap">
@@ -121,824 +122,151 @@
 <div class="bar-col"><div class="bar" style="height:7%"></div></div>
 <div class="bar-col"><div class="bar" style="height:15%"></div></div>
 <div class="bar-col"><div class="bar" style="height:7%"></div></div>
-<div class="bar-col"><div class="bar" style="height:6%"></div></div>
+<div class="bar-col"><div class="bar" style="height:7%"></div></div>
 </div></div></div></section>
 <section><div class="container">
-<div class="version" id="v0.8.0"><div class="version-head">
-<div class="version-tag">2026-06-09 – 2026-06-17</div><h2>v0.8.0</h2>
+<div class="version" id="unreleased"><div class="version-head">
+<div class="version-tag">2026-09-16</div><h2>未リリース</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-06-09
+<div class="entry-date">2026-09-16
 </div>
-<div class="entry-text">最初のコミット: cli2ui MVP — PostgreSQL のテーブル一覧</div>
-<div class="entry-diff"><span class="add">+783</span> <span class="del">-0</span></div>
+<div class="entry-text">docs: rebuild the development-history page [skip ci]</div>
+<div class="entry-diff"><span class="add">+24</span> <span class="del">-4</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-06-09
+<div class="entry-date">2026-09-16
 </div>
-<div class="entry-text">DB クライアント風のワークスペースと postgresql.conf エディタを追加</div>
-<div class="entry-diff"><span class="add">+676</span> <span class="del">-212</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-09
-</div>
-<div class="entry-text">再起動待ちの設定向けに、再起動コマンドのヘルパーを追加</div>
-<div class="entry-diff"><span class="add">+65</span> <span class="del">-15</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-09
-</div>
-<div class="entry-text">オブジェクトブラウザを追加: データベース・スキーマ・ロール（\l, \dn, \du）</div>
-<div class="entry-diff"><span class="add">+245</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-09
-</div>
-<div class="entry-text">オブジェクトブラウザを README のステータス一覧に記載</div>
-<div class="entry-diff"><span class="add">+1</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-09
-</div>
-<div class="entry-text">CSRF 保護を有効化（htmx が X-CSRFToken ヘッダーでトークンを送信）</div>
-<div class="entry-diff"><span class="add">+8</span> <span class="del">-3</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-09
-</div>
-<div class="entry-text">オブジェクトブラウザにスキーマの作成・削除を追加</div>
-<div class="entry-diff"><span class="add">+95</span> <span class="del">-4</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-09
-</div>
-<div class="entry-text">オブジェクトブラウザにロールの作成・削除を追加</div>
-<div class="entry-diff"><span class="add">+105</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-10
-</div>
-<div class="entry-text">読み取り専用の SQL ランナーを追加</div>
-<div class="entry-diff"><span class="add">+199</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-10
-</div>
-<div class="entry-text">EXPLAIN プランのスナップショットを追加: 保存・表示・差分</div>
-<div class="entry-diff"><span class="add">+359</span> <span class="del">-8</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-10
-</div>
-<div class="entry-text">クエリが 0 行のとき、分かりやすいメッセージを表示</div>
-<div class="entry-diff"><span class="add">+6</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-10
-</div>
-<div class="entry-text">アクティビティパネルとワークスペース概要を追加</div>
-<div class="entry-diff"><span class="add">+317</span> <span class="del">-14</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">MIT ライセンスを追加</div>
-<div class="entry-diff"><span class="add">+25</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">構造化された EXPLAIN 差分とスケールシミュレーションを追加</div>
-<div class="entry-diff"><span class="add">+1079</span> <span class="del">-3</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">テーブルごとのインデックス管理を追加: 一覧・作成・削除</div>
-<div class="entry-diff"><span class="add">+341</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">インデックス作成・削除の E2E スモークテストを追加。ブラウザ用の共通土台も整備</div>
-<div class="entry-diff"><span class="add">+57</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">インデックスのレビュー指摘に対応: 列順・valid フラグ・列パースを堅牢に</div>
-<div class="entry-diff"><span class="add">+93</span> <span class="del">-34</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">what-if インデックスラボを追加: 試して測ってから作成</div>
-<div class="entry-diff"><span class="add">+398</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">schema_delete / role_delete で名前を検証</div>
-<div class="entry-diff"><span class="add">+6</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">セキュリティ強化: 依存関係・クリックジャッキング対策・監査ドキュメント</div>
-<div class="entry-diff"><span class="add">+94</span> <span class="del">-5</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">ヘルスパネルを追加: テーブルサイズと未使用インデックス</div>
-<div class="entry-diff"><span class="add">+284</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">ヘルスパネルにデッドタプル/VACUUM のカードを追加</div>
-<div class="entry-diff"><span class="add">+125</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">データベースの作成・複製・リネーム・削除を追加</div>
-<div class="entry-diff"><span class="add">+243</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-11
-</div>
-<div class="entry-text">スキーマ・ロールの ALTER を追加（リネーム・所有者・属性）</div>
-<div class="entry-diff"><span class="add">+238</span> <span class="del">-14</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">テーブル単位の操作を追加: リネーム・TRUNCATE・DROP</div>
-<div class="entry-diff"><span class="add">+252</span> <span class="del">-31</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">列操作、pg_dump によるバックアップ/リストア、自動セーフティネットのスナップショットを追加</div>
-<div class="entry-diff"><span class="add">+1429</span> <span class="del">-36</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">ロック/ブロッキングとレプリケーションのパネルを追加</div>
-<div class="entry-diff"><span class="add">+635</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">他コンテナの DB への到達方法とレプリケーションの試し方をドキュメント化</div>
-<div class="entry-diff"><span class="add">+136</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">ヘルスパネルにテーブルの肥大化（bloat）推定を追加</div>
-<div class="entry-diff"><span class="add">+166</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">コマンド履歴パネルを追加</div>
-<div class="entry-diff"><span class="add">+178</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">SQL ランナーに書き込みモードを追加</div>
-<div class="entry-diff"><span class="add">+57</span> <span class="del">-22</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">リストアをストリーミング化し、既存データベースへの復元も許可</div>
-<div class="entry-diff"><span class="add">+113</span> <span class="del">-32</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">自動スナップショットのセーフティネットをリネーム/ALTER にも拡張</div>
-<div class="entry-diff"><span class="add">+24</span> <span class="del">-7</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">PostgreSQL のクエリ文を pg_sql.py に切り出し</div>
-<div class="entry-diff"><span class="add">+300</span> <span class="del">-268</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">views.py をドメインごとに core/views パッケージへ分割</div>
-<div class="entry-diff"><span class="add">+1424</span> <span class="del">-1360</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-12
-</div>
-<div class="entry-text">UI デザインシステムの土台を追加（STYLE.md、.btn-*/.field、_banner）</div>
-<div class="entry-diff"><span class="add">+92</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">テーブル詳細パネルを再設計: サブタブ＋共通ドロワー</div>
-<div class="entry-diff"><span class="add">+348</span> <span class="del">-324</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">オブジェクトパネルを再設計: サブタブ＋共通ドロワー</div>
-<div class="entry-diff"><span class="add">+291</span> <span class="del">-254</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">ワークスペースのホームを、稼働状況が分かる bento レイアウトに</div>
-<div class="entry-diff"><span class="add">+124</span> <span class="del">-31</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">残りのパネルにも共通のデザインシステムクラスを適用</div>
-<div class="entry-diff"><span class="add">+14</span> <span class="del">-41</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">サイドバーの区域切り替え用に .nav-btn クラスを切り出し</div>
-<div class="entry-diff"><span class="add">+31</span> <span class="del">-36</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">各パネルの薄い文字のコントラストを底上げ</div>
-<div class="entry-diff"><span class="add">+140</span> <span class="del">-140</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">区域ナビをサイドバーからトップバーへ移動</div>
-<div class="entry-diff"><span class="add">+69</span> <span class="del">-100</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">概要をホバー式メガメニューに（区域ごとにまとめた bento）</div>
-<div class="entry-diff"><span class="add">+206</span> <span class="del">-140</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">bento を枠付きボックスにし、概要クリックでも表示</div>
-<div class="entry-diff"><span class="add">+151</span> <span class="del">-156</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">bento のセルサイズを変え、テーブルへのリンクも修正</div>
-<div class="entry-diff"><span class="add">+31</span> <span class="del">-38</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">bento を大きさの異なるモザイク状に敷き詰め</div>
-<div class="entry-diff"><span class="add">+63</span> <span class="del">-54</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">bento を同じ大きさの正方形タイルに変更（Windows 風）</div>
-<div class="entry-diff"><span class="add">+131</span> <span class="del">-123</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">4 列のタイルグリッドに（タイルを大きく）</div>
-<div class="entry-diff"><span class="add">+1</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">スケッチ通りに bento を配置: 大きな機能タイル 2 枚＋タイルグリッド</div>
-<div class="entry-diff"><span class="add">+87</span> <span class="del">-105</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">bento タイルに SVG アイコンとグループ別アクセントカラーを追加</div>
-<div class="entry-diff"><span class="add">+51</span> <span class="del">-35</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">機能タイルに、うっすらとした装飾用 SVG モチーフを追加</div>
-<div class="entry-diff"><span class="add">+10</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">bento を 4×3 の均一タイルにし、グループごとに色帯を付与</div>
-<div class="entry-diff"><span class="add">+124</span> <span class="del">-101</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">bento の先頭に主力機能（SQL ランナー、インデックスラボ）を配置</div>
-<div class="entry-diff"><span class="add">+57</span> <span class="del">-56</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">概要のホバーメニューが溢れたらスクロールするように</div>
-<div class="entry-diff"><span class="add">+1</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">概要のホバーメニューをコンパクトなテキスト一覧に</div>
-<div class="entry-diff"><span class="add">+43</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">概要トップをメニューに合わせたテキストダッシュボードに</div>
-<div class="entry-diff"><span class="add">+85</span> <span class="del">-155</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">概要ダッシュボードの行間を広げる</div>
-<div class="entry-diff"><span class="add">+12</span> <span class="del">-12</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">docs/ 配下にバイリンガルのランディングページを追加</div>
-<div class="entry-diff"><span class="add">+654</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">アプリ全体に日本語/英語の国際化対応を追加</div>
-<div class="entry-diff"><span class="add">+2216</span> <span class="del">-514</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">公開に向けたドキュメント整備: README 刷新、CONTRIBUTING、SECURITY</div>
-<div class="entry-diff"><span class="add">+173</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-13
-</div>
-<div class="entry-text">i18n/リリース差分に対してセキュリティ静的チェックを再実行</div>
-<div class="entry-diff"><span class="add">+6</span> <span class="del">-3</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-14
-</div>
-<div class="entry-text">README と日英ランディングページに、ローカル専用/無認証の警告を追加</div>
-<div class="entry-diff"><span class="add">+8</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-14
-</div>
-<div class="entry-text">ワークスペース概要を 1 つの DB 接続にまとめる</div>
-<div class="entry-diff"><span class="add">+108</span> <span class="del">-20</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-14
-</div>
-<div class="entry-text">ドキュメント: ポート衝突の注意書き＋ Docker ネットワーキングガイド（日英）</div>
-<div class="entry-diff"><span class="add">+502</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-14
-</div>
-<div class="entry-text">未実装の MySQL を宣伝文句から外す</div>
-<div class="entry-diff"><span class="add">+6</span> <span class="del">-8</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-14
-</div>
-<div class="entry-text">cli2ui.com を GitHub Pages のカスタムドメインに設定</div>
-<div class="entry-diff"><span class="add">+1</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-14
-</div>
-<div class="entry-text">OG/Twitter のメタ URL を cli2ui.com のカスタムドメインへ向ける</div>
-<div class="entry-diff"><span class="add">+9</span> <span class="del">-9</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-15
-</div>
-<div class="entry-text">接続ごとの自動バックアップ容量に合計サイズの上限を設定</div>
-<div class="entry-diff"><span class="add">+77</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-15
-</div>
-<div class="entry-text">ドキュメント: 自動バックアップの保持上限を記載し、nosec もログに残す</div>
-<div class="entry-diff"><span class="add">+8</span> <span class="del">-3</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-15
-</div>
-<div class="entry-text">レプリケーション: 現在の値を使ったスタンバイ構築手順を生成</div>
-<div class="entry-diff"><span class="add">+428</span> <span class="del">-66</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-15
-</div>
-<div class="entry-text">ネットワーキングガイド: 自分のプロジェクトの compose 内で cli2ui を動かす方法を記載</div>
-<div class="entry-diff"><span class="add">+100</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-16
-</div>
-<div class="entry-text">クエリ結果の CSV / JSON エクスポートを追加</div>
-<div class="entry-diff"><span class="add">+358</span> <span class="del">-96</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-16
-</div>
-<div class="entry-text">README/LP を実装の現状に合わせて修正</div>
-<div class="entry-diff"><span class="add">+30</span> <span class="del">-5</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-17
-</div>
-<div class="entry-text">スケールシミュレーションとインデックスラボを planner_lab アプリへ分離</div>
-<div class="entry-diff"><span class="add">+756</span> <span class="del">-614</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-17
-</div>
-<div class="entry-text">CONTRIBUTING: オプション機能アプリ（planner_lab）のパターンを追記</div>
-<div class="entry-diff"><span class="add">+10</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-17
-</div>
-<div class="entry-text">コメントの表現を中立化（planner_lab の説明）</div>
-<div class="entry-diff"><span class="add">+5</span> <span class="del">-5</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-17
-</div>
-<div class="entry-text">features.py のコメント表現を中立化</div>
-<div class="entry-diff"><span class="add">+1</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-17
-</div>
-<div class="entry-text">バージョニング導入: __version__/CHANGELOG/フッター表示</div>
-<div class="entry-diff"><span class="add">+62</span> <span class="del">-0</span></div>
+<div class="entry-text">開発の記録ページを追加。コミット単位で生成し、PRの有無で漏れない</div>
+<div class="entry-diff"><span class="add">+2817</span> <span class="del">-0</span></div>
 </div>
 </div></div>
-<div class="version" id="v0.9.0"><div class="version-head">
-<div class="version-tag">2026-06-17</div><h2>v0.9.0</h2>
+<div class="version" id="v1.9.0"><div class="version-head">
+<div class="version-tag">2026-09-05 – 2026-09-16</div><h2>v1.9.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-06-17
+<div class="entry-date">2026-09-16
 </div>
-<div class="entry-text">v0.9.0: フィルタビルダー / CSV インポート / テーブル export / CLI2UI_DB_PATH</div>
-<div class="entry-diff"><span class="add">+905</span> <span class="del">-268</span></div>
+<div class="entry-text">1.9.0: 版上げと CHANGELOG、翻訳の抜けを直す</div>
+<div class="entry-diff"><span class="add">+374</span> <span class="del">-334</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-16
+</div>
+<div class="entry-text">airlines サンプル DB に restart: unless-stopped を足す</div>
+<div class="entry-diff"><span class="add">+5</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-16
+</div>
+<div class="entry-text">テーブル一覧を pg_class ベースへ ── 1 クエリで UNLOGGED・パーティション・マテビュー・外部テーブルを直す</div>
+<div class="entry-diff"><span class="add">+220</span> <span class="del">-12</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-10
+</div>
+<div class="entry-text">サイトをライトにして、同じ機能を二度言うのをやめる</div>
+<div class="entry-diff"><span class="add">+839</span> <span class="del">-382</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-10
+</div>
+<div class="entry-text">テーマの取りこぼし 2 件 ── 読めない組み合わせと、翻訳を通していない文言</div>
+<div class="entry-diff"><span class="add">+267</span> <span class="del">-53</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-10
+</div>
+<div class="entry-text">自作テーマ ── 3 色だけ決めて、残りは導く</div>
+<div class="entry-diff"><span class="add">+181</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-10
+</div>
+<div class="entry-text">planner_lab のテンプレートも役割へ（前のコミットの取りこぼし）</div>
+<div class="entry-diff"><span class="add">+68</span> <span class="del">-68</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-10
+</div>
+<div class="entry-text">色を役割で持ち、テーマを差し替えられるようにする</div>
+<div class="entry-diff"><span class="add">+1089</span> <span class="del">-960</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-05
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/29">#29</a>
+</div>
+<div class="entry-text">CLAUDE.md を git 管理から外す</div>
+<div class="entry-diff"><span class="add">+4</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-09-05
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/28">#28</a>
+</div>
+<div class="entry-text">テーブル画面の並びを変える（グリッドを窓の底まで／区域を見えるところへ）</div>
+<div class="entry-diff"><span class="add">+498</span> <span class="del">-286</span></div>
 </div>
 </div></div>
-<div class="version" id="v1.0.0"><div class="version-head">
-<div class="version-tag">2026-06-17 – 2026-06-20</div><h2>v1.0.0</h2>
+<div class="version" id="v1.8.0"><div class="version-head">
+<div class="version-tag">2026-09-04</div><h2>v1.8.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-06-17
+<div class="entry-date">2026-09-04
 </div>
-<div class="entry-text">MySQL エンジン Phase 1: 閲覧 / クエリ / DDL 対応</div>
-<div class="entry-diff"><span class="add">+1087</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-18
-</div>
-<div class="entry-text">MySQL エンジンのセキュリティ静的チェック再実行</div>
-<div class="entry-diff"><span class="add">+10</span> <span class="del">-6</span></div>
+<div class="entry-text">1.8.0: 版上げと CHANGELOG</div>
+<div class="entry-diff"><span class="add">+6</span> <span class="del">-1</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-06-18
+<div class="entry-date">2026-09-04
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/27">#27</a>
 </div>
-<div class="entry-text">MySQL エンジン Phase 2: ロック競合検出と偽陰性の解消</div>
-<div class="entry-diff"><span class="add">+354</span> <span class="del">-21</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-18
-</div>
-<div class="entry-text">CHANGELOG: MySQL Phase 2 を Unreleased に追記</div>
-<div class="entry-diff"><span class="add">+19</span> <span class="del">-4</span></div>
+<div class="entry-text">テーブル名を押したら中身を出す（1000 行ずつのページ送り）</div>
+<div class="entry-diff"><span class="add">+638</span> <span class="del">-189</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-06-18
+<div class="entry-date">2026-09-04
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/26">#26</a>
 </div>
-<div class="entry-text">MySQL Phase 3a: バックアップ（mysqldump/mysql）と破壊的操作の修復</div>
-<div class="entry-diff"><span class="add">+186</span> <span class="del">-7</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-18
-</div>
-<div class="entry-text">MySQL Phase 3b: 設定エディタ（SET PERSIST）</div>
-<div class="entry-diff"><span class="add">+201</span> <span class="del">-14</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-18
-</div>
-<div class="entry-text">MySQL Phase 3c: レプリケーション（状態＋セットアップ手順）</div>
-<div class="entry-diff"><span class="add">+393</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-18
-</div>
-<div class="entry-text">CHANGELOG: MySQL Phase 3（backup/settings/replication）を Unreleased に追記</div>
-<div class="entry-diff"><span class="add">+23</span> <span class="del">-9</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-18
-</div>
-<div class="entry-text">MySQL: 数値システム変数の SET PERSIST を未クォートで送る</div>
-<div class="entry-diff"><span class="add">+27</span> <span class="del">-7</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-20
-</div>
-<div class="entry-text">v1.0.0 リリース: MySQL 対応（マルチ DB 対応の運用コンソールへ）</div>
-<div class="entry-diff"><span class="add">+21</span> <span class="del">-5</span></div>
+<div class="entry-text">テーブル一覧が、空でないテーブルを「0 行」と言っていたのを直す</div>
+<div class="entry-diff"><span class="add">+216</span> <span class="del">-69</span></div>
 </div>
 </div></div>
-<div class="version" id="v1.1.0"><div class="version-head">
-<div class="version-tag">2026-06-20 – 2026-07-04</div><h2>v1.1.0</h2>
+<div class="version" id="v1.7.0"><div class="version-head">
+<div class="version-tag">2026-09-01 – 2026-09-04</div><h2>v1.7.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-06-20
+<div class="entry-date">2026-09-04
 </div>
-<div class="entry-text">LP: 対応データベースの注記を追加（PostgreSQL &amp; MySQL）</div>
-<div class="entry-diff"><span class="add">+8</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-20
-</div>
-<div class="entry-text">LP: ヒーローコピーを「psql / mysql」に（psql だけでなく）</div>
-<div class="entry-diff"><span class="add">+2</span> <span class="del">-2</span></div>
+<div class="entry-text">1.7.0: 版上げと CHANGELOG</div>
+<div class="entry-diff"><span class="add">+6</span> <span class="del">-1</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-06-20
+<div class="entry-date">2026-09-04
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/25">#25</a>
 </div>
-<div class="entry-text">LP: 英語メタ情報にマルチ DB を反映し、MySQL コマンド例も追加</div>
-<div class="entry-diff"><span class="add">+5</span> <span class="del">-5</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-22
-</div>
-<div class="entry-text">アクティビティ: 接続の余裕（使用数 vs max_connections）を表示</div>
-<div class="entry-diff"><span class="add">+180</span> <span class="del">-3</span></div>
+<div class="entry-text">画面がデータベースの時刻を書き換えていたのを直す</div>
+<div class="entry-diff"><span class="add">+147</span> <span class="del">-6</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-06-22
+<div class="entry-date">2026-09-02
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/20">#20</a>
 </div>
-<div class="entry-text">i18n(ja): MySQL の UI 文字列を翻訳（Phase 作業以来未翻訳だったもの）</div>
-<div class="entry-diff"><span class="add">+356</span> <span class="del">-162</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-22
-</div>
-<div class="entry-text">docs: LP のメタ情報と README のステータスで、マルチ DB の文言を揃える</div>
-<div class="entry-diff"><span class="add">+8</span> <span class="del">-7</span></div>
+<div class="entry-text">DDL リハーサル（v1.7.0）: 本物の ALTER を試して、捨てる</div>
+<div class="entry-diff"><span class="add">+593</span> <span class="del">-60</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-06-22
+<div class="entry-date">2026-09-01
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/24">#24</a>
 </div>
-<div class="entry-text">テーブル詳細: 列コメントを表示</div>
-<div class="entry-diff"><span class="add">+51</span> <span class="del">-12</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-25
-</div>
-<div class="entry-text">テーブル詳細: テーブルコメントを表示</div>
-<div class="entry-diff"><span class="add">+57</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-25
-</div>
-<div class="entry-text">docs: README+LP（日英）に列/テーブルコメントの記載を追加</div>
-<div class="entry-diff"><span class="add">+5</span> <span class="del">-5</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-26
-</div>
-<div class="entry-text">列ビューア: 生成列を表示</div>
-<div class="entry-diff"><span class="add">+412</span> <span class="del">-243</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-06-26
-</div>
-<div class="entry-text">docs: README+LP（日英）に生成列の記載を追加</div>
-<div class="entry-diff"><span class="add">+4</span> <span class="del">-3</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-04
-</div>
-<div class="entry-text">依存関係パネル: 安全な TRUNCATE 順序と FK 循環検出</div>
-<div class="entry-diff"><span class="add">+519</span> <span class="del">-43</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-04
-</div>
-<div class="entry-text">v1.1.0 リリース</div>
+<div class="entry-text">1.6.1 の見出しを実態に合わせる（1 件ではなく 2 件）</div>
 <div class="entry-diff"><span class="add">+5</span> <span class="del">-2</span></div>
 </div>
-</div></div>
-<div class="version" id="v1.2.0"><div class="version-head">
-<div class="version-tag">2026-07-05</div><h2>v1.2.0</h2>
-</div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-07-05
+<div class="entry-date">2026-09-01
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/22">#22</a>
 </div>
-<div class="entry-text">ヘルス: 未インデックスの外部キーと冗長インデックスの検出</div>
-<div class="entry-diff"><span class="add">+505</span> <span class="del">-76</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-05
-</div>
-<div class="entry-text">v1.2.0 リリース</div>
-<div class="entry-diff"><span class="add">+5</span> <span class="del">-2</span></div>
-</div>
-</div></div>
-<div class="version" id="v1.3.0"><div class="version-head">
-<div class="version-tag">2026-07-06 – 2026-08-08</div><h2>v1.3.0</h2>
-</div><div class="entries">
-<div class="entry">
-<div class="entry-date">2026-07-06
-</div>
-<div class="entry-text">ForeignKeyEdge の docstring にある、自己参照 FK についての不正確な注記を修正</div>
-<div class="entry-diff"><span class="add">+3</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-10
-</div>
-<div class="entry-text">ヘルス: 部分インデックスと無効インデックスを、FK のインデックスとして数えないように</div>
-<div class="entry-diff"><span class="add">+63</span> <span class="del">-1</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-15
-</div>
-<div class="entry-text">拡張機能パネル: \dx の GUI 版。導入済み/導入可能な拡張機能を表示</div>
-<div class="entry-diff"><span class="add">+321</span> <span class="del">-48</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-15
-</div>
-<div class="entry-text">docs: 拡張機能パネルを README とランディングページに記載</div>
-<div class="entry-diff"><span class="add">+12</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-16
-</div>
-<div class="entry-text">JSONB 構造: JSON 列の実際の構造をオンデマンドでサンプリング</div>
-<div class="entry-diff"><span class="add">+574</span> <span class="del">-91</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-16
-</div>
-<div class="entry-text">デモデータ: オプトインの Airlines データベース（compose の &quot;demo&quot; プロファイル）</div>
-<div class="entry-diff"><span class="add">+129</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-16
-</div>
-<div class="entry-text">docs: README・ランディングページ・CHANGELOG を実装内容に合わせる</div>
-<div class="entry-diff"><span class="add">+35</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-17
-</div>
-<div class="entry-text">docs: 同梱のデモデータを主要な訴求点として打ち出す</div>
-<div class="entry-diff"><span class="add">+7</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-17
-</div>
-<div class="entry-text">ヘルス: 孤立行 — NOT VALID な FK と、推測される *_id 参照</div>
-<div class="entry-diff"><span class="add">+673</span> <span class="del">-57</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-17
-</div>
-<div class="entry-text">ロック: 待機グラフを、大元のブロッカーを頂点とする木構造に畳む</div>
-<div class="entry-diff"><span class="add">+283</span> <span class="del">-69</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-29
-</div>
-<div class="entry-text">レプリケーション: スタンバイの再生遅延をバイト数だけでなく時間でも表示</div>
-<div class="entry-diff"><span class="add">+71</span> <span class="del">-7</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-30
-</div>
-<div class="entry-text">DDL: ロック待ちに上限を設け、変更がテーブルを止まらせないように</div>
-<div class="entry-diff"><span class="add">+357</span> <span class="del">-59</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-07-30
-</div>
-<div class="entry-text">ランナー: 書き込みモードでも DDL のロックガードを提供し、トグルを実際に送信するよう修正</div>
-<div class="entry-diff"><span class="add">+294</span> <span class="del">-96</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-08
-</div>
-<div class="entry-text">v1.3.0 リリース</div>
-<div class="entry-diff"><span class="add">+4</span> <span class="del">-2</span></div>
-</div>
-</div></div>
-<div class="version" id="v1.4.0"><div class="version-head">
-<div class="version-tag">2026-08-10 – 2026-08-23</div><h2>v1.4.0</h2>
-</div><div class="entries">
-<div class="entry">
-<div class="entry-date">2026-08-10
-</div>
-<div class="entry-text">ランディングページ: 「実行する前に何が分かるか」を前面に</div>
-<div class="entry-diff"><span class="add">+76</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-12
-</div>
-<div class="entry-text">ロック: 本来説明すべきロックの後ろにワークスペース自身が並んでしまうのを解消</div>
-<div class="entry-diff"><span class="add">+392</span> <span class="del">-117</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-23
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/13">#13</a>
-</div>
-<div class="entry-text">メトリクス: GitHub が 14 日で捨てるダウンロード数を保持する</div>
-<div class="entry-diff"><span class="add">+362</span> <span class="del">-0</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-23
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/14">#14</a>
-</div>
-<div class="entry-text">配布: ビルドせず公開済みイメージから起動するように</div>
-<div class="entry-diff"><span class="add">+58</span> <span class="del">-2</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-23
-</div>
-<div class="entry-text">v1.4.0 リリース</div>
-<div class="entry-diff"><span class="add">+23</span> <span class="del">-2</span></div>
-</div>
-</div></div>
-<div class="version" id="v1.5.0"><div class="version-head">
-<div class="version-tag">2026-08-28</div><h2>v1.5.0</h2>
-</div><div class="entries">
-<div class="entry">
-<div class="entry-date">2026-08-28
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/15">#15</a>
-</div>
-<div class="entry-text">v1.5.0 の 2 本: 無効インデックスの横断表示と、複合 UNIQUE の NULL すり抜け</div>
-<div class="entry-diff"><span class="add">+770</span> <span class="del">-99</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-28
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/16">#16</a>
-</div>
-<div class="entry-text">1.5.0: 版上げと CHANGELOG</div>
-<div class="entry-diff"><span class="add">+39</span> <span class="del">-1</span></div>
-</div>
-</div></div>
-<div class="version" id="v1.6.0"><div class="version-head">
-<div class="version-tag">2026-08-28</div><h2>v1.6.0</h2>
-</div><div class="entries">
-<div class="entry">
-<div class="entry-date">2026-08-28
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/17">#17</a>
-</div>
-<div class="entry-text">押す前に見せる（v1.6.0）: これから流す SQL と、TRUNCATE / DROP が持っていくもの</div>
-<div class="entry-diff"><span class="add">+436</span> <span class="del">-53</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-28
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/18">#18</a>
-</div>
-<div class="entry-text">DROP … CASCADE で一緒に消えるものを、押す前に見せる</div>
-<div class="entry-diff"><span class="add">+89</span> <span class="del">-24</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-08-28
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/19">#19</a>
-</div>
-<div class="entry-text">1.6.0: 版上げと CHANGELOG</div>
-<div class="entry-diff"><span class="add">+44</span> <span class="del">-1</span></div>
+<div class="entry-text">テストを PR で走らせる</div>
+<div class="entry-diff"><span class="add">+87</span> <span class="del">-0</span></div>
 </div>
 </div></div>
 <div class="version" id="v1.6.1"><div class="version-head">
@@ -952,142 +280,821 @@
 <div class="entry-diff"><span class="add">+319</span> <span class="del">-66</span></div>
 </div>
 </div></div>
-<div class="version" id="v1.7.0"><div class="version-head">
-<div class="version-tag">2026-09-01 – 2026-09-04</div><h2>v1.7.0</h2>
+<div class="version" id="v1.6.0"><div class="version-head">
+<div class="version-tag">2026-08-28</div><h2>v1.6.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-09-01
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/22">#22</a>
+<div class="entry-date">2026-08-28
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/19">#19</a>
 </div>
-<div class="entry-text">テストを PR で走らせる</div>
-<div class="entry-diff"><span class="add">+87</span> <span class="del">-0</span></div>
+<div class="entry-text">1.6.0: 版上げと CHANGELOG</div>
+<div class="entry-diff"><span class="add">+44</span> <span class="del">-1</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-01
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/24">#24</a>
+<div class="entry-date">2026-08-28
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/18">#18</a>
 </div>
-<div class="entry-text">1.6.1 の見出しを実態に合わせる（1 件ではなく 2 件）</div>
+<div class="entry-text">DROP … CASCADE で一緒に消えるものを、押す前に見せる</div>
+<div class="entry-diff"><span class="add">+89</span> <span class="del">-24</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-08-28
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/17">#17</a>
+</div>
+<div class="entry-text">押す前に見せる（v1.6.0）: これから流す SQL と、TRUNCATE / DROP が持っていくもの</div>
+<div class="entry-diff"><span class="add">+436</span> <span class="del">-53</span></div>
+</div>
+</div></div>
+<div class="version" id="v1.5.0"><div class="version-head">
+<div class="version-tag">2026-08-28</div><h2>v1.5.0</h2>
+</div><div class="entries">
+<div class="entry">
+<div class="entry-date">2026-08-28
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/16">#16</a>
+</div>
+<div class="entry-text">1.5.0: 版上げと CHANGELOG</div>
+<div class="entry-diff"><span class="add">+39</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-08-28
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/15">#15</a>
+</div>
+<div class="entry-text">v1.5.0 の 2 本: 無効インデックスの横断表示と、複合 UNIQUE の NULL すり抜け</div>
+<div class="entry-diff"><span class="add">+770</span> <span class="del">-99</span></div>
+</div>
+</div></div>
+<div class="version" id="v1.4.0"><div class="version-head">
+<div class="version-tag">2026-08-10 – 2026-08-23</div><h2>v1.4.0</h2>
+</div><div class="entries">
+<div class="entry">
+<div class="entry-date">2026-08-23
+</div>
+<div class="entry-text">v1.4.0 リリース</div>
+<div class="entry-diff"><span class="add">+23</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-08-23
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/14">#14</a>
+</div>
+<div class="entry-text">配布: ビルドせず公開済みイメージから起動するように</div>
+<div class="entry-diff"><span class="add">+58</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-08-23
+<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/13">#13</a>
+</div>
+<div class="entry-text">メトリクス: GitHub が 14 日で捨てるダウンロード数を保持する</div>
+<div class="entry-diff"><span class="add">+362</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-08-12
+</div>
+<div class="entry-text">ロック: 本来説明すべきロックの後ろにワークスペース自身が並んでしまうのを解消</div>
+<div class="entry-diff"><span class="add">+392</span> <span class="del">-117</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-08-10
+</div>
+<div class="entry-text">ランディングページ: 「実行する前に何が分かるか」を前面に</div>
+<div class="entry-diff"><span class="add">+76</span> <span class="del">-0</span></div>
+</div>
+</div></div>
+<div class="version" id="v1.3.0"><div class="version-head">
+<div class="version-tag">2026-07-06 – 2026-08-08</div><h2>v1.3.0</h2>
+</div><div class="entries">
+<div class="entry">
+<div class="entry-date">2026-08-08
+</div>
+<div class="entry-text">v1.3.0 リリース</div>
+<div class="entry-diff"><span class="add">+4</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-30
+</div>
+<div class="entry-text">ランナー: 書き込みモードでも DDL のロックガードを提供し、トグルを実際に送信するよう修正</div>
+<div class="entry-diff"><span class="add">+294</span> <span class="del">-96</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-30
+</div>
+<div class="entry-text">DDL: ロック待ちに上限を設け、変更がテーブルを止まらせないように</div>
+<div class="entry-diff"><span class="add">+357</span> <span class="del">-59</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-29
+</div>
+<div class="entry-text">レプリケーション: スタンバイの再生遅延をバイト数だけでなく時間でも表示</div>
+<div class="entry-diff"><span class="add">+71</span> <span class="del">-7</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-17
+</div>
+<div class="entry-text">ロック: 待機グラフを、大元のブロッカーを頂点とする木構造に畳む</div>
+<div class="entry-diff"><span class="add">+283</span> <span class="del">-69</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-17
+</div>
+<div class="entry-text">ヘルス: 孤立行 — NOT VALID な FK と、推測される *_id 参照</div>
+<div class="entry-diff"><span class="add">+673</span> <span class="del">-57</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-17
+</div>
+<div class="entry-text">docs: 同梱のデモデータを主要な訴求点として打ち出す</div>
+<div class="entry-diff"><span class="add">+7</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-16
+</div>
+<div class="entry-text">docs: README・ランディングページ・CHANGELOG を実装内容に合わせる</div>
+<div class="entry-diff"><span class="add">+35</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-16
+</div>
+<div class="entry-text">デモデータ: オプトインの Airlines データベース（compose の &quot;demo&quot; プロファイル）</div>
+<div class="entry-diff"><span class="add">+129</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-16
+</div>
+<div class="entry-text">JSONB 構造: JSON 列の実際の構造をオンデマンドでサンプリング</div>
+<div class="entry-diff"><span class="add">+574</span> <span class="del">-91</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-15
+</div>
+<div class="entry-text">docs: 拡張機能パネルを README とランディングページに記載</div>
+<div class="entry-diff"><span class="add">+12</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-15
+</div>
+<div class="entry-text">拡張機能パネル: \dx の GUI 版。導入済み/導入可能な拡張機能を表示</div>
+<div class="entry-diff"><span class="add">+321</span> <span class="del">-48</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-10
+</div>
+<div class="entry-text">ヘルス: 部分インデックスと無効インデックスを、FK のインデックスとして数えないように</div>
+<div class="entry-diff"><span class="add">+63</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-07-06
+</div>
+<div class="entry-text">ForeignKeyEdge の docstring にある、自己参照 FK についての不正確な注記を修正</div>
+<div class="entry-diff"><span class="add">+3</span> <span class="del">-2</span></div>
+</div>
+</div></div>
+<div class="version" id="v1.2.0"><div class="version-head">
+<div class="version-tag">2026-07-05</div><h2>v1.2.0</h2>
+</div><div class="entries">
+<div class="entry">
+<div class="entry-date">2026-07-05
+</div>
+<div class="entry-text">v1.2.0 リリース</div>
 <div class="entry-diff"><span class="add">+5</span> <span class="del">-2</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-02
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/20">#20</a>
+<div class="entry-date">2026-07-05
 </div>
-<div class="entry-text">DDL リハーサル（v1.7.0）: 本物の ALTER を試して、捨てる</div>
-<div class="entry-diff"><span class="add">+593</span> <span class="del">-60</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-04
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/25">#25</a>
-</div>
-<div class="entry-text">画面がデータベースの時刻を書き換えていたのを直す</div>
-<div class="entry-diff"><span class="add">+147</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-04
-</div>
-<div class="entry-text">1.7.0: 版上げと CHANGELOG</div>
-<div class="entry-diff"><span class="add">+6</span> <span class="del">-1</span></div>
+<div class="entry-text">ヘルス: 未インデックスの外部キーと冗長インデックスの検出</div>
+<div class="entry-diff"><span class="add">+505</span> <span class="del">-76</span></div>
 </div>
 </div></div>
-<div class="version" id="v1.8.0"><div class="version-head">
-<div class="version-tag">2026-09-04</div><h2>v1.8.0</h2>
+<div class="version" id="v1.1.0"><div class="version-head">
+<div class="version-tag">2026-06-20 – 2026-07-04</div><h2>v1.1.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-09-04
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/26">#26</a>
+<div class="entry-date">2026-07-04
 </div>
-<div class="entry-text">テーブル一覧が、空でないテーブルを「0 行」と言っていたのを直す</div>
-<div class="entry-diff"><span class="add">+216</span> <span class="del">-69</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-04
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/27">#27</a>
-</div>
-<div class="entry-text">テーブル名を押したら中身を出す（1000 行ずつのページ送り）</div>
-<div class="entry-diff"><span class="add">+638</span> <span class="del">-189</span></div>
+<div class="entry-text">v1.1.0 リリース</div>
+<div class="entry-diff"><span class="add">+5</span> <span class="del">-2</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-04
+<div class="entry-date">2026-07-04
 </div>
-<div class="entry-text">1.8.0: 版上げと CHANGELOG</div>
-<div class="entry-diff"><span class="add">+6</span> <span class="del">-1</span></div>
+<div class="entry-text">依存関係パネル: 安全な TRUNCATE 順序と FK 循環検出</div>
+<div class="entry-diff"><span class="add">+519</span> <span class="del">-43</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-26
+</div>
+<div class="entry-text">docs: README+LP（日英）に生成列の記載を追加</div>
+<div class="entry-diff"><span class="add">+4</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-26
+</div>
+<div class="entry-text">列ビューア: 生成列を表示</div>
+<div class="entry-diff"><span class="add">+412</span> <span class="del">-243</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-25
+</div>
+<div class="entry-text">docs: README+LP（日英）に列/テーブルコメントの記載を追加</div>
+<div class="entry-diff"><span class="add">+5</span> <span class="del">-5</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-25
+</div>
+<div class="entry-text">テーブル詳細: テーブルコメントを表示</div>
+<div class="entry-diff"><span class="add">+57</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-22
+</div>
+<div class="entry-text">テーブル詳細: 列コメントを表示</div>
+<div class="entry-diff"><span class="add">+51</span> <span class="del">-12</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-22
+</div>
+<div class="entry-text">docs: LP のメタ情報と README のステータスで、マルチ DB の文言を揃える</div>
+<div class="entry-diff"><span class="add">+8</span> <span class="del">-7</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-22
+</div>
+<div class="entry-text">i18n(ja): MySQL の UI 文字列を翻訳（Phase 作業以来未翻訳だったもの）</div>
+<div class="entry-diff"><span class="add">+356</span> <span class="del">-162</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-22
+</div>
+<div class="entry-text">アクティビティ: 接続の余裕（使用数 vs max_connections）を表示</div>
+<div class="entry-diff"><span class="add">+180</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-20
+</div>
+<div class="entry-text">LP: 英語メタ情報にマルチ DB を反映し、MySQL コマンド例も追加</div>
+<div class="entry-diff"><span class="add">+5</span> <span class="del">-5</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-20
+</div>
+<div class="entry-text">LP: ヒーローコピーを「psql / mysql」に（psql だけでなく）</div>
+<div class="entry-diff"><span class="add">+2</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-20
+</div>
+<div class="entry-text">LP: 対応データベースの注記を追加（PostgreSQL &amp; MySQL）</div>
+<div class="entry-diff"><span class="add">+8</span> <span class="del">-0</span></div>
 </div>
 </div></div>
-<div class="version" id="v1.9.0"><div class="version-head">
-<div class="version-tag">2026-09-05 – 2026-09-16</div><h2>v1.9.0</h2>
+<div class="version" id="v1.0.0"><div class="version-head">
+<div class="version-tag">2026-06-17 – 2026-06-20</div><h2>v1.0.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-09-05
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/28">#28</a>
+<div class="entry-date">2026-06-20
 </div>
-<div class="entry-text">テーブル画面の並びを変える（グリッドを窓の底まで／区域を見えるところへ）</div>
-<div class="entry-diff"><span class="add">+498</span> <span class="del">-286</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-05
-<br><a class="entry-pr" href="https://github.com/MR-TABATA/cli2ui/pull/29">#29</a>
-</div>
-<div class="entry-text">CLAUDE.md を git 管理から外す</div>
-<div class="entry-diff"><span class="add">+4</span> <span class="del">-1</span></div>
+<div class="entry-text">v1.0.0 リリース: MySQL 対応（マルチ DB 対応の運用コンソールへ）</div>
+<div class="entry-diff"><span class="add">+21</span> <span class="del">-5</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-10
+<div class="entry-date">2026-06-18
 </div>
-<div class="entry-text">色を役割で持ち、テーマを差し替えられるようにする</div>
-<div class="entry-diff"><span class="add">+1089</span> <span class="del">-960</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-10
-</div>
-<div class="entry-text">planner_lab のテンプレートも役割へ（前のコミットの取りこぼし）</div>
-<div class="entry-diff"><span class="add">+68</span> <span class="del">-68</span></div>
+<div class="entry-text">MySQL: 数値システム変数の SET PERSIST を未クォートで送る</div>
+<div class="entry-diff"><span class="add">+27</span> <span class="del">-7</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-10
+<div class="entry-date">2026-06-18
 </div>
-<div class="entry-text">自作テーマ ── 3 色だけ決めて、残りは導く</div>
-<div class="entry-diff"><span class="add">+181</span> <span class="del">-6</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-10
-</div>
-<div class="entry-text">テーマの取りこぼし 2 件 ── 読めない組み合わせと、翻訳を通していない文言</div>
-<div class="entry-diff"><span class="add">+267</span> <span class="del">-53</span></div>
+<div class="entry-text">CHANGELOG: MySQL Phase 3（backup/settings/replication）を Unreleased に追記</div>
+<div class="entry-diff"><span class="add">+23</span> <span class="del">-9</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-10
+<div class="entry-date">2026-06-18
 </div>
-<div class="entry-text">サイトをライトにして、同じ機能を二度言うのをやめる</div>
-<div class="entry-diff"><span class="add">+839</span> <span class="del">-382</span></div>
-</div>
-<div class="entry">
-<div class="entry-date">2026-09-16
-</div>
-<div class="entry-text">テーブル一覧を pg_class ベースへ ── 1 クエリで UNLOGGED・パーティション・マテビュー・外部テーブルを直す</div>
-<div class="entry-diff"><span class="add">+220</span> <span class="del">-12</span></div>
+<div class="entry-text">MySQL Phase 3c: レプリケーション（状態＋セットアップ手順）</div>
+<div class="entry-diff"><span class="add">+393</span> <span class="del">-1</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-16
+<div class="entry-date">2026-06-18
 </div>
-<div class="entry-text">airlines サンプル DB に restart: unless-stopped を足す</div>
-<div class="entry-diff"><span class="add">+5</span> <span class="del">-0</span></div>
+<div class="entry-text">MySQL Phase 3b: 設定エディタ（SET PERSIST）</div>
+<div class="entry-diff"><span class="add">+201</span> <span class="del">-14</span></div>
 </div>
 <div class="entry">
-<div class="entry-date">2026-09-16
+<div class="entry-date">2026-06-18
 </div>
-<div class="entry-text">1.9.0: 版上げと CHANGELOG、翻訳の抜けを直す</div>
-<div class="entry-diff"><span class="add">+374</span> <span class="del">-334</span></div>
+<div class="entry-text">MySQL Phase 3a: バックアップ（mysqldump/mysql）と破壊的操作の修復</div>
+<div class="entry-diff"><span class="add">+186</span> <span class="del">-7</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-18
+</div>
+<div class="entry-text">CHANGELOG: MySQL Phase 2 を Unreleased に追記</div>
+<div class="entry-diff"><span class="add">+19</span> <span class="del">-4</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-18
+</div>
+<div class="entry-text">MySQL エンジン Phase 2: ロック競合検出と偽陰性の解消</div>
+<div class="entry-diff"><span class="add">+354</span> <span class="del">-21</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-18
+</div>
+<div class="entry-text">MySQL エンジンのセキュリティ静的チェック再実行</div>
+<div class="entry-diff"><span class="add">+10</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-17
+</div>
+<div class="entry-text">MySQL エンジン Phase 1: 閲覧 / クエリ / DDL 対応</div>
+<div class="entry-diff"><span class="add">+1087</span> <span class="del">-6</span></div>
 </div>
 </div></div>
-<div class="version" id="unreleased"><div class="version-head">
-<div class="version-tag">2026-09-16</div><h2>未リリース</h2>
+<div class="version" id="v0.9.0"><div class="version-head">
+<div class="version-tag">2026-06-17</div><h2>v0.9.0</h2>
 </div><div class="entries">
 <div class="entry">
-<div class="entry-date">2026-09-16
+<div class="entry-date">2026-06-17
 </div>
-<div class="entry-text">開発の記録ページを追加。コミット単位で生成し、PRの有無で漏れない</div>
-<div class="entry-diff"><span class="add">+2817</span> <span class="del">-0</span></div>
+<div class="entry-text">v0.9.0: フィルタビルダー / CSV インポート / テーブル export / CLI2UI_DB_PATH</div>
+<div class="entry-diff"><span class="add">+905</span> <span class="del">-268</span></div>
+</div>
+</div></div>
+<div class="version" id="v0.8.0"><div class="version-head">
+<div class="version-tag">2026-06-09 – 2026-06-17</div><h2>v0.8.0</h2>
+</div><div class="entries">
+<div class="entry">
+<div class="entry-date">2026-06-17
+</div>
+<div class="entry-text">バージョニング導入: __version__/CHANGELOG/フッター表示</div>
+<div class="entry-diff"><span class="add">+62</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-17
+</div>
+<div class="entry-text">features.py のコメント表現を中立化</div>
+<div class="entry-diff"><span class="add">+1</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-17
+</div>
+<div class="entry-text">コメントの表現を中立化（planner_lab の説明）</div>
+<div class="entry-diff"><span class="add">+5</span> <span class="del">-5</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-17
+</div>
+<div class="entry-text">CONTRIBUTING: オプション機能アプリ（planner_lab）のパターンを追記</div>
+<div class="entry-diff"><span class="add">+10</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-17
+</div>
+<div class="entry-text">スケールシミュレーションとインデックスラボを planner_lab アプリへ分離</div>
+<div class="entry-diff"><span class="add">+756</span> <span class="del">-614</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-16
+</div>
+<div class="entry-text">README/LP を実装の現状に合わせて修正</div>
+<div class="entry-diff"><span class="add">+30</span> <span class="del">-5</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-16
+</div>
+<div class="entry-text">クエリ結果の CSV / JSON エクスポートを追加</div>
+<div class="entry-diff"><span class="add">+358</span> <span class="del">-96</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-15
+</div>
+<div class="entry-text">ネットワーキングガイド: 自分のプロジェクトの compose 内で cli2ui を動かす方法を記載</div>
+<div class="entry-diff"><span class="add">+100</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-15
+</div>
+<div class="entry-text">レプリケーション: 現在の値を使ったスタンバイ構築手順を生成</div>
+<div class="entry-diff"><span class="add">+428</span> <span class="del">-66</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-15
+</div>
+<div class="entry-text">ドキュメント: 自動バックアップの保持上限を記載し、nosec もログに残す</div>
+<div class="entry-diff"><span class="add">+8</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-15
+</div>
+<div class="entry-text">接続ごとの自動バックアップ容量に合計サイズの上限を設定</div>
+<div class="entry-diff"><span class="add">+77</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-14
+</div>
+<div class="entry-text">OG/Twitter のメタ URL を cli2ui.com のカスタムドメインへ向ける</div>
+<div class="entry-diff"><span class="add">+9</span> <span class="del">-9</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-14
+</div>
+<div class="entry-text">cli2ui.com を GitHub Pages のカスタムドメインに設定</div>
+<div class="entry-diff"><span class="add">+1</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-14
+</div>
+<div class="entry-text">未実装の MySQL を宣伝文句から外す</div>
+<div class="entry-diff"><span class="add">+6</span> <span class="del">-8</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-14
+</div>
+<div class="entry-text">ドキュメント: ポート衝突の注意書き＋ Docker ネットワーキングガイド（日英）</div>
+<div class="entry-diff"><span class="add">+502</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-14
+</div>
+<div class="entry-text">ワークスペース概要を 1 つの DB 接続にまとめる</div>
+<div class="entry-diff"><span class="add">+108</span> <span class="del">-20</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-14
+</div>
+<div class="entry-text">README と日英ランディングページに、ローカル専用/無認証の警告を追加</div>
+<div class="entry-diff"><span class="add">+8</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">i18n/リリース差分に対してセキュリティ静的チェックを再実行</div>
+<div class="entry-diff"><span class="add">+6</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">公開に向けたドキュメント整備: README 刷新、CONTRIBUTING、SECURITY</div>
+<div class="entry-diff"><span class="add">+173</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">アプリ全体に日本語/英語の国際化対応を追加</div>
+<div class="entry-diff"><span class="add">+2216</span> <span class="del">-514</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">docs/ 配下にバイリンガルのランディングページを追加</div>
+<div class="entry-diff"><span class="add">+654</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">概要ダッシュボードの行間を広げる</div>
+<div class="entry-diff"><span class="add">+12</span> <span class="del">-12</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">概要トップをメニューに合わせたテキストダッシュボードに</div>
+<div class="entry-diff"><span class="add">+85</span> <span class="del">-155</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">概要のホバーメニューをコンパクトなテキスト一覧に</div>
+<div class="entry-diff"><span class="add">+43</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">概要のホバーメニューが溢れたらスクロールするように</div>
+<div class="entry-diff"><span class="add">+1</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">bento の先頭に主力機能（SQL ランナー、インデックスラボ）を配置</div>
+<div class="entry-diff"><span class="add">+57</span> <span class="del">-56</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">bento を 4×3 の均一タイルにし、グループごとに色帯を付与</div>
+<div class="entry-diff"><span class="add">+124</span> <span class="del">-101</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">機能タイルに、うっすらとした装飾用 SVG モチーフを追加</div>
+<div class="entry-diff"><span class="add">+10</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">bento タイルに SVG アイコンとグループ別アクセントカラーを追加</div>
+<div class="entry-diff"><span class="add">+51</span> <span class="del">-35</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">スケッチ通りに bento を配置: 大きな機能タイル 2 枚＋タイルグリッド</div>
+<div class="entry-diff"><span class="add">+87</span> <span class="del">-105</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">4 列のタイルグリッドに（タイルを大きく）</div>
+<div class="entry-diff"><span class="add">+1</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">bento を同じ大きさの正方形タイルに変更（Windows 風）</div>
+<div class="entry-diff"><span class="add">+131</span> <span class="del">-123</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">bento を大きさの異なるモザイク状に敷き詰め</div>
+<div class="entry-diff"><span class="add">+63</span> <span class="del">-54</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">bento のセルサイズを変え、テーブルへのリンクも修正</div>
+<div class="entry-diff"><span class="add">+31</span> <span class="del">-38</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">bento を枠付きボックスにし、概要クリックでも表示</div>
+<div class="entry-diff"><span class="add">+151</span> <span class="del">-156</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">概要をホバー式メガメニューに（区域ごとにまとめた bento）</div>
+<div class="entry-diff"><span class="add">+206</span> <span class="del">-140</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">区域ナビをサイドバーからトップバーへ移動</div>
+<div class="entry-diff"><span class="add">+69</span> <span class="del">-100</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">各パネルの薄い文字のコントラストを底上げ</div>
+<div class="entry-diff"><span class="add">+140</span> <span class="del">-140</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">サイドバーの区域切り替え用に .nav-btn クラスを切り出し</div>
+<div class="entry-diff"><span class="add">+31</span> <span class="del">-36</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">残りのパネルにも共通のデザインシステムクラスを適用</div>
+<div class="entry-diff"><span class="add">+14</span> <span class="del">-41</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">ワークスペースのホームを、稼働状況が分かる bento レイアウトに</div>
+<div class="entry-diff"><span class="add">+124</span> <span class="del">-31</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">オブジェクトパネルを再設計: サブタブ＋共通ドロワー</div>
+<div class="entry-diff"><span class="add">+291</span> <span class="del">-254</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-13
+</div>
+<div class="entry-text">テーブル詳細パネルを再設計: サブタブ＋共通ドロワー</div>
+<div class="entry-diff"><span class="add">+348</span> <span class="del">-324</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">UI デザインシステムの土台を追加（STYLE.md、.btn-*/.field、_banner）</div>
+<div class="entry-diff"><span class="add">+92</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">views.py をドメインごとに core/views パッケージへ分割</div>
+<div class="entry-diff"><span class="add">+1424</span> <span class="del">-1360</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">PostgreSQL のクエリ文を pg_sql.py に切り出し</div>
+<div class="entry-diff"><span class="add">+300</span> <span class="del">-268</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">自動スナップショットのセーフティネットをリネーム/ALTER にも拡張</div>
+<div class="entry-diff"><span class="add">+24</span> <span class="del">-7</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">リストアをストリーミング化し、既存データベースへの復元も許可</div>
+<div class="entry-diff"><span class="add">+113</span> <span class="del">-32</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">SQL ランナーに書き込みモードを追加</div>
+<div class="entry-diff"><span class="add">+57</span> <span class="del">-22</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">コマンド履歴パネルを追加</div>
+<div class="entry-diff"><span class="add">+178</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">ヘルスパネルにテーブルの肥大化（bloat）推定を追加</div>
+<div class="entry-diff"><span class="add">+166</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">他コンテナの DB への到達方法とレプリケーションの試し方をドキュメント化</div>
+<div class="entry-diff"><span class="add">+136</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">ロック/ブロッキングとレプリケーションのパネルを追加</div>
+<div class="entry-diff"><span class="add">+635</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">列操作、pg_dump によるバックアップ/リストア、自動セーフティネットのスナップショットを追加</div>
+<div class="entry-diff"><span class="add">+1429</span> <span class="del">-36</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-12
+</div>
+<div class="entry-text">テーブル単位の操作を追加: リネーム・TRUNCATE・DROP</div>
+<div class="entry-diff"><span class="add">+252</span> <span class="del">-31</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">スキーマ・ロールの ALTER を追加（リネーム・所有者・属性）</div>
+<div class="entry-diff"><span class="add">+238</span> <span class="del">-14</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">データベースの作成・複製・リネーム・削除を追加</div>
+<div class="entry-diff"><span class="add">+243</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">ヘルスパネルにデッドタプル/VACUUM のカードを追加</div>
+<div class="entry-diff"><span class="add">+125</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">ヘルスパネルを追加: テーブルサイズと未使用インデックス</div>
+<div class="entry-diff"><span class="add">+284</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">セキュリティ強化: 依存関係・クリックジャッキング対策・監査ドキュメント</div>
+<div class="entry-diff"><span class="add">+94</span> <span class="del">-5</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">schema_delete / role_delete で名前を検証</div>
+<div class="entry-diff"><span class="add">+6</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">what-if インデックスラボを追加: 試して測ってから作成</div>
+<div class="entry-diff"><span class="add">+398</span> <span class="del">-2</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">インデックスのレビュー指摘に対応: 列順・valid フラグ・列パースを堅牢に</div>
+<div class="entry-diff"><span class="add">+93</span> <span class="del">-34</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">インデックス作成・削除の E2E スモークテストを追加。ブラウザ用の共通土台も整備</div>
+<div class="entry-diff"><span class="add">+57</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">テーブルごとのインデックス管理を追加: 一覧・作成・削除</div>
+<div class="entry-diff"><span class="add">+341</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">構造化された EXPLAIN 差分とスケールシミュレーションを追加</div>
+<div class="entry-diff"><span class="add">+1079</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-11
+</div>
+<div class="entry-text">MIT ライセンスを追加</div>
+<div class="entry-diff"><span class="add">+25</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-10
+</div>
+<div class="entry-text">アクティビティパネルとワークスペース概要を追加</div>
+<div class="entry-diff"><span class="add">+317</span> <span class="del">-14</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-10
+</div>
+<div class="entry-text">クエリが 0 行のとき、分かりやすいメッセージを表示</div>
+<div class="entry-diff"><span class="add">+6</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-10
+</div>
+<div class="entry-text">EXPLAIN プランのスナップショットを追加: 保存・表示・差分</div>
+<div class="entry-diff"><span class="add">+359</span> <span class="del">-8</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-10
+</div>
+<div class="entry-text">読み取り専用の SQL ランナーを追加</div>
+<div class="entry-diff"><span class="add">+199</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">オブジェクトブラウザにロールの作成・削除を追加</div>
+<div class="entry-diff"><span class="add">+105</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">オブジェクトブラウザにスキーマの作成・削除を追加</div>
+<div class="entry-diff"><span class="add">+95</span> <span class="del">-4</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">CSRF 保護を有効化（htmx が X-CSRFToken ヘッダーでトークンを送信）</div>
+<div class="entry-diff"><span class="add">+8</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">オブジェクトブラウザを README のステータス一覧に記載</div>
+<div class="entry-diff"><span class="add">+1</span> <span class="del">-0</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">オブジェクトブラウザを追加: データベース・スキーマ・ロール（\l, \dn, \du）</div>
+<div class="entry-diff"><span class="add">+245</span> <span class="del">-1</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">再起動待ちの設定向けに、再起動コマンドのヘルパーを追加</div>
+<div class="entry-diff"><span class="add">+65</span> <span class="del">-15</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">DB クライアント風のワークスペースと postgresql.conf エディタを追加</div>
+<div class="entry-diff"><span class="add">+676</span> <span class="del">-212</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-06-09
+</div>
+<div class="entry-text">最初のコミット: cli2ui MVP — PostgreSQL のテーブル一覧</div>
+<div class="entry-diff"><span class="add">+783</span> <span class="del">-0</span></div>
 </div>
 </div></div>
 <div class="note"><h3>このページについて</h3><ul>
