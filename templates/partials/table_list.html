@@ -9,14 +9,29 @@
     {% for t in tables %}
       <li x-show="q === '' || '{{ t.qualified|lower|escapejs }}'.includes(q.toLowerCase())">
         {% comment %}前に測った「画面に入る行数」を一緒に送る。2 つ目以降のテーブルは
-        1 回で正しい行数になる（1 つ目だけは測る前なので、開いた直後に直す）。{% endcomment %}
+        1 回で正しい行数になる（1 つ目だけは測る前なので、開いた直後に直す）。
+        depth はパーティションの入れ子（親の直下）── 0 なら通常どおり左端から。{% endcomment %}
         <button hx-get="{% url 'table_detail' connection.pk %}?schema={{ t.schema|urlencode }}&table={{ t.name|urlencode }}"
                 hx-vals="js:{rows: 'fit', fit: window.cli2uiFitRows()}"
                 hx-target="#detail" hx-swap="innerHTML"
                 @click="sel = '{{ t.qualified|escapejs }}'"
                 :class="sel === '{{ t.qualified|escapejs }}' ? 'bg-raised text-heading' : 'text-strong'"
-                class="w-full text-left px-3.5 py-1.5 text-sm flex items-center justify-between gap-2 hover:bg-raised/60 transition">
-          <span class="mono truncate">{{ t.name }}</span>
+                style="padding-left: calc(0.875rem + {{ t.depth }} * 1rem)"
+                class="w-full text-left pr-3.5 py-1.5 text-sm flex items-center justify-between gap-2 hover:bg-raised/60 transition">
+          <span class="flex items-center gap-1.5 min-w-0">
+            <span class="mono truncate">{{ t.name }}</span>
+            {% if t.unlogged %}
+              <span class="inline-block text-xs text-warn/90 bg-warn/50 rounded px-1.5 py-0.5 shrink-0"
+                    title="{% trans 'UNLOGGED — not WAL-logged: lost on a crash, and never sent to a replica.' %}">{% trans "unlogged" %}</span>
+            {% endif %}
+            {% if t.kind == "matview" %}
+              <span class="inline-block text-xs text-info/90 bg-info/50 rounded px-1.5 py-0.5 shrink-0"
+                    title="{% trans 'Materialized view — its data is a snapshot from the last REFRESH, not live.' %}">{% trans "matview" %}</span>
+            {% elif t.kind == "foreign" %}
+              <span class="inline-block text-xs text-info/90 bg-info/50 rounded px-1.5 py-0.5 shrink-0"
+                    title="{% trans 'Foreign table — its rows live on another server, fetched through an FDW.' %}">{% trans "foreign" %}</span>
+            {% endif %}
+          </span>
           <span class="text-xs text-body shrink-0">{% if t.unknown %}<span title="{% trans 'Statistics have never been collected for this table — run ANALYZE' %}">{% trans "unknown" %}</span>{% else %}{{ t.rows|intcomma }}{% endif %}</span>
         </button>
       </li>

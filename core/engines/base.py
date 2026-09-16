@@ -50,6 +50,14 @@ class Table:
     # 0 と書くと「空だから消していい」に読めるので、画面には「不明」と出す
     # ── WriteImpact.unknown と同じ規則。
     rows: int | None
+    # "table" / "partitioned" / "matview" / "foreign"。MySQL エンジンは常に
+    # "table"（この区別が無いので既定のまま）。
+    kind: str = "table"
+    unlogged: bool = False
+    # パーティションの入れ子の深さ。0 は最上位、親を持てば +1
+    # （多段パーティションでも辿れる）。フラットな一覧を畳むための表示用の値で、
+    # クエリ結果そのものの並び順とは別。
+    depth: int = 0
 
     @property
     def qualified(self) -> str:

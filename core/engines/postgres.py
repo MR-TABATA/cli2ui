@@ -282,6 +282,34 @@ def _gin_indexes_for(indexes, column: str) -> list[str]:
             if ix.method == "gin" and pat.search(ix.columns_text)]
 
 
+# pg_class.relkind -> Table.kind.
+_TABLE_KIND = {"r": "table", "p": "partitioned", "m": "matview", "f": "foreign"}
+
+
+def _nest_by_partition(rows) -> list[Table]:
+    """Groups partition children under their direct parent instead of listing
+    them flat and alphabetized alongside everything else — a `sales` table
+    with fifty monthly partitions used to bury every other table in the same
+    list. `rows` is LIST_TABLES_SQL's cursor output: (schema, name, rows,
+    relkind, unlogged, parent_schema, parent_table)."""
+    by_parent: dict[tuple[str, str] | None, list[Table]] = {}
+    for schema, name, count, relkind, unlogged, pschema, ptable in rows:
+        parent = (pschema, ptable) if pschema is not None else None
+        by_parent.setdefault(parent, []).append(
+            Table(schema=schema, name=name, rows=count,
+                  kind=_TABLE_KIND.get(relkind, relkind), unlogged=bool(unlogged)))
+
+    def walk(parent, depth):
+        out = []
+        for t in by_parent.get(parent, []):
+            t.depth = depth
+            out.append(t)
+            out.extend(walk((t.schema, t.name), depth + 1))
+        return out
+
+    return walk(None, 0)
+
+
 class PostgresEngine(Engine):
     # When inside session(), the one open connection for the default database;
     # otherwise None and every _connect() dials its own.
@@ -395,10 +423,8 @@ class PostgresEngine(Engine):
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(LIST_TABLES_SQL)
-                return [
-                    Table(schema=row[0], name=row[1], rows=row[2])
-                    for row in cur.fetchall()
-                ]
+                rows = cur.fetchall()
+        return _nest_by_partition(rows)
 
     def list_columns(self, schema: str, table: str) -> list[Column]:
         with self._connect() as conn:

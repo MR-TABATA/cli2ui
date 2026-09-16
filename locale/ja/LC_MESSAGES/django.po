@@ -2987,16 +2987,47 @@ msgstr ""
 msgid "Filter tables…"
 msgstr "テーブルを絞り込み…"
 
-#: templates/partials/table_list.html:21
+#: templates/partials/table_list.html:25
+msgid ""
+"UNLOGGED — not WAL-logged: lost on a crash, and never sent to a replica."
+msgstr ""
+"UNLOGGED — WAL に書かれません。クラッシュすると消え、レプリカにも送られませ"
+"ん。"
+
+#: templates/partials/table_list.html:25
+msgid "unlogged"
+msgstr "非ログ"
+
+#: templates/partials/table_list.html:29
+msgid ""
+"Materialized view — its data is a snapshot from the last REFRESH, not live."
+msgstr ""
+"マテリアライズドビュー — 中身は最後の REFRESH 時点のスナップショットで、最新"
+"ではありません。"
+
+#: templates/partials/table_list.html:29
+msgid "matview"
+msgstr "マテビュー"
+
+#: templates/partials/table_list.html:32
+msgid ""
+"Foreign table — its rows live on another server, fetched through an FDW."
+msgstr "外部テーブル — 行の実体は別サーバにあり、FDW 経由で取得します。"
+
+#: templates/partials/table_list.html:32
+msgid "foreign"
+msgstr "外部テーブル"
+
+#: templates/partials/table_list.html:35
 msgid "Statistics have never been collected for this table — run ANALYZE"
 msgstr ""
 "このテーブルの統計がまだ集められていません（ANALYZE を実行してください）"
 
-#: templates/partials/table_list.html:21
+#: templates/partials/table_list.html:35
 msgid "unknown"
 msgstr "不明"
 
-#: templates/partials/table_list.html:27
+#: templates/partials/table_list.html:41
 #, python-format
 msgid "%(counter)s table"
 msgid_plural "%(counter)s tables"

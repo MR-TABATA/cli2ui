@@ -627,6 +627,29 @@ class TableRowCountTests(SimpleTestCase):
         self.assertIn("reltuples < 0", LIST_TABLES_SQL)
         self.assertIn("NULL", LIST_TABLES_SQL)
 
+    def test_list_tables_sql_covers_matviews_and_foreign_tables(self):
+        # ④ relkind IN ('r', 'p') だけでは、マテビュー ('m') と外部テーブル
+        # ('f') が一覧から丸ごと抜け落ちる。
+        from core.engines.pg_sql import LIST_TABLES_SQL
+
+        self.assertIn("'r', 'p', 'm', 'f'", LIST_TABLES_SQL)
+
+    def test_list_tables_sql_reads_unlogged_flag(self):
+        # ① relpersistence を読まないと、UNLOGGED かどうかを画面から判断できない。
+        from core.engines.pg_sql import LIST_TABLES_SQL
+
+        self.assertIn("relpersistence", LIST_TABLES_SQL)
+
+    def test_list_tables_sql_joins_partition_parent_guarded_by_relispartition(self):
+        # ② パーティションの親を引くのに pg_inherits を素で結合すると、複数継承
+        # （relispartition ではない普通の継承）で 1 行が複数行に増える。
+        # relispartition の行だけに絞ることで、パーティションは必ず親が 1 つ
+        # という前提のまま安全に結合できる。
+        from core.engines.pg_sql import LIST_TABLES_SQL
+
+        self.assertIn("pg_inherits", LIST_TABLES_SQL)
+        self.assertIn("c.relispartition", LIST_TABLES_SQL)
+
 
 class TemplateCommentPlacementTests(SimpleTestCase):
     """注釈がタグの属性の中に無いこと。
@@ -3087,6 +3110,97 @@ class PostgresEngineIntegrationTests(SimpleTestCase):
 
     def _has_schema(self, name):
         return any(s.name == name for s in self.engine.list_schemas())
+
+
+@unittest.skipUnless(_sampledb_reachable(),
+                     "sample DB not reachable on localhost:5433")
+class TableListCatalogTests(SimpleTestCase):
+    """`pg_class` への一本化で直した 3 症状（③ の `reltuples` 切り替えは別枠で
+    済んでいる）。①② は `list_tables` が返す `Table` の値、④ は一覧そのものに
+    その関係の種類が現れるかで確かめる。"""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.engine = get_engine(_sampledb())
+
+    def _exec(self, raw_sql):
+        with self.engine._connect() as conn, conn.cursor() as cur:
+            cur.execute(raw_sql)
+
+    def _by_name(self, name):
+        return next(t for t in self.engine.list_tables() if t.name == name)
+
+    def test_unlogged_table_is_flagged(self):
+        # ① いままでは relpersistence を読んでおらず、UNLOGGED も普通のテーブルと
+        # 同じに見えていた。
+        self._exec("DROP TABLE IF EXISTS public._cli2ui_unlogged")
+        self._exec("CREATE UNLOGGED TABLE public._cli2ui_unlogged (x int)")
+        try:
+            self.assertTrue(self._by_name("_cli2ui_unlogged").unlogged)
+        finally:
+            self._exec("DROP TABLE public._cli2ui_unlogged")
+
+    def test_ordinary_table_is_not_flagged_unlogged(self):
+        self._exec("DROP TABLE IF EXISTS public._cli2ui_logged")
+        self._exec("CREATE TABLE public._cli2ui_logged (x int)")
+        try:
+            self.assertFalse(self._by_name("_cli2ui_logged").unlogged)
+        finally:
+            self._exec("DROP TABLE public._cli2ui_logged")
+
+    def test_partition_nests_under_its_parent_instead_of_flat(self):
+        # ② 直したのは順序であって選び方ではない: 以前から `relkind IN ('r','p')`
+        # で子も親も一覧には出ていたが、他のテーブルと同じアルファベット順に
+        # 紛れていた（"sales" の子が 50 本あれば、間の 50 音が全部埋まる）。
+        self._exec("DROP TABLE IF EXISTS public._cli2ui_part CASCADE")
+        self._exec(
+            "CREATE TABLE public._cli2ui_part (id int, d date) "
+            "PARTITION BY RANGE (d)")
+        self._exec(
+            "CREATE TABLE public._cli2ui_part_2026 "
+            "PARTITION OF public._cli2ui_part "
+            "FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')")
+        try:
+            tables = self.engine.list_tables()
+            parent = next(t for t in tables if t.name == "_cli2ui_part")
+            child = next(t for t in tables if t.name == "_cli2ui_part_2026")
+            self.assertEqual(parent.kind, "partitioned")
+            self.assertEqual(parent.depth, 0)
+            self.assertEqual(child.depth, 1)
+            # 子は親のすぐ後ろに来る。フラットな並びに戻ると、間に他のテーブルが挟まる。
+            self.assertEqual(tables.index(child), tables.index(parent) + 1)
+        finally:
+            self._exec("DROP TABLE public._cli2ui_part CASCADE")
+
+    def test_materialized_view_is_listed(self):
+        # ④ マテビューは relkind='m' で、以前の relkind IN ('r','p') には
+        # 入っておらず一覧から丸ごと抜け落ちていた。
+        self._exec("DROP MATERIALIZED VIEW IF EXISTS public._cli2ui_mv")
+        self._exec("CREATE MATERIALIZED VIEW public._cli2ui_mv AS SELECT 1 AS x")
+        try:
+            self.assertEqual(self._by_name("_cli2ui_mv").kind, "matview")
+        finally:
+            self._exec("DROP MATERIALIZED VIEW public._cli2ui_mv")
+
+    def test_foreign_table_is_listed(self):
+        # ④ 外部テーブルは relkind='f'。データを取りに行くわけではなくカタログの
+        # 存在だけを見るので、接続先が実在しなくても一覧には出るのが正しい。
+        self._exec("CREATE EXTENSION IF NOT EXISTS postgres_fdw")
+        self._exec(
+            "CREATE SERVER IF NOT EXISTS _cli2ui_fdw_srv "
+            "FOREIGN DATA WRAPPER postgres_fdw "
+            "OPTIONS (host 'localhost', dbname 'shop')")
+        self._exec(
+            "CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER "
+            "SERVER _cli2ui_fdw_srv OPTIONS (user 'demo', password 'demo')")
+        self._exec(
+            "CREATE FOREIGN TABLE public._cli2ui_ft (x int) "
+            "SERVER _cli2ui_fdw_srv")
+        try:
+            self.assertEqual(self._by_name("_cli2ui_ft").kind, "foreign")
+        finally:
+            self._exec("DROP EXTENSION postgres_fdw CASCADE")
 
 
 @unittest.skipUnless(_sampledb_reachable() and _has_pg_dump(),

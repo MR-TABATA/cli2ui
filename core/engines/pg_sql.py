@@ -18,14 +18,28 @@ postgres.py, next to the code that uses them.
 # `-1` は「まだ ANALYZE されていない」を表す PostgreSQL の値で、0 行とは違う。
 # NULL にして返し、画面には「不明」と出す ── **0 と書くと「空だから消していい」に
 # 読める**（TRUNCATE / DROP の確認では既にそう扱っている。同じ規則をここにも）。
+#
+# 1 クエリで 4 症状のうち残り 3 つも一緒に直す（③ の reltuples 切り替えは済み）:
+#   ① `relpersistence` を足して UNLOGGED を区別できるようにする
+#   ② `pg_inherits` を（`relispartition` の行だけ）左結合し、パーティション子の
+#      直属の親を持たせる。多重継承は複数の親行を生むため `relispartition` で
+#      弾く ── パーティションは常に親が 1 つなので行が増えない
+#   ④ `relkind` に `m`（マテビュー）と `f`（外部テーブル）を足す
 LIST_TABLES_SQL = """
 SELECT n.nspname AS schemaname,
        c.relname AS tablename,
        CASE WHEN c.reltuples < 0 THEN NULL
-            ELSE c.reltuples::bigint END AS rows
+            ELSE c.reltuples::bigint END AS rows,
+       c.relkind AS kind,
+       (c.relpersistence = 'u') AS unlogged,
+       pn.nspname AS parent_schema,
+       pc.relname AS parent_table
 FROM pg_catalog.pg_class c
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-WHERE c.relkind IN ('r', 'p')
+LEFT JOIN pg_catalog.pg_inherits i ON i.inhrelid = c.oid AND c.relispartition
+LEFT JOIN pg_catalog.pg_class pc ON pc.oid = i.inhparent
+LEFT JOIN pg_catalog.pg_namespace pn ON pn.oid = pc.relnamespace
+WHERE c.relkind IN ('r', 'p', 'm', 'f')
   AND n.nspname NOT IN ('pg_catalog', 'information_schema')
 ORDER BY n.nspname, c.relname;
 """
