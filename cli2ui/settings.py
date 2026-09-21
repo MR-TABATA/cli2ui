@@ -84,7 +84,15 @@ DATABASES = {
 # DROP) your database. htmx sends the token via the X-CSRFToken header — see the
 # hx-headers on <body> in base.html — so no per-form {% csrf_token %} is needed.
 # Cookie-based CSRF works standalone here (no SessionMiddleware required).
-CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"]
+#
+# Extra origins (e.g. a hosted read-only demo, which isn't on localhost) can be
+# added via CLI2UI_EXTRA_CSRF_ORIGINS, a comma-separated list. The localhost
+# entries stay first and always-on so the normal local-only setup is unaffected.
+CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"] + [
+    origin.strip()
+    for origin in os.environ.get("CLI2UI_EXTRA_CSRF_ORIGINS", "").split(",")
+    if origin.strip()
+]
 
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

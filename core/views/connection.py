@@ -1,5 +1,7 @@
 """Connection lifecycle and the workspace shell: landing page, connect, the
 workspace frame and its home overview."""
+import os
+
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
@@ -9,14 +11,18 @@ from ..forms import ConnectionForm
 from ..models import Connection
 
 
+# Every field is overridable via CLI2UI_SAMPLE_* so a deployment can point the
+# prefilled form at its own bundled/demo database without forking this file.
+# Unset -> identical to the historical hardcoded defaults (the bundled `shop`
+# sample used by `docker compose up`).
 SAMPLE_INITIAL = {
-    "name": "Sample shop",
+    "name": os.environ.get("CLI2UI_SAMPLE_NAME", "Sample shop"),
     "kind": Connection.KIND_POSTGRES,
-    "host": "sampledb",
-    "port": 5432,
-    "dbname": "shop",
-    "user": "demo",
-    "password": "demo",  # nosec B105 — not a secret: prefill for the bundled demo DB
+    "host": os.environ.get("CLI2UI_SAMPLE_HOST", "sampledb"),
+    "port": int(os.environ.get("CLI2UI_SAMPLE_PORT", "5432")),
+    "dbname": os.environ.get("CLI2UI_SAMPLE_DBNAME", "shop"),
+    "user": os.environ.get("CLI2UI_SAMPLE_USER", "demo"),
+    "password": os.environ.get("CLI2UI_SAMPLE_PASSWORD", "demo"),  # nosec B105 — not a secret: prefill for the bundled demo DB
 }
 
 
