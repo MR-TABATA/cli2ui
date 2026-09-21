@@ -8,11 +8,6 @@ into clicks, running fully on your machine.
 > machine. Run it on localhost or inside a trusted network — never expose it to
 > the public internet. See [SECURITY.md](SECURITY.md).
 
-**[Try the live demo](https://cli2ui-demo-697786332540.asia-northeast1.run.app)**
-— no install, no signup. It's a hosted, read-only copy connected to a sample
-Airlines database; writes are rejected at the database level, not just by the
-UI's own write-mode toggle.
-
 ```
 psql -c "SELECT * FROM pg_stat_activity"   →  one "running queries" button
 pg_dump -t users mydb                       →  one "back up this table" button
