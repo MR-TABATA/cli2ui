@@ -17,6 +17,22 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-09-21
+
+### Added
+
+- **The sample connection prefill and the CSRF trusted origins are now
+  overridable via env vars.** Both were hardcoded to the bundled
+  `docker compose up` setup (`sampledb`/`shop`/`demo` and
+  `localhost:8000`/`127.0.0.1:8000` only), which is what a self-hoster or a
+  hosted read-only demo actually needs to change. `CLI2UI_SAMPLE_NAME` /
+  `_HOST` / `_PORT` / `_DBNAME` / `_USER` / `_PASSWORD` override the prefilled
+  form; `CLI2UI_EXTRA_CSRF_ORIGINS` (comma-separated) adds origins on top of
+  the always-on localhost pair. Unset, both behave exactly as before.
+- **A live, read-only demo**, linked from the README and the site — no
+  install, no signup. Writes are rejected at the database level (a
+  `SELECT`-only role), not just by the UI's own write-mode toggle.
+
 ## [1.9.0] - 2026-09-16
 
 ### Added
@@ -629,7 +645,8 @@ reserved for multi-DB support).
 - Internationalisation (English / Japanese).
 - Workspace overview dashboard and unified UI (design system).
 
-[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.6.1...v1.7.0
