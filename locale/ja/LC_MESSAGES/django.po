@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-23 08:44+0000\n"
+"POT-Creation-Date: 2026-09-23 10:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -644,45 +644,50 @@ msgstr "種別"
 msgid "Name"
 msgstr "名前"
 
-#: templates/index.html:17 templates/partials/detail.html:452
-#: templates/partials/detail.html:555 templates/partials/objects.html:188
-#: templates/partials/objects.html:283 templates/partials/objects.html:310
+#: templates/index.html:17 templates/index.html:18
+#: templates/partials/detail.html:452 templates/partials/detail.html:555
+#: templates/partials/objects.html:188 templates/partials/objects.html:283
+#: templates/partials/objects.html:310
 msgid "(optional)"
 msgstr "（任意）"
 
-#: templates/index.html:20 templates/partials/replication_mysql.html:122
+#: templates/index.html:18
+msgid "Environment"
+msgstr "環境"
+
+#: templates/index.html:21 templates/partials/replication_mysql.html:122
 msgid "Host"
 msgstr "ホスト"
 
-#: templates/index.html:21 templates/partials/replication_mysql.html:123
+#: templates/index.html:22 templates/partials/replication_mysql.html:123
 msgid "Port"
 msgstr "ポート"
 
-#: templates/index.html:23
+#: templates/index.html:24
 msgid "Database"
 msgstr "データベース"
 
-#: templates/index.html:25 templates/partials/activity.html:59
+#: templates/index.html:26 templates/partials/activity.html:59
 msgid "User"
 msgstr "ユーザー"
 
-#: templates/index.html:26 templates/partials/objects.html:283
+#: templates/index.html:27 templates/partials/objects.html:283
 msgid "Password"
 msgstr "パスワード"
 
-#: templates/index.html:33
+#: templates/index.html:34
 msgid "Connect"
 msgstr "接続"
 
-#: templates/index.html:39
+#: templates/index.html:40
 msgid "Connecting…"
 msgstr "接続中…"
 
-#: templates/index.html:50
+#: templates/index.html:51
 msgid "Saved connections"
 msgstr "保存済みの接続"
 
-#: templates/index.html:53
+#: templates/index.html:54
 msgid ""
 "Forget every saved connection? This only clears this list — it does not "
 "touch any database."
@@ -690,11 +695,11 @@ msgstr ""
 "保存済みの接続をすべて消しますか？この一覧から消えるだけで、データベース自体"
 "には触れません。"
 
-#: templates/index.html:54 templates/workspace.html:169
+#: templates/index.html:55 templates/workspace.html:175
 msgid "clear all"
 msgstr "すべて削除"
 
-#: templates/index.html:66 templates/workspace.html:151
+#: templates/index.html:70 templates/workspace.html:157
 #, python-format
 msgid ""
 "Remove “%(name)s” from the saved connections list? This does not touch the "
@@ -703,11 +708,11 @@ msgstr ""
 "「%(name)s」を保存済みの接続一覧から削除しますか？データベース自体には触れま"
 "せん。"
 
-#: templates/index.html:68 templates/workspace.html:153
+#: templates/index.html:72 templates/workspace.html:159
 msgid "Remove from list"
 msgstr "一覧から削除"
 
-#: templates/index.html:77
+#: templates/index.html:81
 msgid "No saved connections yet."
 msgstr "保存済みの接続はまだありません。"
 
@@ -1538,7 +1543,7 @@ msgstr "インデックス名"
 msgid "built CONCURRENTLY"
 msgstr "CONCURRENTLY で作成"
 
-#: templates/partials/error.html:2 templates/workspace.html:176
+#: templates/partials/error.html:2 templates/workspace.html:182
 msgid "Could not connect"
 msgstr "接続できませんでした"
 
@@ -3140,11 +3145,11 @@ msgstr ""
 msgid "overview"
 msgstr "概要"
 
-#: templates/workspace.html:144
+#: templates/workspace.html:147
 msgid "+ New connection"
 msgstr "+ 新しい接続"
 
-#: templates/workspace.html:168
+#: templates/workspace.html:174
 msgid ""
 "Forget every other saved connection? This one stays — only this list is "
 "cleared, no database is touched."
@@ -3152,7 +3157,7 @@ msgstr ""
 "他の保存済み接続をすべて消しますか？今見ているこの接続は残ります。この一覧か"
 "ら消えるだけで、データベース自体には触れません。"
 
-#: templates/workspace.html:178
+#: templates/workspace.html:184
 msgid "back to connections"
 msgstr "接続一覧に戻る"
 

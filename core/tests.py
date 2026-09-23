@@ -2451,6 +2451,61 @@ class ConnectionFormTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("dbname", form.errors)
 
+    def test_environment_optional(self):
+        # No env tag at all must still validate — this is a "some people never
+        # touch it" field, not a required classification.
+        self.assertTrue(ConnectionForm(self.BASE).is_valid())
+
+    def test_environment_accepts_known_values(self):
+        for env in ("dev", "staging", "prod"):
+            form = ConnectionForm({**self.BASE, "environment": env})
+            self.assertTrue(form.is_valid(), form.errors)
+
+    def test_environment_rejects_unknown_value(self):
+        form = ConnectionForm({**self.BASE, "environment": "banana"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("environment", form.errors)
+
+
+class EnvironmentBadgeTests(TestCase):
+    """The env_badge partial renders wherever a connection is listed — a
+    connection with no environment set must render nothing (existing rows
+    from before this field existed shouldn't suddenly show an empty chip)."""
+
+    def _stub_engine(self):
+        return SimpleNamespace(list_tables=lambda: [], session=contextlib.nullcontext,
+                               replication_status=lambda: None)
+
+    def test_index_shows_badge_for_tagged_connection(self):
+        Connection.objects.create(name="prod-db", dbname="d", user="u", environment="prod")
+        from django.urls import reverse
+        resp = self.client.get(reverse("index"))
+        self.assertContains(resp, "Prod")
+        self.assertContains(resp, "bg-danger/20")
+
+    def test_index_shows_no_badge_for_untagged_connection(self):
+        Connection.objects.create(name="misc", dbname="d", user="u")
+        from django.urls import reverse
+        resp = self.client.get(reverse("index"))
+        # Not "Dev"/"Staging"/"Prod" text — the connect form's own <select>
+        # renders those as <option> labels regardless of any saved connection.
+        # bg-danger/20 is unique to the badge on this page (nothing else on
+        # index/workspace uses it), so it's the reliable "no badge" signal.
+        self.assertNotContains(resp, "bg-danger/20")
+
+    def test_workspace_shows_badge_for_current_and_other_connections(self):
+        current = Connection.objects.create(name="dev-db", dbname="d", user="u",
+                                            environment="dev")
+        Connection.objects.create(name="staging-db", dbname="d", user="u",
+                                  environment="staging")
+        from django.urls import reverse
+        with unittest.mock.patch("core.views.connection.get_engine",
+                                  return_value=self._stub_engine()):
+            resp = self.client.get(reverse("workspace", args=[current.pk]))
+        self.assertContains(resp, "bg-accent/20")  # current connection's own "Dev" badge
+        self.assertContains(resp, "Staging")
+        self.assertContains(resp, "bg-warn/20")
+
 
 # --- integration: PostgresEngine vs the sample DB (skipped if unreachable) ---
 

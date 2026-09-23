@@ -1,0 +1,13 @@
+{% comment %}
+Small "at a glance" tag for a Connection's optional environment (dev/staging/
+prod). Reused wherever a connection is listed — index.html's saved-connections
+list, and workspace.html's switcher (both the current-connection header and
+the dropdown rows) — so the colour mapping lives in exactly one place.
+Pass the connection in as `c`. Renders nothing when environment is unset.
+{% endcomment %}
+{% if c.environment %}
+  <span class="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0
+               {% if c.environment == 'prod' %}bg-danger/20 text-danger
+               {% elif c.environment == 'staging' %}bg-warn/20 text-warn
+               {% else %}bg-accent/20 text-accent{% endif %}">{{ c.get_environment_display }}</span>
+{% endif %}

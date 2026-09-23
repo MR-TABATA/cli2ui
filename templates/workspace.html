@@ -127,7 +127,10 @@ main pane) and `q` (the table filter).{% endcomment %}
               class="w-full flex items-center justify-between gap-2 bg-panel/60
                      border border-line rounded-lg px-3.5 py-2.5 hover:border-line-strong transition">
         <span class="min-w-0">
-          <span class="block font-medium text-sm truncate text-left">{{ connection.display_name }}</span>
+          <span class="flex items-center gap-1.5">
+            <span class="font-medium text-sm truncate text-left">{{ connection.display_name }}</span>
+            {% include "partials/env_badge.html" with c=connection %}
+          </span>
           <span class="block text-xs text-body mono truncate text-left">{{ connection.host }}:{{ connection.port }}/{{ connection.dbname }}</span>
         </span>
         <svg class="h-4 w-4 text-body shrink-0" :class="menu && 'rotate-180'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
@@ -141,7 +144,10 @@ main pane) and `q` (the table filter).{% endcomment %}
         <div class="max-h-64 overflow-y-auto">
           {% for c in connections %}{% if c.pk != connection.pk %}
             <div class="flex items-center group">
-              <a href="{% url 'workspace' c.pk %}" class="flex-1 min-w-0 block px-3.5 py-2 text-sm hover:bg-raised truncate">{{ c.display_name }}</a>
+              <a href="{% url 'workspace' c.pk %}" class="flex-1 min-w-0 flex items-center gap-1.5 px-3.5 py-2 text-sm hover:bg-raised truncate">
+                <span class="truncate">{{ c.display_name }}</span>
+                {% include "partials/env_badge.html" %}
+              </a>
               <button type="button" hx-post="{% url 'delete_connection' c.pk %}"
                       hx-vals='{"return_to": "{% url 'workspace' connection.pk %}"}'
                       hx-confirm="{% blocktrans with name=c.display_name %}Remove “{{ name }}” from the saved connections list? This does not touch the database itself.{% endblocktrans %}"

@@ -17,8 +17,21 @@ class Connection(models.Model):
         (KIND_MYSQL, "MySQL"),
     ]
 
+    # 一瞥で環境が分かるようにするだけの任意タグ。name は自由入力なので、
+    # そこに "prod" と書き忘れても事故らないよう、色分けは別欄に分離する。
+    ENV_DEV = "dev"
+    ENV_STAGING = "staging"
+    ENV_PROD = "prod"
+    ENVIRONMENT_CHOICES = [
+        ("", "—"),
+        (ENV_DEV, "Dev"),
+        (ENV_STAGING, "Staging"),
+        (ENV_PROD, "Prod"),
+    ]
+
     name = models.CharField(max_length=100, blank=True)
     kind = models.CharField(max_length=20, choices=KIND_CHOICES, default=KIND_POSTGRES)
+    environment = models.CharField(max_length=20, choices=ENVIRONMENT_CHOICES, blank=True, default="")
     host = models.CharField(max_length=255, default="localhost")
     port = models.IntegerField(default=5432)
     dbname = models.CharField(max_length=255)

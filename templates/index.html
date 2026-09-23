@@ -12,9 +12,10 @@
 
     <form hx-post="/connect" hx-target="#form-error" hx-swap="innerHTML"
           hx-disabled-elt="find button" class="space-y-3">
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-3 gap-3">
         <label class="block"><span class="lbl">{% trans "Type" %}</span>{{ form.kind }}</label>
         <label class="block"><span class="lbl">{% trans "Name" %} <span class="text-muted">{% trans "(optional)" %}</span></span>{{ form.name }}</label>
+        <label class="block"><span class="lbl">{% trans "Environment" %} <span class="text-muted">{% trans "(optional)" %}</span></span>{{ form.environment }}</label>
       </div>
       <div class="grid grid-cols-[1fr_88px] gap-3">
         <label class="block"><span class="lbl">{% trans "Host" %}</span>{{ form.host }}</label>
@@ -59,7 +60,10 @@
             <a href="{% url 'workspace' c.pk %}"
                class="flex-1 min-w-0 block bg-panel/60 border border-line rounded-lg px-3.5 py-2.5
                       hover:border-line-strong transition">
-              <div class="font-medium text-sm">{{ c.display_name }}</div>
+              <div class="font-medium text-sm flex items-center gap-1.5">
+                {{ c.display_name }}
+                {% include "partials/env_badge.html" %}
+              </div>
               <div class="text-xs text-body mono truncate">{{ c.host }}:{{ c.port }}/{{ c.dbname }}</div>
             </a>
             <button type="button" hx-post="{% url 'delete_connection' c.pk %}"
