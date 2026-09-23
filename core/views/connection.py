@@ -2,9 +2,10 @@
 workspace frame and its home overview."""
 import os
 
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
+from django.utils import timezone
 
 from ..engines import EngineError, get_engine
 from ..forms import ConnectionForm
@@ -61,11 +62,56 @@ def connect(request):
     return response
 
 
+def delete_connection(request, pk):
+    """Forget one saved connection (only the local row — never touches the
+    target database). Used to prune the switcher list, which otherwise only
+    grows every time `connect` succeeds. `return_to` lets the caller land back
+    on the workspace it was already in (deleting some *other* connection from
+    the switcher shouldn't kick you out of the one you're looking at)."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    connection = get_object_or_404(Connection, pk=pk)
+    connection.delete()
+    response = HttpResponse(status=204)
+    response["HX-Redirect"] = request.POST.get("return_to") or reverse("index")
+    return response
+
+
+def clear_connections(request):
+    """Forget every saved connection at once — the list-declutter escape
+    hatch for when `connect` has piled up a long trail of one-off/test rows.
+    Local rows only; no target database is touched.
+
+    `keep` (optional) is the pk of the connection the request was made from
+    (the workspace switcher passes its own `connection.pk`). Per-row delete in
+    that same switcher already never targets the connection you're currently
+    looking at — this matches that: clearing the list from inside a workspace
+    must not also end the session you're in. Only the index page (no "current"
+    connection to protect) clears truly everything."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    keep_pk = request.POST.get("keep")
+    qs = Connection.objects.all()
+    if keep_pk:
+        qs = qs.exclude(pk=keep_pk)
+    qs.delete()
+    response = HttpResponse(status=204)
+    if keep_pk and Connection.objects.filter(pk=keep_pk).exists():
+        response["HX-Redirect"] = reverse("workspace", args=[keep_pk])
+    else:
+        response["HX-Redirect"] = reverse("index")
+    return response
+
+
 def workspace(request, pk):
     """DB-client view: table list in the sidebar, table detail in the main pane.
     The main pane starts on the bento overview, so the summaries are gathered
     here too (a static include — no extra round trip that could race a click)."""
     connection = get_object_or_404(Connection, pk=pk)
+    # 切り替えメニューの並び順（-last_used_at）が「最後に使った順」になるよう、
+    # ここを踏むたびに繰り上げる。.update() で 1 行だけ叩く（フルの model.save() で
+    # 他のフィールドを巻き込まない・シグナルも起こさない）。
+    Connection.objects.filter(pk=pk).update(last_used_at=timezone.now())
     try:
         tables = get_engine(connection).list_tables()
     except EngineError as exc:

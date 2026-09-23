@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 
 class Connection(models.Model):
@@ -24,9 +25,13 @@ class Connection(models.Model):
     user = models.CharField(max_length=255)
     password = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # 「最後に切り替えた／開いた」時刻。workspace 表示のたびに更新する（views.connection.workspace）。
+    # 作成時は created_at と同じ値で始め、以後は使うたびに繰り上がる——一番手を付けた接続が
+    # 切り替えメニューの先頭に来る（dev/staging を行き来する用途で効く並び順）。
+    last_used_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-last_used_at"]
 
     def __str__(self):
         label = self.name or self.dbname

@@ -45,18 +45,31 @@
 
   <section>
     {% if connections %}
-      <h2 class="text-xs font-semibold text-body uppercase tracking-wide mb-2 px-1">
-        {% trans "Saved connections" %}
-      </h2>
+      <div class="flex items-center justify-between mb-2 px-1">
+        <h2 class="text-xs font-semibold text-body uppercase tracking-wide">
+          {% trans "Saved connections" %}
+        </h2>
+        <button type="button" hx-post="{% url 'clear_connections' %}"
+                hx-confirm="{% trans "Forget every saved connection? This only clears this list — it does not touch any database." %}"
+                class="text-xs text-body hover:text-danger underline">{% trans "clear all" %}</button>
+      </div>
       <ul class="space-y-2">
         {% for c in connections %}
-          <li>
+          <li class="flex items-center gap-1.5">
             <a href="{% url 'workspace' c.pk %}"
-               class="block bg-panel/60 border border-line rounded-lg px-3.5 py-2.5
+               class="flex-1 min-w-0 block bg-panel/60 border border-line rounded-lg px-3.5 py-2.5
                       hover:border-line-strong transition">
               <div class="font-medium text-sm">{{ c.display_name }}</div>
               <div class="text-xs text-body mono truncate">{{ c.host }}:{{ c.port }}/{{ c.dbname }}</div>
             </a>
+            <button type="button" hx-post="{% url 'delete_connection' c.pk %}"
+                    hx-confirm="{% blocktrans with name=c.display_name %}Remove “{{ name }}” from the saved connections list? This does not touch the database itself.{% endblocktrans %}"
+                    class="shrink-0 p-1.5 text-body hover:text-danger transition"
+                    title="{% trans "Remove from list" %}">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>
+              </svg>
+            </button>
           </li>
         {% endfor %}
       </ul>

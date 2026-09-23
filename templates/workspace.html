@@ -134,10 +134,35 @@ main pane) and `q` (the table filter).{% endcomment %}
       </button>
       <div x-show="menu" x-cloak style="display:none"
            class="absolute z-20 mt-1 w-full bg-panel border border-line-strong rounded-lg shadow-xl py-1">
-        {% for c in connections %}{% if c.pk != connection.pk %}
-          <a href="{% url 'workspace' c.pk %}" class="block px-3.5 py-2 text-sm hover:bg-raised truncate">{{ c.display_name }}</a>
-        {% endif %}{% endfor %}
-        <a href="/" class="block px-3.5 py-2 text-sm text-accent hover:bg-raised border-t border-line">{% trans "+ New connection" %}</a>
+        {% comment %}"+ New connection" is pinned above the (possibly long) saved-connections
+        list, not after it — a long list used to push it below the fold with no way to reach
+        it short of scrolling past every saved connection first.{% endcomment %}
+        <a href="/" class="block px-3.5 py-2 text-sm text-accent hover:bg-raised border-b border-line">{% trans "+ New connection" %}</a>
+        <div class="max-h-64 overflow-y-auto">
+          {% for c in connections %}{% if c.pk != connection.pk %}
+            <div class="flex items-center group">
+              <a href="{% url 'workspace' c.pk %}" class="flex-1 min-w-0 block px-3.5 py-2 text-sm hover:bg-raised truncate">{{ c.display_name }}</a>
+              <button type="button" hx-post="{% url 'delete_connection' c.pk %}"
+                      hx-vals='{"return_to": "{% url 'workspace' connection.pk %}"}'
+                      hx-confirm="{% blocktrans with name=c.display_name %}Remove “{{ name }}” from the saved connections list? This does not touch the database itself.{% endblocktrans %}"
+                      class="shrink-0 p-1.5 mr-1 text-body hover:text-danger opacity-0 group-hover:opacity-100 transition"
+                      title="{% trans "Remove from list" %}">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>
+                </svg>
+              </button>
+            </div>
+          {% endif %}{% endfor %}
+        </div>
+        {% if connections|length > 1 %}
+          {% comment %}Keeps `connection` (the one you're looking at right now) — clearing the
+          list from inside a workspace must not also end the session you're in, same rule as
+          the per-row delete just above (which already skips it).{% endcomment %}
+          <button type="button" hx-post="{% url 'clear_connections' %}"
+                  hx-vals='{"keep": "{{ connection.pk }}"}'
+                  hx-confirm="{% trans "Forget every other saved connection? This one stays — only this list is cleared, no database is touched." %}"
+                  class="block w-full text-left px-3.5 py-2 text-sm text-body hover:text-danger hover:bg-raised border-t border-line">{% trans "clear all" %}</button>
+        {% endif %}
       </div>
     </div>
 

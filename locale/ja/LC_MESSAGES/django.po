@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-16 10:38+0900\n"
+"POT-Creation-Date: 2026-09-23 08:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -678,11 +678,36 @@ msgstr "接続"
 msgid "Connecting…"
 msgstr "接続中…"
 
-#: templates/index.html:49
+#: templates/index.html:50
 msgid "Saved connections"
 msgstr "保存済みの接続"
 
-#: templates/index.html:64
+#: templates/index.html:53
+msgid ""
+"Forget every saved connection? This only clears this list — it does not "
+"touch any database."
+msgstr ""
+"保存済みの接続をすべて消しますか？この一覧から消えるだけで、データベース自体"
+"には触れません。"
+
+#: templates/index.html:54 templates/workspace.html:169
+msgid "clear all"
+msgstr "すべて削除"
+
+#: templates/index.html:66 templates/workspace.html:151
+#, python-format
+msgid ""
+"Remove “%(name)s” from the saved connections list? This does not touch the "
+"database itself."
+msgstr ""
+"「%(name)s」を保存済みの接続一覧から削除しますか？データベース自体には触れま"
+"せん。"
+
+#: templates/index.html:68 templates/workspace.html:153
+msgid "Remove from list"
+msgstr "一覧から削除"
+
+#: templates/index.html:77
 msgid "No saved connections yet."
 msgstr "保存済みの接続はまだありません。"
 
@@ -895,12 +920,12 @@ msgid_plural ""
 "query, <span class=\"text-danger/80\">kill</span> drops the connection"
 msgstr[0] ""
 "%(n)s 件のクライアントセッション · <span class=\"text-warn/80\">cancel</"
-"span> はクエリを停止、<span class=\"text-danger/80\">kill</span> は接続を切"
-"断します"
+"span> はクエリを停止、<span class=\"text-danger/80\">kill</span> は接続を切断"
+"します"
 msgstr[1] ""
 "%(n)s 件のクライアントセッション · <span class=\"text-warn/80\">cancel</"
-"span> はクエリを停止、<span class=\"text-danger/80\">kill</span> は接続を切"
-"断します"
+"span> はクエリを停止、<span class=\"text-danger/80\">kill</span> は接続を切断"
+"します"
 
 #: templates/partials/activity.html:119
 msgid "No client sessions"
@@ -931,8 +956,8 @@ msgid ""
 "existing one is never overwritten."
 msgstr ""
 "破壊的な操作の直前に自動取得される安全スナップショット。<span class=\"text-"
-"strong\">新規</span>データベースへ復元できます — 既存のものが上書きされるこ"
-"とはありません。"
+"strong\">新規</span>データベースへ復元できます — 既存のものが上書きされること"
+"はありません。"
 
 #: templates/partials/backups.html:14
 msgid "Before"
@@ -1302,8 +1327,8 @@ msgid ""
 "The total is estimated from table statistics — counting every row would scan "
 "the whole table."
 msgstr ""
-"合計は統計からの推定です — 全行を数えるとテーブル全体をスキャンすることにな"
-"るため。"
+"合計は統計からの推定です — 全行を数えるとテーブル全体をスキャンすることになる"
+"ため。"
 
 #: templates/partials/detail.html:302 templates/partials/detail.html:308
 #, python-format
@@ -1513,7 +1538,7 @@ msgstr "インデックス名"
 msgid "built CONCURRENTLY"
 msgstr "CONCURRENTLY で作成"
 
-#: templates/partials/error.html:2 templates/workspace.html:149
+#: templates/partials/error.html:2 templates/workspace.html:176
 msgid "Could not connect"
 msgstr "接続できませんでした"
 
@@ -1993,8 +2018,7 @@ msgstr "SQL パネルで何か実行すると、ここに表示されます。"
 #: templates/partials/jsonb_shape.html:4
 #, python-format
 msgid "JSON shape · <span class=\"mono lowercase text-strong\">%(col)s</span>"
-msgstr ""
-"JSON 構造 · <span class=\"mono lowercase text-strong\">%(col)s</span>"
+msgstr "JSON 構造 · <span class=\"mono lowercase text-strong\">%(col)s</span>"
 
 #: templates/partials/jsonb_shape.html:7
 msgid "close"
@@ -2115,14 +2139,14 @@ msgid_plural ""
 "query, kill ends its transaction"
 msgstr[0] ""
 "%(n)s 件のブロックされたセッション · 連鎖の先頭にある <span class=\"text-"
-"warn/80\">大元のブロッカー</span> を終わらせれば、その下すべてが解放され"
-"ます — キャンセルは実行中のクエリを止め、強制終了はトランザクションごと終わら"
-"せます"
+"warn/80\">大元のブロッカー</span> を終わらせれば、その下すべてが解放されます "
+"— キャンセルは実行中のクエリを止め、強制終了はトランザクションごと終わらせま"
+"す"
 msgstr[1] ""
 "%(n)s 件のブロックされたセッション · 連鎖の先頭にある <span class=\"text-"
-"warn/80\">大元のブロッカー</span> を終わらせれば、その下すべてが解放され"
-"ます — キャンセルは実行中のクエリを止め、強制終了はトランザクションごと終わら"
-"せます"
+"warn/80\">大元のブロッカー</span> を終わらせれば、その下すべてが解放されます "
+"— キャンセルは実行中のクエリを止め、強制終了はトランザクションごと終わらせま"
+"す"
 
 #: templates/partials/locks.html:80
 msgid "No lock waits"
@@ -2642,8 +2666,8 @@ msgid ""
 "Reusing the existing physical slot <span class=\"mono text-"
 "strong\">%(name)s</span>."
 msgstr ""
-"既存の物理スロット <span class=\"mono text-strong\">%(name)s</span> を再利"
-"用します。"
+"既存の物理スロット <span class=\"mono text-strong\">%(name)s</span> を再利用"
+"します。"
 
 #: templates/partials/replication.html:82
 #, python-format
@@ -2651,8 +2675,8 @@ msgid ""
 "No physical slot yet — create <span class=\"mono text-strong\">%(name)s</"
 "span> (so the primary keeps WAL for the standby):"
 msgstr ""
-"物理スロットが未作成です —— <span class=\"mono text-strong\">%(name)s</"
-"span> を作成します（プライマリがスタンバイ用に WAL を保持するため）:"
+"物理スロットが未作成です —— <span class=\"mono text-strong\">%(name)s</span> "
+"を作成します（プライマリがスタンバイ用に WAL を保持するため）:"
 
 #: templates/partials/replication.html:87
 #: templates/partials/replication.html:103
@@ -2941,9 +2965,9 @@ msgid ""
 "    after a server restart. Requires a superuser connection."
 msgstr ""
 "変更は <span class=\"mono\">ALTER SYSTEM</span>（postgresql.auto.conf に書き"
-"込み）を使い、自動でリロードされます。<span class=\"text-"
-"warn/80\">restart</span> 表示の設定はサーバー再起動後にのみ有効になりま"
-"す。スーパーユーザー接続が必要です。"
+"込み）を使い、自動でリロードされます。<span class=\"text-warn/80\">restart</"
+"span> 表示の設定はサーバー再起動後にのみ有効になります。スーパーユーザー接続"
+"が必要です。"
 
 #: templates/partials/settings_row.html:9
 msgid "restart"
@@ -3044,8 +3068,8 @@ msgid ""
 "        and save the plan. Save another after a change to diff them."
 msgstr ""
 "<span class=\"mono\">▷ SQL</span> を開き、クエリで <span class=\"text-"
-"strong\">Explain</span> を実行して計画を保存。変更後にもう1つ保存して差分を"
-"取ります。"
+"strong\">Explain</span> を実行して計画を保存。変更後にもう1つ保存して差分を取"
+"ります。"
 
 #: templates/partials/table_list.html:4
 msgid "Filter tables…"
@@ -3116,13 +3140,24 @@ msgstr ""
 msgid "overview"
 msgstr "概要"
 
-#: templates/workspace.html:143
+#: templates/workspace.html:144
 msgid "+ New connection"
 msgstr "+ 新しい接続"
 
-#: templates/workspace.html:151
+#: templates/workspace.html:168
+msgid ""
+"Forget every other saved connection? This one stays — only this list is "
+"cleared, no database is touched."
+msgstr ""
+"他の保存済み接続をすべて消しますか？今見ているこの接続は残ります。この一覧か"
+"ら消えるだけで、データベース自体には触れません。"
+
+#: templates/workspace.html:178
 msgid "back to connections"
 msgstr "接続一覧に戻る"
+
+#~ msgid "remove"
+#~ msgstr "削除"
 
 #~ msgid "CLI database ops, as buttons."
 #~ msgstr "CLI のDB操作を、ボタンで。"

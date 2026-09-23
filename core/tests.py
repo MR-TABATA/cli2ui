@@ -2313,6 +2313,117 @@ class ConnectionModelTests(TestCase):
                        dbname="shop", user="u")
         self.assertEqual(str(c), "Prod (PostgreSQL @ db:5432)")
 
+    def test_default_ordering_is_most_recently_used_first(self):
+        older = Connection.objects.create(name="dev", dbname="d", user="u")
+        newer = Connection.objects.create(name="staging", dbname="d", user="u")
+        self.assertEqual(list(Connection.objects.all()), [newer, older])
+        Connection.objects.filter(pk=older.pk).update(
+            last_used_at=newer.last_used_at + datetime.timedelta(seconds=1))
+        self.assertEqual(list(Connection.objects.all()), [older, newer])
+
+
+class ConnectionSwitchOrderingTests(TestCase):
+    """Visiting a connection's workspace is "switching to it" — the switcher
+    menu (workspace.html / index.html, both ordered by Connection.Meta.ordering)
+    should bring it to the top next time, not just leave it in creation order."""
+
+    def _stub_engine(self):
+        # `_overview_summary` references `engine.replication_status` directly
+        # (not inside a lambda), so it must exist even though every probe's
+        # actual call is wrapped in a broad except that degrades the card.
+        return SimpleNamespace(list_tables=lambda: [], session=contextlib.nullcontext,
+                               replication_status=lambda: None)
+
+    def test_visiting_workspace_bumps_last_used_to_front(self):
+        older = Connection.objects.create(name="dev", dbname="d", user="u")
+        newer = Connection.objects.create(name="staging", dbname="d", user="u")
+        self.assertEqual(list(Connection.objects.all()), [newer, older])  # 最初は作成順
+
+        from django.urls import reverse
+        with unittest.mock.patch("core.views.connection.get_engine",
+                                  return_value=self._stub_engine()):
+            resp = self.client.get(reverse("workspace", args=[older.pk]))
+        self.assertEqual(resp.status_code, 200)
+
+        # dev を開いた直後は、作成が後だった staging より先頭に来る。
+        self.assertEqual(list(Connection.objects.all()), [older, newer])
+
+    def test_revisiting_the_same_connection_keeps_it_at_front(self):
+        conn = Connection.objects.create(name="dev", dbname="d", user="u")
+        from django.urls import reverse
+        with unittest.mock.patch("core.views.connection.get_engine",
+                                  return_value=self._stub_engine()):
+            self.client.get(reverse("workspace", args=[conn.pk]))
+            first_visit = Connection.objects.get(pk=conn.pk).last_used_at
+            self.client.get(reverse("workspace", args=[conn.pk]))
+            second_visit = Connection.objects.get(pk=conn.pk).last_used_at
+        self.assertGreaterEqual(second_visit, first_visit)
+
+
+class DeleteConnectionViewTests(TestCase):
+    """Forgetting a saved connection (or all of them) only ever touches the
+    local Connection row — never the target database — and both actions
+    respond with the htmx HX-Redirect pattern `connect()` already uses."""
+
+    def test_delete_removes_only_that_row(self):
+        keep = Connection.objects.create(name="dev", dbname="d", user="u")
+        gone = Connection.objects.create(name="staging", dbname="d", user="u")
+        from django.urls import reverse
+        resp = self.client.post(reverse("delete_connection", args=[gone.pk]))
+        self.assertEqual(resp.status_code, 204)
+        self.assertEqual(resp["HX-Redirect"], reverse("index"))
+        self.assertFalse(Connection.objects.filter(pk=gone.pk).exists())
+        self.assertTrue(Connection.objects.filter(pk=keep.pk).exists())
+
+    def test_delete_redirects_to_return_to_when_given(self):
+        keep = Connection.objects.create(name="dev", dbname="d", user="u")
+        gone = Connection.objects.create(name="staging", dbname="d", user="u")
+        from django.urls import reverse
+        return_to = reverse("workspace", args=[keep.pk])
+        resp = self.client.post(reverse("delete_connection", args=[gone.pk]),
+                                {"return_to": return_to})
+        self.assertEqual(resp["HX-Redirect"], return_to)
+
+    def test_delete_requires_post(self):
+        conn = Connection.objects.create(name="dev", dbname="d", user="u")
+        from django.urls import reverse
+        resp = self.client.get(reverse("delete_connection", args=[conn.pk]))
+        self.assertEqual(resp.status_code, 405)
+        self.assertTrue(Connection.objects.filter(pk=conn.pk).exists())
+
+    def test_delete_missing_connection_404s(self):
+        from django.urls import reverse
+        resp = self.client.post(reverse("delete_connection", args=[999999]))
+        self.assertEqual(resp.status_code, 404)
+
+    def test_clear_removes_every_connection(self):
+        Connection.objects.create(name="dev", dbname="d", user="u")
+        Connection.objects.create(name="staging", dbname="d", user="u")
+        from django.urls import reverse
+        resp = self.client.post(reverse("clear_connections"))
+        self.assertEqual(resp.status_code, 204)
+        self.assertEqual(resp["HX-Redirect"], reverse("index"))
+        self.assertEqual(Connection.objects.count(), 0)
+
+    def test_clear_requires_post(self):
+        Connection.objects.create(name="dev", dbname="d", user="u")
+        from django.urls import reverse
+        resp = self.client.get(reverse("clear_connections"))
+        self.assertEqual(resp.status_code, 405)
+        self.assertEqual(Connection.objects.count(), 1)
+
+    def test_clear_with_keep_spares_that_connection_and_redirects_back_to_it(self):
+        # The bug this guards: clearing from inside a workspace used to also
+        # delete the connection you were looking at, which then 404'd on
+        # redirect — reported as "clearing the list logged me out."
+        current = Connection.objects.create(name="dev", dbname="d", user="u")
+        Connection.objects.create(name="staging", dbname="d", user="u")
+        from django.urls import reverse
+        resp = self.client.post(reverse("clear_connections"), {"keep": current.pk})
+        self.assertEqual(resp.status_code, 204)
+        self.assertEqual(resp["HX-Redirect"], reverse("workspace", args=[current.pk]))
+        self.assertEqual(list(Connection.objects.all()), [current])
+
 
 class PlanSnapshotModelTests(TestCase):
     def test_str_is_label(self):
