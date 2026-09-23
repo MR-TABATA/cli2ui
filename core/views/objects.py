@@ -6,10 +6,11 @@ import io
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
-from django.utils.translation import gettext as _
+from django.utils.translation import get_language, gettext as _
 
 from ..engines import EngineError, get_engine
 from ..models import Backup, Connection
+from ..setting_descriptions import localize_description
 from ._shared import _auto_backup
 
 
@@ -398,6 +399,20 @@ def _render_objects(request, connection, error=None, notice=None):
     )
 
 
+def _localize_settings(connection, rows):
+    """Swap in cli2ui's own Japanese paraphrases for the common postgresql.conf
+    parameters (pg_settings.short_desc has no localization of its own — see
+    setting_descriptions.py). MySQL variables aren't covered yet, so this is a
+    no-op for those; scope is the Postgres common-settings view people
+    actually land on."""
+    if connection.kind != Connection.KIND_POSTGRES:
+        return rows
+    language = get_language()
+    for s in rows:
+        s.description = localize_description(s.name, s.description, language)
+    return rows
+
+
 def settings(request, pk):
     """postgresql.conf editor: read parameters via pg_settings (htmx partial)."""
     connection = get_object_or_404(Connection, pk=pk)
@@ -412,6 +427,7 @@ def settings(request, pk):
         pending = [s.name for s in engine.pending_restart_settings()]
     except EngineError as exc:
         return render(request, "partials/error.html", {"message": str(exc)})
+    rows = _localize_settings(connection, rows)
 
     return render(
         request,
@@ -463,6 +479,7 @@ def settings_reset(request, pk):
 def _row_with_banner(request, connection, engine, setting, saved, error):
     """Return the updated setting row plus an out-of-band refresh of the
     restart banner, so staging a restart-only change updates both at once."""
+    [setting] = _localize_settings(connection, [setting])
     row = render_to_string(
         "partials/settings_row.html",
         {"connection": connection, "s": setting, "saved": saved, "error": error},

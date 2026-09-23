@@ -50,6 +50,7 @@ from core.engines.postgres import (
 from core.forms import ConnectionForm
 from core.models import Backup, Connection, PlanSnapshot
 from core.plan_diff import diff_plans, node_from_dict, node_to_dict, to_text
+from core.setting_descriptions import JA_DESCRIPTIONS, localize_description
 from core.views.runner import RUNNER_LOCK_TIMEOUT
 from core.views._shared import _prune_old_backups
 from core.views.objects import _restore_into_new_db
@@ -2505,6 +2506,78 @@ class EnvironmentBadgeTests(TestCase):
         self.assertContains(resp, "bg-accent/20")  # current connection's own "Dev" badge
         self.assertContains(resp, "Staging")
         self.assertContains(resp, "bg-warn/20")
+
+
+class SettingDescriptionLocalizationTests(SimpleTestCase):
+    """pg_settings.short_desc has no localization of its own — JA_DESCRIPTIONS
+    is cli2ui's own paraphrase table for the common-settings view."""
+
+    def test_japanese_paraphrase_used_when_known(self):
+        original = "Sets the maximum number of concurrent connections."
+        result = localize_description("max_connections", original, "ja")
+        self.assertNotEqual(result, original)
+        self.assertIn("接続", result)
+
+    def test_falls_back_to_original_in_english(self):
+        original = "Sets the maximum number of concurrent connections."
+        self.assertEqual(localize_description("max_connections", original, "en"), original)
+
+    def test_falls_back_for_unknown_setting_even_in_japanese(self):
+        original = "Some brand new Postgres parameter."
+        self.assertEqual(localize_description("brand_new_param", original, "ja"), original)
+
+    def test_every_common_setting_has_a_paraphrase(self):
+        # Keeps the dictionary honest if COMMON_SETTINGS grows later.
+        from core.engines.postgres import COMMON_SETTINGS
+        missing = [n for n in COMMON_SETTINGS if n not in JA_DESCRIPTIONS]
+        self.assertEqual(missing, [])
+
+
+class SettingsViewLocalizationTests(TestCase):
+    """End-to-end: the 設定 view actually swaps the description text in,
+    scoped to Postgres and to the ja UI language (matches the EN/JP toggle
+    in the top bar, which sets this same cookie)."""
+
+    ORIGINAL = "Sets the maximum number of concurrent connections."
+
+    def _stub_engine(self):
+        from core.engines.base import Setting
+        setting = Setting(name="max_connections", value="100", unit=None,
+                          category="Connections", description=self.ORIGINAL,
+                          vartype="integer", context="postmaster", enumvals=None,
+                          min_val="1", max_val="1000", default="100",
+                          pending_restart=False)
+        return SimpleNamespace(
+            list_settings=lambda **k: [setting],
+            list_setting_categories=lambda: [],
+            pending_restart_settings=lambda: [],
+            common_settings=lambda: ["max_connections"],
+        )
+
+    def test_japanese_ui_shows_paraphrase(self):
+        conn = Connection.objects.create(kind="postgres", dbname="d", user="u")
+        self.client.cookies["django_language"] = "ja"
+        from django.urls import reverse
+        with unittest.mock.patch("core.views.objects.get_engine", return_value=self._stub_engine()):
+            resp = self.client.get(reverse("settings", args=[conn.pk]))
+        self.assertContains(resp, "接続")
+        self.assertNotContains(resp, self.ORIGINAL)
+
+    def test_english_ui_keeps_original(self):
+        conn = Connection.objects.create(kind="postgres", dbname="d", user="u")
+        self.client.cookies["django_language"] = "en"
+        from django.urls import reverse
+        with unittest.mock.patch("core.views.objects.get_engine", return_value=self._stub_engine()):
+            resp = self.client.get(reverse("settings", args=[conn.pk]))
+        self.assertContains(resp, self.ORIGINAL)
+
+    def test_mysql_connection_is_not_localized_yet(self):
+        conn = Connection.objects.create(kind="mysql", dbname="d", user="u")
+        self.client.cookies["django_language"] = "ja"
+        from django.urls import reverse
+        with unittest.mock.patch("core.views.objects.get_engine", return_value=self._stub_engine()):
+            resp = self.client.get(reverse("settings", args=[conn.pk]))
+        self.assertContains(resp, self.ORIGINAL)
 
 
 # --- integration: PostgresEngine vs the sample DB (skipped if unreachable) ---
