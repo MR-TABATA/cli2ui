@@ -19,6 +19,12 @@ cli2ui は **ローカル専用**の PostgreSQL 運用コンソール。SaaS・�
 | **what-if 系（scale sim / index lab）が catalog を触る** | `autocommit=False` ＋ **必ず ROLLBACK**。仮の catalog 編集・仮 index・ANALYZE の副作用は一切 commit されず他セッション不可視（MVCC） |
 | **ドライブバイ CSRF**（ローカルでも他サイトから localhost に破壊操作 POST を撃たれる） | CSRF 有効（htmx が `<body>` の hx-headers で X-CSRFToken 送出）。`CSRF_TRUSTED_ORIGINS` を localhost/127.0.0.1 に限定 |
 | **クリックジャッキング**（隠し iframe で drop ボタンを踏ませる） | `XFrameOptionsMiddleware`（X-Frame-Options: DENY） |
+| **公開運用での設定ミス**（`hosted` モード、`CLI2UI_HOSTED=1`）— DEBUG 有効 / 既定の SECRET_KEY / `ALLOWED_HOSTS=*` / 公開オリジン無しの CSRF / アクセス制御の宣言無し | 起動前チェック `core/hosted.py`。違反は**起動拒否**（wsgi と system check）。`manage.py check_hosted` で起動せず一覧。Secure cookie / HTTPS は警告 |
+| **公開運用での破壊的操作**（書込 SQL・DDL・role/database 管理・`ALTER SYSTEM`・kill・import/dump） | URL 名→機能の対応表を持つミドルウェアが**全メソッド一括で 403**。`CLI2UI_HOSTED_ALLOW` に名前を書いた機能だけ解除。ボタンは DOM から除去（見た目のみ、強制はミドルウェア） |
+| **接続先の悪用**（接続フォームでサーバから届く内部ネットワーク・クラウドメタデータを探る／DNS rebinding） | `core/egress.py`。`CLI2UI_HOSTED_TARGETS`（空＝全拒否）＋解決先が公開アドレスであること（private/loopback/link-local は `CLI2UI_HOSTED_PRIVATE_NETS` に明記した範囲のみ）。**検査済み IP に接続**（psycopg2 `hostaddr` / `PGHOSTADDR` / MySQL は IP を host に）。ドライバ接続と pg_dump・psql・mysqldump・mysql の子プロセスの全経路 |
+| **総当たり・連打**（Basic 認証のパスワード推測、重いクエリの連発） | 固定窓のレート制限（全体 / 書込系 / SQL ランナー・EXPLAIN）。認証**前**に数える。`X-Forwarded-For` は信頼済みプロキシ経由のときだけ右から採用 |
+
+**hosted モードの位置づけ**: 上の 4 行は `CLI2UI_HOSTED=1` のときだけ働く**公開運用の安全弁**で、設定ミスと運用中の悪用を防ぐ。認証機構そのものは作らない（`proxy` 宣言 or 内蔵 Basic）。`bandit` 等の静的解析（コードの欠陥を探す）とは目的が別で、互いに補い合う。アプリ層の制限であり、セキュリティグループ / FW の代わりにはならない。レート制限のカウンタはプロセス内（複数ワーカーではワーカー単位）。詳細: `README.HOSTED.md` / `specs/hosted-mode.md`。
 
 機能面の安全性検証は `core/tests.py` を参照（read-only が書込拒否 / simulate_scale が痕跡ゼロ / preview_index が痕跡ゼロ 等を統合テストで実証、計 60 件）。
 
@@ -62,7 +68,7 @@ cli2ui は **ローカル専用**の PostgreSQL 運用コンソール。SaaS・�
 ## 受容したリスク（判断して残す）
 
 - **`check --deploy` 残り 3 件（W004 HSTS / W008 SSL_REDIRECT / W016 CSRF_COOKIE_SECURE）** — いずれも **HTTPS 前提**。cli2ui はローカル HTTP 運用が既定なので N/A。TLS（リバースプロキシ）越しに公開する場合のみ env で有効化する。
-- **`DEBUG` 既定 ON / `SECRET_KEY` の安全でない既定 / `ALLOWED_HOSTS=["*"]`** — **ローカルファースト設計の意図的な既定**。`DJANGO_DEBUG=0` / `DJANGO_SECRET_KEY=…` の env 上書きを用意済み。ネットワークに晒す場合は両方を設定すること（README の運用注記）。SyncVey のような「既定鍵 + DEBUG=False で起動拒否」までは、ローカル UX を損ねるため採用しない。
+- **`DEBUG` 既定 ON / `SECRET_KEY` の安全でない既定 / `ALLOWED_HOSTS=["*"]`** — **ローカルファースト設計の意図的な既定**。`DJANGO_DEBUG=0` / `DJANGO_SECRET_KEY=…` の env 上書きを用意済み。ネットワークに晒す場合は両方を設定すること（README の運用注記）。SyncVey のような「既定鍵 + DEBUG=False で起動拒否」は、ローカル UX を損ねるため**既定では**採用しない。ただし `CLI2UI_HOSTED=1` を明示したときはまさにこの起動拒否が働く（`core/hosted.py`）。
 - **CSP 未設定 / Tailwind Play CDN** — ローカル専用・第三者コンテンツを描画しない前提で現状未対応。公開を本格化する場合に検討。
 
 ---
