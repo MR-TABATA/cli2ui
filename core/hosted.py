@@ -23,6 +23,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.cache import cache
 from django.http import HttpResponse
 from django.urls import Resolver404, resolve
+from django.utils import translation
 from django.utils.translation import gettext as _, gettext_noop
 
 DEFAULT_SECRET_KEY = "dev-insecure-key-change-me-for-anything-public"
@@ -347,9 +348,11 @@ class HostedRateLimitMiddleware:
             limit = limits[bucket]
             if limit and _hit(bucket, ip, limit, now) > limit:
                 retry = max(1, math.ceil(RATE_WINDOW_SECONDS - now % RATE_WINDOW_SECONDS))
-                resp = HttpResponse(
-                    _("Too many requests. Try again in %(seconds)s seconds.") % {"seconds": retry},
-                    status=429, content_type="text/plain; charset=utf-8")
+                # This runs before LocaleMiddleware has picked a language, so
+                # choose it from the request ourselves.
+                with translation.override(translation.get_language_from_request(request)):
+                    text = _("Too many requests. Try again in %(seconds)s seconds.") % {"seconds": retry}
+                resp = HttpResponse(text, status=429, content_type="text/plain; charset=utf-8")
                 resp["Retry-After"] = str(retry)
                 return resp
         return self.get_response(request)

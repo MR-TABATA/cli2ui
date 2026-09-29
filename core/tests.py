@@ -19,6 +19,18 @@ import psycopg2
 from django.test import SimpleTestCase, TestCase, override_settings
 from psycopg2 import sql
 
+from django.core.signals import request_finished
+from django.utils import translation
+
+# LocaleMiddleware activates the request's language and never deactivates it.
+# In production the next request simply overrides it, but a test that fetches a
+# page with a "ja" cookie or Accept-Language would leave the thread in Japanese
+# and turn every later assertion on an English message into a failure that only
+# shows up in a full run. Reset it after every request, for all tests.
+request_finished.connect(
+    lambda **kwargs: translation.deactivate(),
+    weak=False, dispatch_uid="core.tests.reset-language-after-request")
+
 from core.engines import EngineError, get_engine
 from core.engines.base import (
     Activity, BlockNode, Blocker, Column, ConnectionHeadroom, DuplicateIndex,
