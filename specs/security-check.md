@@ -68,7 +68,7 @@ cli2ui は **ローカル専用**の PostgreSQL 運用コンソール。SaaS・�
 ## 受容したリスク（判断して残す）
 
 - **`check --deploy` 残り 3 件（W004 HSTS / W008 SSL_REDIRECT / W016 CSRF_COOKIE_SECURE）** — いずれも **HTTPS 前提**。cli2ui はローカル HTTP 運用が既定なので N/A。TLS（リバースプロキシ）越しに公開する場合のみ env で有効化する。
-- **`DEBUG` 既定 ON / `SECRET_KEY` の安全でない既定 / `ALLOWED_HOSTS=["*"]`** — **ローカルファースト設計の意図的な既定**。`DJANGO_DEBUG=0` / `DJANGO_SECRET_KEY=…` の env 上書きを用意済み。ネットワークに晒す場合は両方を設定すること（README の運用注記）。SyncVey のような「既定鍵 + DEBUG=False で起動拒否」は、ローカル UX を損ねるため**既定では**採用しない。ただし `CLI2UI_HOSTED=1` を明示したときはまさにこの起動拒否が働く（`core/hosted.py`）。
+- **`DEBUG` は既定 OFF（`DJANGO_DEBUG=1` で ON）。`SECRET_KEY` の安全でない既定 / `ALLOWED_HOSTS=["*"]` は残る** — **ローカルファースト設計の意図的な既定**。`DJANGO_SECRET_KEY=…` / `CLI2UI_ALLOWED_HOSTS=…` の env 上書きを用意済み。ネットワークに晒す場合は `CLI2UI_HOSTED=1` を付ける。SyncVey のような「既定鍵で起動拒否」は、ローカル UX を損ねるため**既定では**採用しないが、`CLI2UI_HOSTED=1` を明示したときは起動前チェックがこれらの既定のままの公開を拒否する（`core/hosted.py`）。
 - **CSP 未設定 / Tailwind Play CDN** — ローカル専用・第三者コンテンツを描画しない前提で現状未対応。公開を本格化する場合に検討。
 
 ---
