@@ -1,6 +1,8 @@
 from django.apps import apps as django_apps
+from django.conf import settings
 from django.urls import include, path
 
+from cli2ui import extra_apps
 from core import views
 
 urlpatterns = [
@@ -80,3 +82,7 @@ urlpatterns = [
 # feature (and its URLs) disappears cleanly when the app is dropped.
 if django_apps.is_installed("planner_lab"):
     urlpatterns += [path("", include("planner_lab.urls"))]
+
+# Extra apps (CLI2UI_EXTRA_APPS) come last, so they can add routes but never
+# shadow a core one.
+urlpatterns += extra_apps.url_patterns(settings.CLI2UI_EXTRA_APPS)

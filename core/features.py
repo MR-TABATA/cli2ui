@@ -12,8 +12,10 @@ availability checks instead of scattering edition decisions through templates
 and views.
 """
 from dataclasses import dataclass
+from functools import wraps
 
 from django.conf import settings
+from django.http import Http404
 
 EDITION_COMMUNITY = "community"
 EDITION_EXTENDED = "extended"
@@ -65,3 +67,17 @@ def is_enabled(key: str) -> bool:
 def enabled() -> set[str]:
     """The keys of all currently-available features."""
     return {key for key in _REGISTRY if is_enabled(key)}
+
+
+def require(key: str):
+    """Guard a view with a feature: 404 unless ``key`` is registered and allowed
+    by the current edition. A view that is merely *installed* is not thereby
+    reachable — its edition still decides."""
+    def decorator(view):
+        @wraps(view)
+        def wrapper(request, *args, **kwargs):
+            if not is_enabled(key):
+                raise Http404
+            return view(request, *args, **kwargs)
+        return wrapper
+    return decorator

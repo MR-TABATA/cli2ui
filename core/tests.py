@@ -4586,3 +4586,105 @@ class ClientIpTests(SimpleTestCase):
         self.assertLessEqual({"RATE", "TRUSTED_PROXIES"}, ids)
         with override_settings(**_GOOD_HOSTED):  # all zero -> warning only
             self.assertIn("RATE", {x.id for x in hosted.preflight() if x.level == "warning"})
+
+
+class ExtraAppsParseTests(SimpleTestCase):
+    """cli2ui/extra_apps.py: the CLI2UI_EXTRA_APPS value is validated, not trusted."""
+
+    def _parse(self, raw, **kw):
+        from cli2ui import extra_apps
+        return extra_apps.parse(raw, **kw)
+
+    def test_unset_or_blank_adds_nothing(self):
+        self.assertEqual(self._parse(""), ())
+        self.assertEqual(self._parse(None), ())
+        self.assertEqual(self._parse(" , ,"), ())
+
+    def test_valid_names_keep_order_and_drop_duplicates(self):
+        self.assertEqual(self._parse("json, csv ,json"), ("json", "csv"))
+
+    def test_already_installed_apps_are_not_added_twice(self):
+        self.assertEqual(self._parse("json,csv", installed=["json"]), ("csv",))
+
+    def test_dotted_submodule_is_accepted(self):
+        self.assertEqual(self._parse("email.mime"), ("email.mime",))
+
+    def test_malformed_names_are_refused(self):
+        from django.core.exceptions import ImproperlyConfigured
+        for bad in ("Json", "pkg.apps.SomeConfig", "a b", "a-b", "../x", "1abc", "a..b", "a;b"):
+            with self.subTest(name=bad), self.assertRaises(ImproperlyConfigured):
+                self._parse(bad)
+
+    def test_a_missing_module_stops_startup(self):
+        from django.core.exceptions import ImproperlyConfigured
+        with self.assertRaisesMessage(ImproperlyConfigured, "was not found"):
+            self._parse("json,no_such_module_anywhere")
+
+
+class ExtraAppsUrlTests(SimpleTestCase):
+    def _patterns(self, names, modules):
+        """url_patterns() with import_module answered from `modules`."""
+        from cli2ui import extra_apps
+
+        def fake_import(name):
+            if name in modules:
+                return modules[name]
+            raise ModuleNotFoundError(f"No module named {name!r}", name=name)
+
+        with unittest.mock.patch("cli2ui.extra_apps.importlib.import_module", side_effect=fake_import):
+            return extra_apps.url_patterns(names)
+
+    def test_app_with_urls_is_included_and_one_without_is_skipped(self):
+        urlconf = SimpleNamespace(urlpatterns=[])
+        got = self._patterns(("with_urls", "no_urls"), {"with_urls.urls": urlconf})
+        self.assertEqual(len(got), 1)
+        self.assertIs(got[0].urlconf_name, urlconf)
+
+    def test_order_follows_the_setting(self):
+        a, b = SimpleNamespace(urlpatterns=[]), SimpleNamespace(urlpatterns=[])
+        got = self._patterns(("b", "a"), {"a.urls": a, "b.urls": b})
+        self.assertEqual([p.urlconf_name for p in got], [b, a])
+
+    def test_an_error_inside_a_urls_module_is_not_swallowed(self):
+        from cli2ui import extra_apps
+        boom = ModuleNotFoundError("No module named 'dependency'", name="dependency")
+        with unittest.mock.patch("cli2ui.extra_apps.importlib.import_module", side_effect=boom):
+            with self.assertRaises(ModuleNotFoundError):
+                extra_apps.url_patterns(("broken",))
+
+    def test_core_routes_come_first(self):
+        from cli2ui import urls
+        names = [getattr(p, "name", None) for p in urls.urlpatterns]
+        self.assertLess(names.index("index"), len(names))
+        self.assertEqual(names[0:1], [None])   # i18n include is still first
+
+
+class FeatureRequireTests(SimpleTestCase):
+    def setUp(self):
+        from core import features
+        self._saved = dict(features._REGISTRY)
+        self.addCleanup(lambda: (features._REGISTRY.clear(), features._REGISTRY.update(self._saved)))
+
+    def _view(self, key):
+        from core.features import require
+        return require(key)(lambda request: "ok")
+
+    def test_unregistered_feature_is_404(self):
+        from django.http import Http404
+        with self.assertRaises(Http404):
+            self._view("nope")(None)
+
+    def test_edition_gates_the_view(self):
+        from django.http import Http404
+        from core import features
+        features.register("_needs_extended", edition=features.EDITION_EXTENDED)
+        with override_settings(CLI2UI_EDITION="community"):
+            with self.assertRaises(Http404):
+                self._view("_needs_extended")(None)
+        with override_settings(CLI2UI_EDITION="extended"):
+            self.assertEqual(self._view("_needs_extended")(None), "ok")
+
+    def test_community_feature_is_always_reachable(self):
+        from core import features
+        features.register("_open", edition=features.EDITION_COMMUNITY)
+        self.assertEqual(self._view("_open")(None), "ok")

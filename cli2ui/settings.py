@@ -33,6 +33,14 @@ INSTALLED_APPS = [
     "planner_lab",
 ]
 
+# Extra apps plugged in from the environment (see cli2ui/extra_apps.py). Unset,
+# nothing changes. A name that is malformed or cannot be imported stops startup.
+from cli2ui.extra_apps import parse as _parse_extra_apps  # noqa: E402
+
+CLI2UI_EXTRA_APPS = _parse_extra_apps(
+    os.environ.get("CLI2UI_EXTRA_APPS", ""), installed=INSTALLED_APPS)
+INSTALLED_APPS = [*INSTALLED_APPS, *CLI2UI_EXTRA_APPS]
+
 MIDDLEWARE = [
     # First, so hosted-mode Basic auth covers every route. A no-op unless
     # CLI2UI_HOSTED=1 — see core/hosted.py.
