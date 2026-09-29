@@ -68,6 +68,38 @@ ROUTE_CAPABILITY = {
 }
 
 
+# Routes that belong to apps plugged in via CLI2UI_EXTRA_APPS declare what they
+# do, because this table cannot know them. See declare_capability().
+_DECLARED_ROUTES: dict[str, str] = {}
+_EXTRA_CAPABILITIES: dict[str, str] = {}
+
+
+def declare_capability(url_name: str, capability: str, description: str | None = None) -> None:
+    """Say which capability a route of an extra app needs in hosted mode.
+
+    ``capability`` is either one of the built-in names (CAPABILITIES) or a new
+    one, in which case ``description`` (a short phrase, shown in the 403 message)
+    is required. The capability then behaves like the built-in ones: off in
+    hosted mode until named in CLI2UI_HOSTED_ALLOW. Call it from
+    ``AppConfig.ready()``.
+    """
+    if url_name in ROUTE_CAPABILITY:
+        raise ValueError(f"{url_name!r} is a core route and already has a capability.")
+    if capability not in CAPABILITIES and capability not in _EXTRA_CAPABILITIES:
+        if not description:
+            raise ValueError(f"A new capability {capability!r} needs a description.")
+        _EXTRA_CAPABILITIES[capability] = description
+    _DECLARED_ROUTES[url_name] = capability
+
+
+def all_capabilities() -> dict:
+    return {**CAPABILITIES, **_EXTRA_CAPABILITIES}
+
+
+def _route_capabilities() -> dict:
+    return {**ROUTE_CAPABILITY, **_DECLARED_ROUTES}
+
+
 def is_hosted() -> bool:
     return bool(getattr(settings, "CLI2UI_HOSTED", False))
 
@@ -80,7 +112,7 @@ def disabled_capabilities() -> frozenset:
     """Capabilities that are switched off right now (empty outside hosted)."""
     if not is_hosted():
         return frozenset()
-    return frozenset(CAPABILITIES) - allowed()
+    return frozenset(all_capabilities()) - allowed()
 
 
 def disabled_paths() -> list:
@@ -89,7 +121,7 @@ def disabled_paths() -> list:
     from django.urls import NoReverseMatch, reverse
     off = disabled_capabilities()
     out = []
-    for name, cap in ROUTE_CAPABILITY.items():
+    for name, cap in _route_capabilities().items():
         if cap not in off:
             continue
         for args in ((), (0,)):
@@ -156,10 +188,10 @@ def preflight() -> list:
         if len(getattr(settings, "CLI2UI_HOSTED_BASIC_PASSWORD", "")) < MIN_BASIC_PASSWORD_LENGTH:
             err("AUTH", f"CLI2UI_HOSTED_BASIC_PASSWORD must be at least {MIN_BASIC_PASSWORD_LENGTH} chars.")
 
-    unknown = allowed() - set(CAPABILITIES)
+    unknown = allowed() - set(all_capabilities())
     if unknown:
         err("ALLOW", "Unknown name(s) in CLI2UI_HOSTED_ALLOW: " + ", ".join(sorted(unknown))
-            + ". Known: " + ", ".join(sorted(CAPABILITIES)))
+            + ". Known: " + ", ".join(sorted(all_capabilities())))
 
     from . import egress
     for entry in getattr(settings, "CLI2UI_HOSTED_TARGETS", ()):
@@ -233,13 +265,34 @@ def _basic_ok(request) -> bool:
     return ok_user and ok_pw
 
 
+UNDECLARED = object()   # an extra-app route that changes state and declared nothing
+
+
+def _extra_app_names() -> tuple:
+    return tuple(getattr(settings, "CLI2UI_EXTRA_APPS", ()))
+
+
+def _is_extra_route(match) -> bool:
+    """Whether a resolved route comes from an app in CLI2UI_EXTRA_APPS: by the
+    module of its view, or by the name of a route the app declared."""
+    func = getattr(match, "func", None)
+    module = getattr(getattr(func, "view_class", func), "__module__", "") or ""
+    if any(module == n or module.startswith(n + ".") for n in _extra_app_names()):
+        return True
+    return match.url_name in _DECLARED_ROUTES
+
+
 def _capability_for(request):
     match = request.resolver_match
     if match is None:
         return None
-    cap = ROUTE_CAPABILITY.get(match.url_name)
+    cap = _route_capabilities().get(match.url_name)
     if cap is None and match.url_name == "query_run" and request.POST.get("write"):
         cap = "write_sql"
+    if cap is None and request.method not in SAFE_METHODS and _is_extra_route(match):
+        # Default deny: this table can't know an extra app's routes, so one that
+        # changes state and declared nothing stays shut until it declares.
+        return UNDECLARED
     return cap
 
 
@@ -261,11 +314,16 @@ class HostedGuardMiddleware:
         if not is_hosted():
             return None
         cap = _capability_for(request)
+        if cap is UNDECLARED:
+            return HttpResponse(
+                _("Disabled in hosted mode: this route belongs to an extra app and does not "
+                  "declare what it needs, so it is kept shut."),
+                status=403, content_type="text/plain; charset=utf-8")
         if cap is not None and cap not in allowed():
             return HttpResponse(
                 _("Disabled in hosted mode: %(what)s. "
                   "Enable with CLI2UI_HOSTED_ALLOW=%(cap)s if you accept the risk.")
-                % {"what": _(CAPABILITIES[cap]), "cap": cap},
+                % {"what": _(all_capabilities()[cap]), "cap": cap},
                 status=403, content_type="text/plain; charset=utf-8")
         return None
 

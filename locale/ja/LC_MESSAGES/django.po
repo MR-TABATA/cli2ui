@@ -3252,3 +3252,11 @@ msgstr ""
 #, python-format
 msgid "Too many requests. Try again in %(seconds)s seconds."
 msgstr "リクエストが多すぎます。%(seconds)s 秒後にもう一度お試しください。"
+
+#: core/hosted.py
+msgid ""
+"Disabled in hosted mode: this route belongs to an extra app and does not "
+"declare what it needs, so it is kept shut."
+msgstr ""
+"hosted モードでは無効です: このルートは追加アプリのもので、必要な権限を申告して"
+"いないため閉じています。"

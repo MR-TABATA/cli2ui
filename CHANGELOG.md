@@ -56,6 +56,19 @@ Versioning convention for this project:
   `scripts/verify_hosted.sh` checks all of the above end to end against a real
   server; `scripts/run_hosted.sh` starts a hosted instance and opens the browser.
 
+- **Extra apps: a generic way to plug a Django app into cli2ui.**
+  `CLI2UI_EXTRA_APPS` (comma-separated module names) is appended to
+  `INSTALLED_APPS`, and each app's `urls` module, if it has one, is included
+  after the core routes — so an extra app can add routes but never shadow a core
+  one. A name that is malformed or cannot be imported stops startup rather than
+  being skipped, and there is no automatic discovery: installing a package does
+  not enable it. `core.features.require(key)` guards a view with a feature (404
+  unless the current edition allows it). **In hosted mode, a route of an extra
+  app that changes state is refused unless it declared what it needs** with
+  `hosted.declare_capability(...)` (see
+  [README.HOSTED.md](README.HOSTED.md#4-extra-apps)); naming a capability in
+  `CLI2UI_HOSTED_ALLOW` never opens a route that declared nothing.
+
 ## [1.10.0] - 2026-09-21
 
 ### Added

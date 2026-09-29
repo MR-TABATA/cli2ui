@@ -89,7 +89,27 @@ mode every connection — the driver connect and the `pg_dump` / `mysqldump` /
 This is an application-level check, not a replacement for security groups or
 firewall rules; set those too.
 
-## 4. Rate limits
+## 4. Extra apps
+
+Apps plugged in with `CLI2UI_EXTRA_APPS` are covered too. Hosted mode cannot know
+their routes, so **any route of an extra app that changes state (anything but
+GET/HEAD/OPTIONS) is refused by default** with a `403`. GET routes pass, so they
+must be safe reads.
+
+An extra app opens a route by declaring what it needs, from its
+`AppConfig.ready()`:
+
+```python
+from core import hosted
+hosted.declare_capability("my_route_name", "ddl")                       # a built-in capability
+hosted.declare_capability("my_other_route", "my_write", "changes X")    # a new one (needs a description)
+```
+
+A declared capability behaves like the built-in ones: off until it is named in
+`CLI2UI_HOSTED_ALLOW`, and its buttons are removed from the page. Naming
+something in `CLI2UI_HOSTED_ALLOW` never opens a route that declared nothing.
+
+## 5. Rate limits
 
 Per client IP, per minute, over a fixed window. Over the limit you get `429` with
 a `Retry-After` header. Requests are counted **before** authentication, so

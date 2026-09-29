@@ -119,6 +119,64 @@ start CLI2UI_HOSTED_RATE_ALL=2 || exit 1
 codes=$(for i in 1 2 3; do code -H "X-Forwarded-For: 198.51.100.$i" $URL/; echo -n " "; done)
 [ "$codes" = "200 200 429 " ] && ok "without TRUSTED_PROXIES the header is ignored" || ng "untrusted XFF" "$codes"
 
+echo "== 9. 追加アプリ(CLI2UI_EXTRA_APPS)と hosted"
+mkdir -p "$TMP/dx/dummyext"
+: > "$TMP/dx/dummyext/__init__.py"
+cat > "$TMP/dx/dummyext/apps.py" <<'PYEOF'
+from django.apps import AppConfig
+
+
+class DummyConfig(AppConfig):
+    name = "dummyext"
+
+    def ready(self):
+        from core import hosted
+        hosted.declare_capability("dummy_declared", "dummy_write", "changes dummy things")
+PYEOF
+cat > "$TMP/dx/dummyext/urls.py" <<'PYEOF'
+from django.http import HttpResponse
+from django.urls import path
+from django.views.decorators.csrf import csrf_exempt
+
+
+def read(request):
+    return HttpResponse("read ok")
+
+
+@csrf_exempt
+def undeclared(request):
+    return HttpResponse("undeclared ran")
+
+
+@csrf_exempt
+def declared(request):
+    return HttpResponse("declared ran")
+
+
+urlpatterns = [
+    path("dummy/read", read, name="dummy_read"),
+    path("dummy/undeclared", undeclared, name="dummy_undeclared"),
+    path("dummy/declared", declared, name="dummy_declared"),
+]
+PYEOF
+export PYTHONPATH="$TMP/dx"
+start CLI2UI_EXTRA_APPS=dummyext || exit 1
+b=$(body $URL/dummy/read); [ "$b" = "read ok" ] && ok "extra app: GET passes" || ng "extra app GET" "$b"
+b=$(body -X POST $URL/dummy/undeclared)
+echo "$b" | grep -q "does not declare" && ok "extra app: undeclared write is shut by default" || ng "undeclared write" "$b"
+b=$(body -X POST $URL/dummy/declared)
+echo "$b" | grep -q "changes dummy things" && echo "$b" | grep -q "CLI2UI_HOSTED_ALLOW=dummy_write" \
+  && ok "extra app: declared capability is off until named" || ng "declared capability" "$b"
+start CLI2UI_EXTRA_APPS=dummyext CLI2UI_HOSTED_ALLOW=dummy_write || exit 1
+b=$(body -X POST $URL/dummy/declared); [ "$b" = "declared ran" ] && ok "extra app: named in ALLOW -> runs" || ng "declared allowed" "$b"
+b=$(body -X POST $URL/dummy/undeclared)
+echo "$b" | grep -q "does not declare" && ok "extra app: ALLOW does not open undeclared routes" || ng "undeclared stays shut" "$b"
+env "${GOOD[@]}" CLI2UI_EXTRA_APPS=dummyext CLI2UI_HOSTED_ALLOW=typo_write $PY manage.py check_hosted >/dev/null 2>&1
+expect "unknown name in ALLOW still fails preflight" "$?" 1
+start || exit 1
+expect "without CLI2UI_EXTRA_APPS the extra routes do not exist" "$(code $URL/dummy/read)" 404
+unset PYTHONPATH
+
 echo
 echo "結果: $pass OK / $fail NG"
 echo "手動: ブラウザで実接続のテーブル詳細を開き、drop / rename / add column 等が見えないこと"

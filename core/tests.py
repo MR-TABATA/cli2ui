@@ -4688,3 +4688,87 @@ class FeatureRequireTests(SimpleTestCase):
         from core import features
         features.register("_open", edition=features.EDITION_COMMUNITY)
         self.assertEqual(self._view("_open")(None), "ok")
+
+
+class HostedExtraAppRouteTests(SimpleTestCase):
+    """Hosted mode and CLI2UI_EXTRA_APPS: a route of an extra app that changes
+    state is shut unless it declared what it needs (default deny)."""
+
+    def setUp(self):
+        from core import hosted
+        saved = (dict(hosted._DECLARED_ROUTES), dict(hosted._EXTRA_CAPABILITIES))
+        self.addCleanup(lambda: (hosted._DECLARED_ROUTES.clear(), hosted._DECLARED_ROUTES.update(saved[0]),
+                                 hosted._EXTRA_CAPABILITIES.clear(), hosted._EXTRA_CAPABILITIES.update(saved[1])))
+
+    def _call(self, method, url_name, *, module="fakeext.views", **settings_over):
+        """Run the middleware's process_view for a fake resolved route."""
+        from django.test import RequestFactory
+        from core import hosted
+
+        def view(request):
+            return None
+        view.__module__ = module
+        request = getattr(RequestFactory(), method.lower())("/x")
+        request.resolver_match = SimpleNamespace(url_name=url_name, func=view)
+        cfg = {**_GOOD_HOSTED, "CLI2UI_EXTRA_APPS": ("fakeext",), **settings_over}
+        with override_settings(**cfg):
+            return hosted.HostedGuardMiddleware(lambda r: None).process_view(request, view, (), {})
+
+    def test_reads_of_an_extra_app_pass(self):
+        self.assertIsNone(self._call("GET", "fake_page"))
+
+    def test_undeclared_write_is_shut_by_default(self):
+        r = self._call("POST", "fake_save")
+        self.assertEqual(r.status_code, 403)
+        self.assertIn("does not declare", r.content.decode())
+
+    def test_every_write_method_is_covered(self):
+        for method in ("POST", "PUT", "PATCH", "DELETE"):
+            with self.subTest(method=method):
+                self.assertEqual(self._call(method, "fake_save").status_code, 403)
+
+    def test_declared_with_a_builtin_capability_follows_its_allow(self):
+        from core import hosted
+        hosted.declare_capability("fake_save", "ddl")
+        self.assertEqual(self._call("POST", "fake_save").status_code, 403)
+        self.assertIsNone(self._call("POST", "fake_save", CLI2UI_HOSTED_ALLOW=frozenset({"ddl"})))
+
+    def test_declared_new_capability_is_off_until_named(self):
+        from core import hosted
+        hosted.declare_capability("fake_save", "fake_write", "changes fake things")
+        r = self._call("POST", "fake_save")
+        self.assertEqual(r.status_code, 403)
+        body = r.content.decode()
+        self.assertIn("changes fake things", body)
+        self.assertIn("CLI2UI_HOSTED_ALLOW=fake_write", body)
+        self.assertIsNone(self._call("POST", "fake_save", CLI2UI_HOSTED_ALLOW=frozenset({"fake_write"})))
+
+    def test_a_declared_route_is_gated_even_if_its_view_module_is_unrecognised(self):
+        from core import hosted
+        hosted.declare_capability("fake_save", "fake_write", "changes fake things")
+        # a decorator that drops __module__ would hide the view from the module check
+        self.assertEqual(self._call("POST", "fake_save", module="somewhere.else").status_code, 403)
+
+    def test_routes_outside_the_extra_apps_are_untouched(self):
+        self.assertIsNone(self._call("POST", "some_core_like_route", module="core.views.tables"))
+
+    def test_inert_outside_hosted_mode(self):
+        self.assertIsNone(self._call("POST", "fake_save", CLI2UI_HOSTED=False))
+
+    def test_new_capability_names_are_accepted_in_the_allow_list(self):
+        from core import hosted
+        hosted.declare_capability("fake_save", "fake_write", "changes fake things")
+        with override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_ALLOW": frozenset({"fake_write"})}):
+            self.assertNotIn("ALLOW", {x.id for x in hosted.preflight() if x.level == "error"})
+            self.assertNotIn("fake_write", hosted.disabled_capabilities())
+        with override_settings(**_GOOD_HOSTED):
+            self.assertIn("fake_write", hosted.disabled_capabilities())
+        with override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_ALLOW": frozenset({"typo_write"})}):
+            self.assertIn("ALLOW", {x.id for x in hosted.preflight() if x.level == "error"})
+
+    def test_declare_capability_refuses_core_routes_and_missing_descriptions(self):
+        from core import hosted
+        with self.assertRaises(ValueError):
+            hosted.declare_capability("table_drop", "fake_write", "x")   # would weaken a core route
+        with self.assertRaises(ValueError):
+            hosted.declare_capability("fake_save", "brand_new")          # no description
