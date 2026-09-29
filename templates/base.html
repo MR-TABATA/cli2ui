@@ -539,5 +539,42 @@ body の高さを画面に固定し、main を伸縮させ、動くのはデー�
       mark();
     })();
   </script>
+{% if hosted_mode %}
+  {{ hosted_disabled_paths|json_script:"hosted-disabled-paths" }}
+  <script>
+    /* hosted mode: drop the controls whose routes the server answers with 403.
+       Cosmetic only — core.hosted.HostedGuardMiddleware is what enforces it. */
+    (function () {
+      var off = new Set(JSON.parse(document.getElementById('hosted-disabled-paths').textContent));
+      function norm(u) {
+        try { var p = new URL(u, location.href).pathname; } catch (e) { return ''; }
+        return p.replace(/^\/c\/\d+\//, '/c/0/');
+      }
+      function prune(root) {
+        var hit = function (el) {
+          return off.has(norm(el.getAttribute('hx-post') || el.getAttribute('action') || el.getAttribute('href') || ''));
+        };
+        var els = Array.prototype.slice.call(root.querySelectorAll('[hx-post],[action],[href]')).filter(hit);
+        var drawers = new Set();
+        els.forEach(function (el) {
+          var f = el.closest('form') || el;
+          var m = /drawer\s*===\s*'([^']+)'/.exec(f.getAttribute('x-show') || '');
+          if (m) drawers.add(m[1]);
+        });
+        if (drawers.size) {
+          root.querySelectorAll('button,a').forEach(function (b) {
+            var c = b.getAttribute('@click') || '';
+            drawers.forEach(function (d) {
+              if (c.indexOf("drawer = '" + d + "'") !== -1) b.remove();
+            });
+          });
+        }
+        els.forEach(function (el) { (el.closest('form') || el).remove(); });
+      }
+      document.addEventListener('DOMContentLoaded', function () { prune(document.body); });
+      document.addEventListener('htmx:afterSettle', function (e) { prune(e.detail.elt || document.body); });
+    })();
+  </script>
+  {% endif %}
 </body>
 </html>

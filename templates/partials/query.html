@@ -21,6 +21,7 @@
         <input type="checkbox" name="lock_guard" value="1" x-model="lockGuard" class="accent-warn">
         <span class="text-[10px] tracking-wide text-body mono">lock_timeout 2s</span>
       </label>
+      {% if 'write_sql' not in hosted_disabled %}
       <label class="flex items-center gap-2 cursor-pointer select-none"
              title="{% trans 'Allow writes (INSERT / UPDATE / DELETE / DDL). A whole-database snapshot is taken before each write.' %}">
         <input type="checkbox" name="write" value="1" x-model="write" class="accent-warn">
@@ -29,6 +30,7 @@
                             : 'bg-accent/50 text-accent border border-accent/60'"
               x-text="write ? '{% trans 'write mode' %}' : '{% trans 'read-only' %}'"></span>
       </label>
+      {% endif %}
     </div>
   </div>
 

@@ -4232,3 +4232,126 @@ class HealthSmokeE2E(_BrowserE2E):
         expect(detail).to_contain_text("Unused indexes")
         expect(detail).to_contain_text("Dead rows")
         expect(detail).to_contain_text("public.orders")
+
+
+# --- hosted-mode guard (specs/hosted-mode.md) --------------------------------
+
+_GOOD_HOSTED = dict(
+    CLI2UI_HOSTED=True, DEBUG=False, SECRET_KEY="k" * 60,
+    ALLOWED_HOSTS=["cli2ui.example.com"],
+    CSRF_TRUSTED_ORIGINS=["https://cli2ui.example.com"],
+    CLI2UI_HOSTED_AUTH="proxy", CLI2UI_HOSTED_ALLOW=frozenset(),
+)
+
+
+class HostedPreflightTests(SimpleTestCase):
+    def _errors(self, **over):
+        from core import hosted
+        with override_settings(**{**_GOOD_HOSTED, **over}):
+            return {x.id for x in hosted.preflight() if x.level == "error"}
+
+    def test_inert_when_not_hosted(self):
+        from core import hosted
+        with override_settings(CLI2UI_HOSTED=False, DEBUG=True, ALLOWED_HOSTS=["*"]):
+            self.assertEqual(hosted.preflight(), [])
+            self.assertEqual(hosted.disabled_capabilities(), frozenset())
+            hosted.enforce()  # must not raise
+
+    def test_good_config_passes(self):
+        self.assertEqual(self._errors(), set())
+
+    def test_each_violation_is_reported(self):
+        self.assertIn("DEBUG", self._errors(DEBUG=True))
+        self.assertIn("SECRET_KEY", self._errors(SECRET_KEY="short"))
+        from core.hosted import DEFAULT_SECRET_KEY
+        self.assertIn("SECRET_KEY", self._errors(SECRET_KEY=DEFAULT_SECRET_KEY))
+        self.assertIn("ALLOWED_HOSTS", self._errors(ALLOWED_HOSTS=["*"]))
+        self.assertIn("ALLOWED_HOSTS", self._errors(ALLOWED_HOSTS=[]))
+        self.assertIn("CSRF_TRUSTED_ORIGINS",
+                      self._errors(CSRF_TRUSTED_ORIGINS=["http://localhost:8000"]))
+        self.assertIn("CSRF_TRUSTED_ORIGINS",
+                      self._errors(CSRF_TRUSTED_ORIGINS=["http://cli2ui.example.com"]))
+        self.assertIn("AUTH", self._errors(CLI2UI_HOSTED_AUTH=""))
+        self.assertIn("ALLOW", self._errors(CLI2UI_HOSTED_ALLOW=frozenset({"nope"})))
+
+    def test_basic_needs_credentials(self):
+        self.assertIn("AUTH", self._errors(
+            CLI2UI_HOSTED_AUTH="basic", CLI2UI_HOSTED_BASIC_USER="a", CLI2UI_HOSTED_BASIC_PASSWORD="short"))
+        self.assertEqual(self._errors(
+            CLI2UI_HOSTED_AUTH="basic", CLI2UI_HOSTED_BASIC_USER="a",
+            CLI2UI_HOSTED_BASIC_PASSWORD="long-enough-pw!"), set())
+
+    def test_enforce_raises_with_all_errors(self):
+        from django.core.exceptions import ImproperlyConfigured
+        from core import hosted
+        with override_settings(**{**_GOOD_HOSTED, "DEBUG": True, "ALLOWED_HOSTS": ["*"]}):
+            with self.assertRaises(ImproperlyConfigured) as cm:
+                hosted.enforce()
+        self.assertIn("[DEBUG]", str(cm.exception))
+        self.assertIn("[ALLOWED_HOSTS]", str(cm.exception))
+
+
+class HostedGateTests(TestCase):
+    """The dangerous routes answer 403 in hosted mode; reads still work."""
+
+    def setUp(self):
+        from core.models import Connection
+        self.c = Connection.objects.create(name="t", host="h", dbname="d", user="u")
+
+    def _post(self, name, data=None):
+        from django.urls import reverse
+        return self.client.post(reverse(name, args=[self.c.pk]), data or {},
+                                HTTP_HOST="cli2ui.example.com")
+
+    @override_settings(**_GOOD_HOSTED)
+    def test_dangerous_routes_403(self):
+        from core.hosted import ROUTE_CAPABILITY
+        for name in ROUTE_CAPABILITY:
+            if name in ("connect", "clear_connections"):
+                continue
+            with self.subTest(route=name):
+                self.assertEqual(self._post(name).status_code, 403)
+        self.assertEqual(self.client.post("/connect", {}, HTTP_HOST="cli2ui.example.com").status_code, 403)
+
+    @override_settings(**_GOOD_HOSTED)
+    def test_write_query_403_but_readonly_query_passes_gate(self):
+        self.assertEqual(self._post("query_run", {"sql": "select 1", "write": "1"}).status_code, 403)
+        self.assertNotEqual(self._post("query_run", {"sql": "select 1"}).status_code, 403)
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_ALLOW": frozenset({"write_sql"})})
+    def test_allow_lifts_only_that_capability(self):
+        self.assertNotEqual(self._post("query_run", {"sql": "select 1", "write": "1"}).status_code, 403)
+        self.assertEqual(self._post("table_drop").status_code, 403)
+
+    @override_settings(CLI2UI_HOSTED=False)
+    def test_not_hosted_gate_is_open(self):
+        self.assertNotEqual(self._post("query_run", {"sql": "select 1", "write": "1"}).status_code, 403)
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_AUTH": "basic",
+                          "CLI2UI_HOSTED_BASIC_USER": "admin",
+                          "CLI2UI_HOSTED_BASIC_PASSWORD": "long-enough-pw!"})
+    def test_basic_auth(self):
+        import base64
+        r = self.client.get("/", HTTP_HOST="cli2ui.example.com")
+        self.assertEqual(r.status_code, 401)
+        self.assertIn("Basic", r["WWW-Authenticate"])
+        bad = base64.b64encode(b"admin:wrong").decode()
+        self.assertEqual(self.client.get("/", HTTP_HOST="cli2ui.example.com",
+                                         HTTP_AUTHORIZATION="Basic " + bad).status_code, 401)
+        ok = base64.b64encode(b"admin:long-enough-pw!").decode()
+        self.assertEqual(self.client.get("/", HTTP_HOST="cli2ui.example.com",
+                                         HTTP_AUTHORIZATION="Basic " + ok).status_code, 200)
+
+
+class HostedUiTests(TestCase):
+    @override_settings(**_GOOD_HOSTED)
+    def test_page_carries_disabled_paths(self):
+        html = self.client.get("/", HTTP_HOST="cli2ui.example.com").content.decode()
+        self.assertIn('id="hosted-disabled-paths"', html)
+        self.assertIn("/c/0/table/drop", html)
+        self.assertNotIn("/c/0/query/run", html)
+
+    @override_settings(CLI2UI_HOSTED=False)
+    def test_local_page_has_no_pruning_script(self):
+        html = self.client.get("/").content.decode()
+        self.assertNotIn("hosted-disabled-paths", html)

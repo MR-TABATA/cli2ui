@@ -1,6 +1,7 @@
 """Template context processors."""
 from cli2ui import __version__
 
+from . import hosted
 from .features import current_edition, enabled
 
 
@@ -11,6 +12,9 @@ def features(request):
     return {
         "cli2ui_edition": current_edition(),
         "enabled_features": enabled(),
+        "hosted_mode": hosted.is_hosted(),
+        "hosted_disabled": hosted.disabled_capabilities(),
+        "hosted_disabled_paths": hosted.disabled_paths(),
     }
 
 

@@ -15,7 +15,10 @@ SECRET_KEY = os.environ.get(
 # this tool sits right next to a database. Set DJANGO_DEBUG=1 when you're
 # developing and want the rich error pages.
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
-ALLOWED_HOSTS = ["*"]
+# Local default stays permissive; hosted mode (below) refuses to start on "*".
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get("CLI2UI_ALLOWED_HOSTS", "*").split(",") if h.strip()
+]
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
@@ -31,6 +34,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # First, so hosted-mode Basic auth covers every route. A no-op unless
+    # CLI2UI_HOSTED=1 — see core/hosted.py.
+    "core.hosted.HostedGuardMiddleware",
     "django.middleware.security.SecurityMiddleware",
     # Activates the request's language from the cookie set by the header toggle
     # (via set_language), falling back to the browser's Accept-Language. Must
@@ -150,3 +156,19 @@ CLI2UI_MAX_AUTO_BACKUP_BYTES = int(
 CLI2UI_MAX_AUTO_BACKUP_TOTAL_BYTES = int(
     os.environ.get("CLI2UI_MAX_AUTO_BACKUP_TOTAL_BYTES", str(500 * 1024 * 1024))
 )
+
+# --- hosted mode (off by default; see core/hosted.py, specs/hosted-mode.md) ---
+# Set CLI2UI_HOSTED=1 when exposing cli2ui beyond your own machine. It refuses to
+# start on an unsafe config and turns dangerous operations off until each is
+# named in CLI2UI_HOSTED_ALLOW (comma-separated).
+CLI2UI_HOSTED = os.environ.get("CLI2UI_HOSTED", "0") == "1"
+CLI2UI_HOSTED_ALLOW = frozenset(
+    x.strip() for x in os.environ.get("CLI2UI_HOSTED_ALLOW", "").split(",") if x.strip()
+)
+# How access is protected: "proxy" (a reverse proxy / VPN authenticates) or
+# "basic" (built-in HTTP Basic using the two values below).
+CLI2UI_HOSTED_AUTH = os.environ.get("CLI2UI_HOSTED_AUTH", "")
+CLI2UI_HOSTED_BASIC_USER = os.environ.get("CLI2UI_HOSTED_BASIC_USER", "")
+CLI2UI_HOSTED_BASIC_PASSWORD = os.environ.get("CLI2UI_HOSTED_BASIC_PASSWORD", "")
+if os.environ.get("CLI2UI_SECURE_COOKIES", "0") == "1":
+    CSRF_COOKIE_SECURE = True
