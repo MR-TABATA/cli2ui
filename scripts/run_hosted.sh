@@ -15,6 +15,9 @@ export CLI2UI_ALLOWED_HOSTS=${CLI2UI_ALLOWED_HOSTS:-127.0.0.1,localhost}
 export CLI2UI_EXTRA_CSRF_ORIGINS=${CLI2UI_EXTRA_CSRF_ORIGINS:-https://cli2ui.example.com}
 export CLI2UI_HOSTED_AUTH=${CLI2UI_HOSTED_AUTH:-proxy}
 
+if (exec 3<>/dev/tcp/127.0.0.1/$PORT) 2>/dev/null; then
+  echo "port $PORT is already in use — stop that server or run: PORT=<free port> $0"; exit 2
+fi
 echo "hosted mode · ALLOW=${CLI2UI_HOSTED_ALLOW:-(none)} · $URL"
 $PY manage.py check_hosted || exit 1
 

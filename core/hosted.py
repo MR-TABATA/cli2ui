@@ -11,13 +11,18 @@ See specs/hosted-mode.md.
 import base64
 import binascii
 import hmac
+import ipaddress
+import math
+import time
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from django.conf import settings
 from django.core.checks import Error, Tags, Warning as CheckWarning, register
 from django.core.exceptions import ImproperlyConfigured
+from django.core.cache import cache
 from django.http import HttpResponse
+from django.urls import Resolver404, resolve
 from django.utils.translation import gettext as _, gettext_noop
 
 DEFAULT_SECRET_KEY = "dev-insecure-key-change-me-for-anything-public"
@@ -170,6 +175,18 @@ def preflight() -> list:
         warn("TARGETS", "CLI2UI_HOSTED_TARGETS is empty — every database connection will be refused. "
                         "Set it to the host:port pairs cli2ui may reach.")
 
+    for name in ("ALL", "WRITE", "QUERY"):
+        v = getattr(settings, f"CLI2UI_HOSTED_RATE_{name}", 0)
+        if not isinstance(v, int) or v < 0:
+            err("RATE", f"CLI2UI_HOSTED_RATE_{name} must be a whole number >= 0 (0 = off).")
+    for entry in getattr(settings, "CLI2UI_HOSTED_TRUSTED_PROXIES", ()):
+        try:
+            ipaddress.ip_network(entry, strict=False)
+        except ValueError:
+            err("TRUSTED_PROXIES", f"CLI2UI_HOSTED_TRUSTED_PROXIES: {entry!r} is not an IP or CIDR range.")
+    if not any(_limits().values()):
+        warn("RATE", "All hosted rate limits are 0 (off). Limit request rates at your proxy instead.")
+
     if not settings.CSRF_COOKIE_SECURE:
         warn("CSRF_COOKIE_SECURE", "CSRF_COOKIE_SECURE is off — set CLI2UI_SECURE_COOKIES=1 when served over HTTPS.")
     if not settings.SECURE_SSL_REDIRECT and not getattr(settings, "SECURE_HSTS_SECONDS", 0):
@@ -250,3 +267,89 @@ class HostedGuardMiddleware:
                 % {"what": _(CAPABILITIES[cap]), "cap": cap},
                 status=403, content_type="text/plain; charset=utf-8")
         return None
+
+
+# --- rate limiting -----------------------------------------------------------
+
+RATE_WINDOW_SECONDS = 60
+QUERY_ROUTES = {"query_run", "explain_run"}
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+def _trusted_proxies():
+    return [ipaddress.ip_network(x, strict=False)
+            for x in getattr(settings, "CLI2UI_HOSTED_TRUSTED_PROXIES", ())]
+
+
+def client_ip(request) -> str:
+    """The caller's address. X-Forwarded-For is honoured only when the direct
+    peer is a configured trusted proxy, and then read from the right (each
+    trusted hop appends the address it saw) — the leftmost entries are
+    whatever the client chose to claim."""
+    peer = request.META.get("REMOTE_ADDR", "")
+    proxies = _trusted_proxies()
+    try:
+        ok = any(ipaddress.ip_address(peer) in n for n in proxies)
+    except ValueError:
+        ok = False
+    if not ok:
+        return peer
+    hops = [h.strip() for h in request.META.get("HTTP_X_FORWARDED_FOR", "").split(",") if h.strip()]
+    for hop in reversed(hops):
+        try:
+            addr = ipaddress.ip_address(hop)
+        except ValueError:
+            return peer
+        if not any(addr in n for n in proxies):
+            return str(addr)
+    return peer
+
+
+def _limits():
+    return {
+        "all": getattr(settings, "CLI2UI_HOSTED_RATE_ALL", 120),
+        "write": getattr(settings, "CLI2UI_HOSTED_RATE_WRITE", 30),
+        "query": getattr(settings, "CLI2UI_HOSTED_RATE_QUERY", 20),
+    }
+
+
+def _hit(bucket: str, ip: str, limit: int, now: float) -> int:
+    """Count one request in the current fixed window; returns the new count."""
+    key = f"cli2ui:rl:{bucket}:{ip}:{int(now // RATE_WINDOW_SECONDS)}"
+    cache.add(key, 0, timeout=RATE_WINDOW_SECONDS + 1)
+    return cache.incr(key)
+
+
+class HostedRateLimitMiddleware:
+    """No-op unless CLI2UI_HOSTED=1. Per-IP fixed-window limits, counted before
+    authentication so password guessing is throttled too. 0 disables a bucket.
+
+    The counters live in Django's cache (process-local by default): with several
+    workers each keeps its own count, so the effective limit is per worker."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if not is_hosted():
+            return self.get_response(request)
+        limits = _limits()
+        buckets = ["all"]
+        if request.method not in SAFE_METHODS:
+            buckets.append("write")
+        try:
+            if resolve(request.path_info).url_name in QUERY_ROUTES:
+                buckets.append("query")
+        except Resolver404:
+            pass
+        ip, now = client_ip(request), time.time()
+        for bucket in buckets:
+            limit = limits[bucket]
+            if limit and _hit(bucket, ip, limit, now) > limit:
+                retry = max(1, math.ceil(RATE_WINDOW_SECONDS - now % RATE_WINDOW_SECONDS))
+                resp = HttpResponse(
+                    _("Too many requests. Try again in %(seconds)s seconds.") % {"seconds": retry},
+                    status=429, content_type="text/plain; charset=utf-8")
+                resp["Retry-After"] = str(retry)
+                return resp
+        return self.get_response(request)

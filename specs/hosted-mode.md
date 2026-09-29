@@ -72,7 +72,8 @@ cli2ui は「ローカル専用・認証なし」が既定の設計(SECURITY.md)
 - cli2ui が張る外向き接続は「DB 接続」と「pg_dump/mysqldump の子プロセス」のみ。**全て C の許可済み host に限定**する共通関数 `assert_egress(host, port)` を engine の接続生成点に 1 箇所挟む。
 - 注: アプリ層の制限は **ネットワーク層(SG/iptables)の代替ではない**。ドキュメントで「二重に張れ」と明記。
 
-### Phase 3
+### Phase 3 — ✅ 実装済(feature/hosted-mode-ratelimit)
+実装は `core/hosted.py` の `HostedRateLimitMiddleware`。認証より前に数える(総当たり対策)。X-Forwarded-For は信頼済みプロキシからのときだけ、右から信頼済みホップを飛ばして採用。カウンタは Django キャッシュ(既定はプロセス内)＝複数ワーカーでは per-worker。
 
 **E. rate limit** — 依存追加なし(Django キャッシュ `LocMemCache` ベース、単一プロセス前提)
 - ミドルウェア。IP 単位(`X-Forwarded-For` は `CLI2UI_HOSTED_TRUSTED_PROXIES` 指定時のみ信用)。

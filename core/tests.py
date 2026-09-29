@@ -4241,6 +4241,10 @@ _GOOD_HOSTED = dict(
     ALLOWED_HOSTS=["cli2ui.example.com"],
     CSRF_TRUSTED_ORIGINS=["https://cli2ui.example.com"],
     CLI2UI_HOSTED_AUTH="proxy", CLI2UI_HOSTED_ALLOW=frozenset(),
+    # Off here so the many requests the gate tests fire aren't throttled; the
+    # rate-limit tests below switch them on.
+    CLI2UI_HOSTED_RATE_ALL=0, CLI2UI_HOSTED_RATE_WRITE=0, CLI2UI_HOSTED_RATE_QUERY=0,
+    CLI2UI_HOSTED_TRUSTED_PROXIES=(),
 )
 
 
@@ -4467,3 +4471,106 @@ class EgressPreferIPv4Tests(SimpleTestCase):
         with override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_TARGETS": ("d.example.com:1",)}), \
                 unittest.mock.patch("core.egress.socket.getaddrinfo", return_value=infos):
             self.assertEqual(egress.resolve_target("d.example.com", 1), "8.8.8.8")
+
+
+class HostedRateLimitTests(TestCase):
+    HOST = "cli2ui.example.com"
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.addCleanup(cache.clear)
+
+    def _get(self, path="/", **extra):
+        return self.client.get(path, HTTP_HOST=self.HOST, **extra)
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_RATE_ALL": 3})
+    def test_overall_limit_returns_429_with_retry_after(self):
+        for _ in range(3):
+            self.assertEqual(self._get().status_code, 200)
+        r = self._get()
+        self.assertEqual(r.status_code, 429)
+        self.assertTrue(1 <= int(r["Retry-After"]) <= 60)
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_RATE_ALL": 100, "CLI2UI_HOSTED_RATE_WRITE": 2})
+    def test_write_bucket_counts_only_non_get(self):
+        for _ in range(10):
+            self.assertEqual(self._get().status_code, 200)   # reads don't touch it
+        codes = [self.client.post("/c/1/table/drop", HTTP_HOST=self.HOST).status_code for _ in range(3)]
+        self.assertEqual(codes, [403, 403, 429])              # gate 403 twice, then throttled
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_RATE_ALL": 100, "CLI2UI_HOSTED_RATE_QUERY": 1})
+    def test_query_bucket_is_only_sql_runner_and_explain(self):
+        self.assertNotEqual(self.client.post("/c/1/query/run", {"sql": "select 1"}, HTTP_HOST=self.HOST).status_code, 429)
+        self.assertEqual(self.client.post("/c/1/query/run", {"sql": "select 1"}, HTTP_HOST=self.HOST).status_code, 429)
+        self.assertEqual(self._get().status_code, 200)        # other routes unaffected
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_RATE_ALL": 1})
+    def test_limits_are_per_client_ip(self):
+        from core import hosted
+        self.assertEqual(self._get(REMOTE_ADDR="198.51.100.1").status_code, 200)
+        self.assertEqual(self._get(REMOTE_ADDR="198.51.100.1").status_code, 429)
+        self.assertEqual(self._get(REMOTE_ADDR="198.51.100.2").status_code, 200)
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_RATE_ALL": 1,
+                          "CLI2UI_HOSTED_AUTH": "basic", "CLI2UI_HOSTED_BASIC_USER": "a",
+                          "CLI2UI_HOSTED_BASIC_PASSWORD": "long-enough-pw!"})
+    def test_failed_logins_are_counted(self):
+        self.assertEqual(self._get().status_code, 401)
+        self.assertEqual(self._get().status_code, 429)
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_RATE_ALL": 0})
+    def test_zero_disables_a_bucket(self):
+        for _ in range(200):
+            self.assertEqual(self._get().status_code, 200)
+
+    @override_settings(CLI2UI_HOSTED=False, CLI2UI_HOSTED_RATE_ALL=1)
+    def test_not_hosted_is_never_limited(self):
+        for _ in range(5):
+            self.assertEqual(self.client.get("/").status_code, 200)
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_RATE_ALL": 1})
+    def test_429_is_japanese_for_ja(self):
+        self._get(HTTP_ACCEPT_LANGUAGE="ja")
+        r = self._get(HTTP_ACCEPT_LANGUAGE="ja")
+        self.assertEqual(r.status_code, 429)
+        self.assertIn("リクエストが多すぎます", r.content.decode())
+
+
+class ClientIpTests(SimpleTestCase):
+    def _ip(self, peer, xff=None, proxies=("10.0.0.0/8",)):
+        from django.test import RequestFactory
+        from core import hosted
+        extra = {"REMOTE_ADDR": peer}
+        if xff is not None:
+            extra["HTTP_X_FORWARDED_FOR"] = xff
+        with override_settings(CLI2UI_HOSTED_TRUSTED_PROXIES=proxies):
+            return hosted.client_ip(RequestFactory().get("/", **extra))
+
+    def test_header_ignored_from_untrusted_peer(self):
+        self.assertEqual(self._ip("198.51.100.9", "1.2.3.4"), "198.51.100.9")
+
+    def test_header_used_from_trusted_proxy(self):
+        self.assertEqual(self._ip("10.0.0.2", "198.51.100.7"), "198.51.100.7")
+
+    def test_spoofed_left_entries_are_skipped(self):
+        # client claims 1.2.3.4; the trusted proxy appended the real 198.51.100.7
+        self.assertEqual(self._ip("10.0.0.2", "1.2.3.4, 198.51.100.7"), "198.51.100.7")
+
+    def test_chain_of_trusted_hops(self):
+        self.assertEqual(self._ip("10.0.0.2", "198.51.100.7, 10.0.0.9"), "198.51.100.7")
+
+    def test_garbage_header_falls_back_to_peer(self):
+        self.assertEqual(self._ip("10.0.0.2", "not-an-ip"), "10.0.0.2")
+
+    def test_no_proxies_configured_means_peer(self):
+        self.assertEqual(self._ip("10.0.0.2", "198.51.100.7", proxies=()), "10.0.0.2")
+
+    def test_preflight_validates_rate_settings(self):
+        from core import hosted
+        with override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_RATE_ALL": -1,
+                                  "CLI2UI_HOSTED_TRUSTED_PROXIES": ("nope",)}):
+            ids = {x.id for x in hosted.preflight() if x.level == "error"}
+        self.assertLessEqual({"RATE", "TRUSTED_PROXIES"}, ids)
+        with override_settings(**_GOOD_HOSTED):  # all zero -> warning only
+            self.assertIn("RATE", {x.id for x in hosted.preflight() if x.level == "warning"})

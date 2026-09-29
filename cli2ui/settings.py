@@ -36,6 +36,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     # First, so hosted-mode Basic auth covers every route. A no-op unless
     # CLI2UI_HOSTED=1 — see core/hosted.py.
+    "core.hosted.HostedRateLimitMiddleware",
     "core.hosted.HostedGuardMiddleware",
     "django.middleware.security.SecurityMiddleware",
     # Activates the request's language from the cookie set by the header toggle
@@ -181,4 +182,15 @@ CLI2UI_HOSTED_TARGETS = tuple(
 )
 CLI2UI_HOSTED_PRIVATE_NETS = tuple(
     x.strip() for x in os.environ.get("CLI2UI_HOSTED_PRIVATE_NETS", "").split(",") if x.strip()
+)
+
+# Hosted-mode rate limits, per client IP per minute (0 = off). ALL counts every
+# request, WRITE the non-GET ones, QUERY the SQL runner / EXPLAIN. Counters are
+# process-local (Django's default cache). TRUSTED_PROXIES: comma-separated
+# IPs/CIDRs whose X-Forwarded-For may be believed.
+CLI2UI_HOSTED_RATE_ALL = int(os.environ.get("CLI2UI_HOSTED_RATE_ALL", "120"))
+CLI2UI_HOSTED_RATE_WRITE = int(os.environ.get("CLI2UI_HOSTED_RATE_WRITE", "30"))
+CLI2UI_HOSTED_RATE_QUERY = int(os.environ.get("CLI2UI_HOSTED_RATE_QUERY", "20"))
+CLI2UI_HOSTED_TRUSTED_PROXIES = tuple(
+    x.strip() for x in os.environ.get("CLI2UI_HOSTED_TRUSTED_PROXIES", "").split(",") if x.strip()
 )

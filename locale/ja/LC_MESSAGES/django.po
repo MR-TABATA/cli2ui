@@ -3247,3 +3247,8 @@ msgid ""
 msgstr ""
 "%(host)s は %(ip)s に解決され、公開アドレスではありません。意図したものなら、"
 "その範囲を CLI2UI_HOSTED_PRIVATE_NETS に追加してください。"
+
+#: core/hosted.py
+#, python-format
+msgid "Too many requests. Try again in %(seconds)s seconds."
+msgstr "リクエストが多すぎます。%(seconds)s 秒後にもう一度お試しください。"

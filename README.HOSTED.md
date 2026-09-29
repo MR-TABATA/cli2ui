@@ -89,9 +89,29 @@ mode every connection — the driver connect and the `pg_dump` / `mysqldump` /
 This is an application-level check, not a replacement for security groups or
 firewall rules; set those too.
 
-## Not implemented yet
+## 4. Rate limits
 
-Rate limiting. Until then, limit request rates at the reverse proxy.
+Per client IP, per minute, over a fixed window. Over the limit you get `429` with
+a `Retry-After` header. Requests are counted **before** authentication, so
+password guessing against `basic` is throttled too.
+
+| variable | default | counts |
+|---|---|---|
+| `CLI2UI_HOSTED_RATE_ALL` | 120 | every request |
+| `CLI2UI_HOSTED_RATE_WRITE` | 30 | non-GET requests |
+| `CLI2UI_HOSTED_RATE_QUERY` | 20 | the SQL runner and EXPLAIN |
+
+`0` turns a limit off (if all three are `0` you get a startup warning).
+
+Behind a reverse proxy every request arrives from the proxy's address, so tell
+cli2ui which peers to believe with `CLI2UI_HOSTED_TRUSTED_PROXIES` (IPs or CIDR
+ranges, comma-separated). Only then is `X-Forwarded-For` read — from the right,
+skipping your own proxies, so a client cannot dodge the limit by inventing
+entries on the left. Without it the header is ignored.
+
+**Limits of this check:** the counters live in memory, per process. With several
+gunicorn workers each keeps its own count, so the effective limit is per worker.
+If you run more than one, also rate-limit at the proxy.
 
 ## Trying it
 
