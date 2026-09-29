@@ -7,6 +7,8 @@
 cli2ui は「ローカル専用・認証なし」が既定の設計(SECURITY.md)。これを **外向けに公開する運用(hosted)** で使う人が、
 うっかり危険な状態で晒さないための安全弁を足す。**ローカル運用の UX は 1 ミリも変えない**(hosted を明示したときだけ効く)。
 
+**前提**: 自分のマシン・社内ネットワークでの運用は従来どおり hosted オフ(本機能の対象外)。hosted は外向け公開の運用専用で、社内ネットワーク運用は考慮しない。Phase 2 の「private/loopback IP は既定拒否」は、公開サーバが内部へ踏み込むのを防ぐための既定であり、同一クラウド内の private IP の DB に繋ぐ構成だけ allowlist に明記して通す。
+
 現状で公開時に問題になる点(コード確認済):
 
 | 現状 | 公開時のリスク |
@@ -58,7 +60,8 @@ cli2ui は「ローカル専用・認証なし」が既定の設計(SECURITY.md)
   UI 側は base.html の小さな JS が、無効なルートを指すフォーム/ボタン/リンクと、それを開くドロワーのトリガーを DOM から除去する(見た目だけ。強制はミドルウェア)。**二重化**。
 - 読み取り系(overview/health/explain/read-only クエリ)は常に有効。
 
-### Phase 2
+### Phase 2 — ✅ 実装済(feature/hosted-mode-allowlist)
+実装は `core/egress.py`。TARGETS は host:port(fnmatch)、非公開IPは `CLI2UI_HOSTED_PRIVATE_NETS`(CIDR)で明示したときのみ許可(仕様の「allowlist に明記」を CIDR 指定として具体化)。接続は検査済み IP へ(psycopg2 `hostaddr` / PGHOSTADDR / pymysql・mysql は IP を host に)。
 
 **C. target DB allowlist** — `CLI2UI_HOSTED_TARGETS="host:port,host:port,*.internal.example:5432"`
 - `connect` 時と、保存済み接続を使う全 view の入口で host:port を照合。不一致は拒否。

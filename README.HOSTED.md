@@ -64,13 +64,34 @@ CLI2UI_ALLOWED_HOSTS=cli2ui.example.com \
 CLI2UI_EXTRA_CSRF_ORIGINS=https://cli2ui.example.com \
 CLI2UI_HOSTED_AUTH=proxy \
 CLI2UI_HOSTED_ALLOW=write_sql \
+CLI2UI_HOSTED_TARGETS=db.example.com:5432 \
 python manage.py runserver
 ```
 
+## 3. Which databases it may connect to
+
+cli2ui dials whatever host a saved connection names, so on a public deployment the
+connection form could be used to probe networks the server can reach. In hosted
+mode every connection — the driver connect and the `pg_dump` / `mysqldump` /
+`psql` child processes — is checked first:
+
+- **`CLI2UI_HOSTED_TARGETS`** — comma-separated `host:port` patterns cli2ui may
+  reach (`db.example.com:5432`, `*.corp.example.com:*`). **Empty means every
+  connection is refused** (a startup warning tells you).
+- Whatever the name resolves to must be a **public address**. Loopback,
+  link-local (including cloud metadata such as `169.254.169.254`) and private
+  ranges are refused even for an allowlisted name — otherwise DNS could send an
+  allowed name to an internal host. If your database really lives in a private
+  network (the same VPC), list that range in **`CLI2UI_HOSTED_PRIVATE_NETS`**
+  (`10.0.0.0/16`).
+- The connection then goes to the **vetted IP**, not to a second DNS lookup.
+
+This is an application-level check, not a replacement for security groups or
+firewall rules; set those too.
+
 ## Not implemented yet
 
-A target-database / outbound allowlist and rate limiting. Until then, restrict
-which databases cli2ui can reach, and how fast, at the network layer.
+Rate limiting. Until then, limit request rates at the reverse proxy.
 
 ## Trying it
 

@@ -37,6 +37,7 @@ from django.utils.translation import gettext as _
 from pymysql.constants import ER
 
 from .base import (
+    egress_ip,
     Activity,
     Blocker,
     Column,
@@ -273,9 +274,10 @@ class MysqlEngine(Engine):
             yield self._held
             return
         c = self.connection
+        pinned = egress_ip(c)
         try:
             conn = pymysql.connect(
-                host=c.host,
+                host=pinned or c.host,  # hosted mode: dial the vetted IP
                 port=c.port,
                 user=c.user,
                 password=c.password,
@@ -955,7 +957,7 @@ class MysqlEngine(Engine):
         conn = self.connection
         argv = [
             "mysqldump",
-            "-h", conn.host, "-P", str(conn.port), "-u", conn.user,
+            "-h", egress_ip(conn) or conn.host, "-P", str(conn.port), "-u", conn.user,
             # A consistent InnoDB snapshot without locking; skip tablespaces so
             # the dump doesn't need the PROCESS privilege (mysqldump 8.0).
             "--single-transaction", "--no-tablespaces", *scope,
@@ -993,7 +995,7 @@ class MysqlEngine(Engine):
         of pg_restore's "apply what you can". A caller that asked for the lenient
         behaviour simply gets the strict one, which is the safe direction."""
         conn = self.connection
-        argv = ["mysql", "-h", conn.host, "-P", str(conn.port),
+        argv = ["mysql", "-h", egress_ip(conn) or conn.host, "-P", str(conn.port),
                 "-u", conn.user, dbname]
         env = {**os.environ, "MYSQL_PWD": conn.password or ""}
         try:

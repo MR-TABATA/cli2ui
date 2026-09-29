@@ -16,6 +16,8 @@ from psycopg2 import errors as pg_errors
 from psycopg2 import sql
 
 from .base import (
+    egress_env,
+    egress_ip,
     Activity,
     BloatEstimate,
     Blocker,
@@ -325,9 +327,11 @@ class PostgresEngine(Engine):
             yield self._held
             return
         c = self.connection
+        hostaddr = egress_ip(c)
         try:
             conn = psycopg2.connect(
                 host=c.host,
+                hostaddr=hostaddr,  # hosted mode: dial the vetted IP, not a second lookup
                 port=c.port,
                 dbname=dbname or c.dbname,
                 user=c.user,
@@ -1292,7 +1296,7 @@ class PostgresEngine(Engine):
             "-h", conn.host, "-p", str(conn.port), "-U", conn.user,
             "--no-password", flag, *scope,
         ]
-        env = {**os.environ, "PGPASSWORD": conn.password or ""}
+        env = {**os.environ, "PGPASSWORD": conn.password or "", **egress_env(conn)}
         try:
             # No shell, fixed argv, password via env (never on the command line).
             proc = subprocess.run(  # nosec B603 B607
@@ -1350,7 +1354,7 @@ class PostgresEngine(Engine):
             argv = ["psql", *common, "-v", "ON_ERROR_STOP=1",
                     "--single-transaction"]
             tool = "psql"
-        env = {**os.environ, "PGPASSWORD": conn.password or ""}
+        env = {**os.environ, "PGPASSWORD": conn.password or "", **egress_env(conn)}
         try:
             # No shell; the dump is fed on stdin in chunks, never written to disk.
             proc = subprocess.Popen(  # nosec B603 B607

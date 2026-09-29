@@ -172,3 +172,13 @@ CLI2UI_HOSTED_BASIC_USER = os.environ.get("CLI2UI_HOSTED_BASIC_USER", "")
 CLI2UI_HOSTED_BASIC_PASSWORD = os.environ.get("CLI2UI_HOSTED_BASIC_PASSWORD", "")
 if os.environ.get("CLI2UI_SECURE_COOKIES", "0") == "1":
     CSRF_COOKIE_SECURE = True
+# Where hosted mode may connect (core/egress.py). TARGETS: comma-separated
+# host:port patterns (fnmatch host, port or *). Empty = every connection is
+# refused. PRIVATE_NETS: CIDR ranges a target may resolve into although they are
+# not public addresses (e.g. the VPC your database lives in).
+CLI2UI_HOSTED_TARGETS = tuple(
+    x.strip() for x in os.environ.get("CLI2UI_HOSTED_TARGETS", "").split(",") if x.strip()
+)
+CLI2UI_HOSTED_PRIVATE_NETS = tuple(
+    x.strip() for x in os.environ.get("CLI2UI_HOSTED_PRIVATE_NETS", "").split(",") if x.strip()
+)

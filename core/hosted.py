@@ -155,6 +155,21 @@ def preflight() -> list:
         err("ALLOW", "Unknown name(s) in CLI2UI_HOSTED_ALLOW: " + ", ".join(sorted(unknown))
             + ". Known: " + ", ".join(sorted(CAPABILITIES)))
 
+    from . import egress
+    for entry in getattr(settings, "CLI2UI_HOSTED_TARGETS", ()):
+        try:
+            egress.parse_target(entry)
+        except ValueError as exc:
+            err("TARGETS", f"CLI2UI_HOSTED_TARGETS: {exc}")
+    for entry in getattr(settings, "CLI2UI_HOSTED_PRIVATE_NETS", ()):
+        try:
+            egress.parse_net(entry)
+        except ValueError:
+            err("PRIVATE_NETS", f"CLI2UI_HOSTED_PRIVATE_NETS: {entry!r} is not a CIDR range.")
+    if not getattr(settings, "CLI2UI_HOSTED_TARGETS", ()):
+        warn("TARGETS", "CLI2UI_HOSTED_TARGETS is empty — every database connection will be refused. "
+                        "Set it to the host:port pairs cli2ui may reach.")
+
     if not settings.CSRF_COOKIE_SECURE:
         warn("CSRF_COOKIE_SECURE", "CSRF_COOKIE_SECURE is off — set CLI2UI_SECURE_COOKIES=1 when served over HTTPS.")
     if not settings.SECURE_SSL_REDIRECT and not getattr(settings, "SECURE_HSTS_SECONDS", 0):

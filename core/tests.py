@@ -4366,3 +4366,104 @@ class HostedGateTranslationTests(TestCase):
         body = r.content.decode()
         self.assertIn("hosted モードでは無効", body)
         self.assertIn("CLI2UI_HOSTED_ALLOW=ddl", body)
+
+
+class EgressTests(SimpleTestCase):
+    """core/egress.py: target allowlist + non-public address refusal."""
+
+    def _resolve(self, host, port, addrs, **over):
+        from core import egress
+        infos = [(0, 0, 0, "", (a, port)) for a in addrs]
+        with override_settings(**{**_GOOD_HOSTED, **over}), \
+                unittest.mock.patch("core.egress.socket.getaddrinfo", return_value=infos):
+            return egress.resolve_target(host, port)
+
+    def test_noop_outside_hosted(self):
+        from core import egress
+        with override_settings(CLI2UI_HOSTED=False):
+            self.assertIsNone(egress.resolve_target("127.0.0.1", 5432))
+
+    def test_empty_allowlist_denies_everything(self):
+        from core.egress import EgressDenied
+        with self.assertRaises(EgressDenied):
+            self._resolve("db.example.com", 5432, ["8.8.8.5"])
+
+    def test_target_must_match_host_and_port(self):
+        from core.egress import EgressDenied
+        t = dict(CLI2UI_HOSTED_TARGETS=("db.example.com:5432", "*.corp.example.com:*"))
+        self.assertEqual(self._resolve("db.example.com", 5432, ["8.8.8.5"], **t), "8.8.8.5")
+        self.assertEqual(self._resolve("x.corp.example.com", 6543, ["8.8.8.6"], **t), "8.8.8.6")
+        for host, port in (("db.example.com", 5433), ("evil.example.org", 5432)):
+            with self.assertRaises(EgressDenied):
+                self._resolve(host, port, ["8.8.8.5"], **t)
+
+    def test_non_public_addresses_refused_unless_range_listed(self):
+        from core.egress import EgressDenied
+        t = dict(CLI2UI_HOSTED_TARGETS=("db.example.com:5432",))
+        for bad in ("127.0.0.1", "10.0.0.5", "192.168.1.1", "169.254.169.254", "::1",
+                    "::ffff:127.0.0.1", "fe80::1"):
+            with self.subTest(ip=bad), self.assertRaises(EgressDenied):
+                self._resolve("db.example.com", 5432, [bad], **t)
+        self.assertEqual(
+            self._resolve("db.example.com", 5432, ["10.0.0.5"],
+                          CLI2UI_HOSTED_PRIVATE_NETS=("10.0.0.0/24",), **t), "10.0.0.5")
+        with self.assertRaises(EgressDenied):  # outside the listed range
+            self._resolve("db.example.com", 5432, ["10.9.0.5"],
+                          CLI2UI_HOSTED_PRIVATE_NETS=("10.0.0.0/24",), **t)
+
+    def test_one_bad_address_among_good_ones_denies(self):
+        from core.egress import EgressDenied
+        with self.assertRaises(EgressDenied):  # rebinding-style mixed answer
+            self._resolve("db.example.com", 5432, ["8.8.8.5", "127.0.0.1"],
+                          CLI2UI_HOSTED_TARGETS=("db.example.com:5432",))
+
+    def test_unresolvable_host_denied(self):
+        import socket
+        from core import egress
+        with override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_TARGETS": ("nx.example.com:1",)}), \
+                unittest.mock.patch("core.egress.socket.getaddrinfo", side_effect=socket.gaierror):
+            with self.assertRaises(egress.EgressDenied):
+                egress.resolve_target("nx.example.com", 1)
+
+    def test_preflight_validates_entries_and_warns_when_empty(self):
+        from core import hosted
+        with override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_TARGETS": ("nocolon",),
+                                  "CLI2UI_HOSTED_PRIVATE_NETS": ("nope",)}):
+            ids = {x.id for x in hosted.preflight() if x.level == "error"}
+        self.assertLessEqual({"TARGETS", "PRIVATE_NETS"}, ids)
+        with override_settings(**_GOOD_HOSTED):
+            self.assertIn("TARGETS", {x.id for x in hosted.preflight() if x.level == "warning"})
+
+    def test_engines_pin_the_vetted_ip(self):
+        conn = SimpleNamespace(host="db.example.com", port=5432, dbname="d", user="u", password="p")
+        with override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_TARGETS": ("db.example.com:5432",)}), \
+                unittest.mock.patch("core.egress.socket.getaddrinfo",
+                                    return_value=[(0, 0, 0, "", ("8.8.8.5", 5432))]), \
+                unittest.mock.patch("core.engines.postgres.psycopg2.connect") as pc:
+            with get_engine_for_kind("postgres", conn)._connect():
+                pass
+        self.assertEqual(pc.call_args.kwargs["hostaddr"], "8.8.8.5")
+        self.assertEqual(pc.call_args.kwargs["host"], "db.example.com")
+
+    def test_engine_connect_refused_before_dialing(self):
+        conn = SimpleNamespace(host="127.0.0.1", port=5432, dbname="d", user="u", password="p")
+        with override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_TARGETS": ("127.0.0.1:5432",)}), \
+                unittest.mock.patch("core.engines.postgres.psycopg2.connect") as pc:
+            with self.assertRaises(EngineError):
+                with get_engine_for_kind("postgres", conn)._connect():
+                    pass
+        pc.assert_not_called()
+
+
+def get_engine_for_kind(kind, conn):
+    conn.kind = kind
+    return get_engine(conn)
+
+
+class EgressPreferIPv4Tests(SimpleTestCase):
+    def test_ipv4_preferred_when_both_are_vetted(self):
+        from core import egress
+        infos = [(0, 0, 0, "", ("2001:4860:4860::8888", 1)), (0, 0, 0, "", ("8.8.8.8", 1))]
+        with override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_TARGETS": ("d.example.com:1",)}), \
+                unittest.mock.patch("core.egress.socket.getaddrinfo", return_value=infos):
+            self.assertEqual(egress.resolve_target("d.example.com", 1), "8.8.8.8")

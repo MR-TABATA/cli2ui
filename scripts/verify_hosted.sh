@@ -72,6 +72,27 @@ expect "correct -> 200" "$(code -u 'admin:long-enough-pw!' $URL/)" 200
 env "${GOOD[@]}" CLI2UI_HOSTED_AUTH=basic CLI2UI_HOSTED_BASIC_USER=admin CLI2UI_HOSTED_BASIC_PASSWORD=short $PY manage.py check_hosted >/dev/null 2>&1
 expect "short password rejected by preflight" "$?" 1
 
+echo "== 7. 接続先 allowlist (connect を許可して検証)"
+post_connect() {  # post_connect <host> -> response body
+  local jar="$TMP/jar"; rm -f "$jar"
+  curl -s -c "$jar" -o /dev/null $URL/
+  local tok; tok=$(awk '$6=="csrftoken"{print $7}' "$jar")
+  curl -s -b "$jar" -H "X-CSRFToken: $tok" -X POST \
+    -d "name=t&kind=postgres&host=$1&port=5432&dbname=d&user=u&password=p" $URL/connect
+}
+start CLI2UI_HOSTED_ALLOW=connection_admin || exit 1
+b=$(post_connect db.example.com)
+echo "$b" | grep -q "No target databases are allowed" && ok "empty allowlist refuses every connection" || ng "empty allowlist" "$b"
+start CLI2UI_HOSTED_ALLOW=connection_admin CLI2UI_HOSTED_TARGETS=db.example.com:5432 || exit 1
+b=$(post_connect other.example.org)
+echo "$b" | grep -q "not in CLI2UI_HOSTED_TARGETS" && ok "host outside allowlist refused" || ng "host outside allowlist" "$b"
+start CLI2UI_HOSTED_ALLOW=connection_admin CLI2UI_HOSTED_TARGETS=127.0.0.1:5432 || exit 1
+b=$(post_connect 127.0.0.1)
+echo "$b" | grep -q "not a public address" && ok "allowlisted loopback still refused (not a public address)" || ng "loopback refused" "$b"
+start CLI2UI_HOSTED_ALLOW=connection_admin CLI2UI_HOSTED_TARGETS=127.0.0.1:5432 CLI2UI_HOSTED_PRIVATE_NETS=127.0.0.0/8 || exit 1
+b=$(post_connect 127.0.0.1)
+echo "$b" | grep -q "not a public address\|not in CLI2UI_HOSTED_TARGETS\|No target databases" && ng "range listed" "$b" || ok "with PRIVATE_NETS it passes the guard (fails later only if no DB there)"
+
 echo
 echo "結果: $pass OK / $fail NG"
 echo "手動: ブラウザで実接続のテーブル詳細を開き、drop / rename / add column 等が見えないこと"

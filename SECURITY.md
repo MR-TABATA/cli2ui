@@ -38,7 +38,8 @@ The full threat model and static-analysis results (bandit / pip-audit /
 
 `CLI2UI_HOSTED=1` makes cli2ui refuse to start on an unsafe configuration
 (`DEBUG`, default `SECRET_KEY`, `ALLOWED_HOSTS=*`, no public CSRF origin, no
-declared access control) and turns dangerous operations off until each is named
+declared access control), limits which databases it may connect to
+(`CLI2UI_HOSTED_TARGETS`), and turns dangerous operations off until each is named
 in `CLI2UI_HOSTED_ALLOW`. It guards against misconfiguration; it is **not** a
 promise that cli2ui is safe on the public internet — there are still no user
 accounts. Details: [README.HOSTED.md](README.HOSTED.md)

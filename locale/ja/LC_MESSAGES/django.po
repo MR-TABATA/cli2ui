@@ -3220,3 +3220,30 @@ msgstr "データのインポート、ダンプ、エクスポート"
 #: core/hosted.py
 msgid "add / delete saved connections"
 msgstr "保存済み接続の追加 / 削除"
+
+#: core/egress.py
+msgid ""
+"No target databases are allowed in hosted mode. Set CLI2UI_HOSTED_TARGETS to "
+"the host:port pairs cli2ui may reach."
+msgstr ""
+"hosted モードでは接続先データベースが許可されていません。cli2ui が届いてよい "
+"host:port を CLI2UI_HOSTED_TARGETS に設定してください。"
+
+#: core/egress.py
+#, python-format
+msgid "%(host)s:%(port)s is not in CLI2UI_HOSTED_TARGETS."
+msgstr "%(host)s:%(port)s は CLI2UI_HOSTED_TARGETS に含まれていません。"
+
+#: core/egress.py
+#, python-format
+msgid "Could not resolve %(host)s."
+msgstr "%(host)s を名前解決できませんでした。"
+
+#: core/egress.py
+#, python-format
+msgid ""
+"%(host)s resolves to %(ip)s, which is not a public address. Add its range to "
+"CLI2UI_HOSTED_PRIVATE_NETS if this is intended."
+msgstr ""
+"%(host)s は %(ip)s に解決され、公開アドレスではありません。意図したものなら、"
+"その範囲を CLI2UI_HOSTED_PRIVATE_NETS に追加してください。"

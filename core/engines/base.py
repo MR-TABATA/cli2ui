@@ -21,6 +21,24 @@ class EngineError(Exception):
         self.sqlstate = sqlstate
 
 
+def egress_ip(connection):
+    """Hosted mode: the vetted IP for this connection's target (see
+    core/egress.py), or None when hosted mode is off. A denied target surfaces
+    as an ordinary EngineError so every view already knows how to show it."""
+    from ..egress import EgressDenied, resolve_target
+    try:
+        return resolve_target(connection.host, connection.port)
+    except EgressDenied as exc:
+        raise EngineError(str(exc)) from exc
+
+
+def egress_env(connection):
+    """libpq environment that pins a child process (pg_dump, psql...) to the
+    vetted IP; empty outside hosted mode."""
+    ip = egress_ip(connection)
+    return {"PGHOSTADDR": ip} if ip else {}
+
+
 def _human_seconds(secs: float | None) -> str | None:
     """A short, readable duration: '820 ms', '1.4 s', '3.2 min'. Sub-second
     values keep millisecond precision (replication lag is usually tiny).
