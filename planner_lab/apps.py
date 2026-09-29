@@ -10,5 +10,5 @@ class PlannerLabConfig(AppConfig):
     name = "planner_lab"
 
     def ready(self):
-        from core.features import register
-        register("planner_lab")
+        from core.features import EDITION_COMMUNITY, register
+        register("planner_lab", edition=EDITION_COMMUNITY)

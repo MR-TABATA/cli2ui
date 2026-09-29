@@ -131,6 +131,11 @@ LANGUAGES = [("en", "English"), ("ja", "日本語")]
 LOCALE_PATHS = [BASE_DIR / "locale"]
 USE_I18N = True
 
+# Local edition switch: gives optional apps one shared place to ask whether a
+# registered feature should be exposed. Unknown values are treated as
+# community by core.features.current_edition().
+CLI2UI_EDITION = os.environ.get("CLI2UI_EDITION", "community")
+
 # Largest automatic safety snapshot (taken before a destructive op) we'll store
 # as a blob in the management DB. Past this, the operation proceeds with a
 # warning instead of bloating SQLite. Raise it for bigger objects.

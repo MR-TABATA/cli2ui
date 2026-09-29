@@ -60,9 +60,13 @@ Each panel is self-contained and follows the same pattern:
 registers a feature key in its `AppConfig.ready()`; the core nav shows its
 buttons only when the key is in `enabled_features` (a context processor over
 `core/features.py`), and `cli2ui/urls.py` includes its routes only when the app
-is installed. Such apps reach the database through engine primitives like
-`PostgresEngine.whatif_cursor()` and depend on `core` one-way. Removing the app
-from `INSTALLED_APPS` removes the feature entirely — nav and routes alike.
+is installed. Register features with the default edition; a feature that should only
+appear in an extended edition registers with `edition=EDITION_EXTENDED` and is
+checked with `core.features.is_enabled()` at route or view boundaries.
+`CLI2UI_EDITION` is a local switch so edition checks have one home. Such apps reach the database
+through engine primitives like `PostgresEngine.whatif_cursor()` and depend on
+`core` one-way. Removing the app from `INSTALLED_APPS` removes the feature
+entirely — nav and routes alike.
 
 The frontend is **htmx + Alpine.js** (CDN, no build step): a click does an
 `hx-get`/`hx-post` that swaps in server-rendered HTML.

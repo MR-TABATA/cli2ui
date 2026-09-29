@@ -1,14 +1,17 @@
 """Template context processors."""
 from cli2ui import __version__
 
-from .features import enabled
+from .features import current_edition, enabled
 
 
 def features(request):
     """Expose the set of registered optional features so nav templates can show
     a panel's buttons only when its app is installed:
     `{% if 'planner_lab' in enabled_features %}`."""
-    return {"enabled_features": enabled()}
+    return {
+        "cli2ui_edition": current_edition(),
+        "enabled_features": enabled(),
+    }
 
 
 def version(request):

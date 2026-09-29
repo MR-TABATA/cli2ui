@@ -3,11 +3,17 @@ DDL rehearsal, the engine whatif_cursor primitive all three ride on, and the
 feature flag."""
 import unittest
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 
 from core.engines import EngineError, get_engine
 from core.engines.postgres import _parse_plan
-from core.features import enabled
+from core.features import (
+    EDITION_EXTENDED,
+    current_edition,
+    enabled,
+    is_enabled,
+    register,
+)
 # Reuse the core test fixtures (plan helpers + the sample DB).
 # expect() only exists when playwright is installed; the E2E class below is
 # skipped without it, so a stub keeps the module importable either way.
@@ -69,6 +75,24 @@ class FeatureFlagTests(SimpleTestCase):
         # The AppConfig.ready() hook registered the feature key on startup; the
         # nav templates and URLconf key off this.
         self.assertIn("planner_lab", enabled())
+
+    @override_settings(CLI2UI_EDITION="community")
+    def test_extended_feature_is_registered_but_not_enabled_for_community(self):
+        register("_test_extended_panel_off", edition=EDITION_EXTENDED)
+
+        self.assertNotIn("_test_extended_panel_off", enabled())
+        self.assertFalse(is_enabled("_test_extended_panel_off"))
+
+    @override_settings(CLI2UI_EDITION="extended")
+    def test_extended_feature_is_enabled_for_extended(self):
+        register("_test_extended_panel_on", edition=EDITION_EXTENDED)
+
+        self.assertIn("_test_extended_panel_on", enabled())
+        self.assertTrue(is_enabled("_test_extended_panel_on"))
+
+    @override_settings(CLI2UI_EDITION="typo")
+    def test_unknown_edition_falls_back_to_community(self):
+        self.assertEqual(current_edition(), "community")
 
 
 @unittest.skipUnless(_sampledb_reachable(), "sample DB not reachable on localhost:5433")
