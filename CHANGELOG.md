@@ -17,6 +17,45 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Added
+
+- **Hosted mode: a guard for the day cli2ui is reached from outside your own
+  machine.** `CLI2UI_HOSTED=1` switches it on; unset, none of it runs and local
+  use is exactly as before. It is a guard against misconfiguration, not a promise
+  that cli2ui is safe on the public internet — there are still no user accounts.
+  Four parts, described in [README.HOSTED.md](README.HOSTED.md) (日本語:
+  [README.HOSTED.ja.md](README.HOSTED.ja.md)):
+  - **It refuses to start on an unsafe setup** — `DEBUG` on, the built-in
+    `SECRET_KEY`, `ALLOWED_HOSTS=*`, no public `https://` CSRF origin, or no
+    declaration of how access is protected (`CLI2UI_HOSTED_AUTH=proxy`, or
+    `basic` for a built-in HTTP Basic login). `python manage.py check_hosted`
+    lists every problem without starting the server; `runserver`, `manage.py
+    check` and wsgi all stop on the same errors.
+  - **Dangerous operations are off until you name them.** Write-mode SQL, DDL,
+    role and database administration, `ALTER SYSTEM`, cancelling/killing
+    sessions, import/dump/export and adding or deleting connections answer `403`
+    and their buttons are removed from the page. `CLI2UI_HOSTED_ALLOW=write_sql,ddl`
+    turns each back on by name. Reads always work.
+  - **A target-database allowlist.** `CLI2UI_HOSTED_TARGETS` lists the
+    `host:port` pairs cli2ui may connect to (empty refuses everything), and what a
+    name resolves to must be a public address — loopback, link-local (cloud
+    metadata) and private ranges are refused unless listed in
+    `CLI2UI_HOSTED_PRIVATE_NETS`. The connection then goes to the vetted IP
+    rather than a second DNS lookup, so DNS cannot re-point an allowed name; this
+    covers the drivers and the `pg_dump` / `psql` / `mysqldump` / `mysql`
+    child processes alike.
+  - **Per-IP rate limits** — 120 requests a minute overall, 30 for non-GET, 20
+    for the SQL runner and EXPLAIN — counted before authentication so password
+    guessing is throttled too. `X-Forwarded-For` is believed only from
+    `CLI2UI_HOSTED_TRUSTED_PROXIES` and read from the right, so entries a client
+    invents cannot dodge the limit. The counters are per process; with several
+    workers the limit is per worker.
+
+  `CLI2UI_ALLOWED_HOSTS` and `CLI2UI_SECURE_COOKIES` are new env vars alongside
+  it (unset, `ALLOWED_HOSTS` stays permissive as before).
+  `scripts/verify_hosted.sh` checks all of the above end to end against a real
+  server; `scripts/run_hosted.sh` starts a hosted instance and opens the browser.
+
 ## [1.10.0] - 2026-09-21
 
 ### Added
