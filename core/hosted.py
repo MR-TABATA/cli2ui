@@ -18,6 +18,7 @@ from django.conf import settings
 from django.core.checks import Error, Tags, Warning as CheckWarning, register
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponse
+from django.utils.translation import gettext as _, gettext_noop
 
 DEFAULT_SECRET_KEY = "dev-insecure-key-change-me-for-anything-public"
 MIN_SECRET_KEY_LENGTH = 50
@@ -27,14 +28,14 @@ AUTH_BASIC = "basic"
 
 # Every capability that is off in hosted mode until CLI2UI_HOSTED_ALLOW names it.
 CAPABILITIES = {
-    "write_sql": "SQL runner write mode",
-    "ddl": "table / column / index / schema changes",
-    "role_admin": "role create / alter / delete",
-    "database_admin": "database create / drop / rename / restore, backup restore",
-    "server_settings": "server settings (ALTER SYSTEM)",
-    "session_control": "cancel / kill sessions, replication slots",
-    "data_transfer": "import, dump and export of data",
-    "connection_admin": "add / delete saved connections",
+    "write_sql": gettext_noop("SQL runner write mode"),
+    "ddl": gettext_noop("table / column / index / schema changes"),
+    "role_admin": gettext_noop("role create / alter / delete"),
+    "database_admin": gettext_noop("database create / drop / rename / restore, backup restore"),
+    "server_settings": gettext_noop("server settings (ALTER SYSTEM)"),
+    "session_control": gettext_noop("cancel / kill sessions, replication slots"),
+    "data_transfer": gettext_noop("import, dump and export of data"),
+    "connection_admin": gettext_noop("add / delete saved connections"),
 }
 
 # URL name -> capability. One table gates every method on the route, so a
@@ -229,7 +230,8 @@ class HostedGuardMiddleware:
         cap = _capability_for(request)
         if cap is not None and cap not in allowed():
             return HttpResponse(
-                f"Disabled in hosted mode: {CAPABILITIES[cap]}. "
-                f"Enable with CLI2UI_HOSTED_ALLOW={cap} if you accept the risk.",
+                _("Disabled in hosted mode: %(what)s. "
+                  "Enable with CLI2UI_HOSTED_ALLOW=%(cap)s if you accept the risk.")
+                % {"what": _(CAPABILITIES[cap]), "cap": cap},
                 status=403, content_type="text/plain; charset=utf-8")
         return None

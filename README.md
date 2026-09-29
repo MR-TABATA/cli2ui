@@ -6,7 +6,8 @@ into clicks, running fully on your machine.
 
 > ⚠️ **Local-only by design.** cli2ui has no authentication and binds to your
 > machine. Run it on localhost or inside a trusted network — never expose it to
-> the public internet. See [SECURITY.md](SECURITY.md).
+> the public internet. If you must reach it remotely, read
+> [README.HOSTED.md](README.HOSTED.md) first.
 
 ```
 psql -c "SELECT * FROM pg_stat_activity"   →  one "running queries" button
@@ -247,6 +248,9 @@ what-if features always `ROLLBACK`, CSRF is enforced, and `DEBUG` is off by
 default. The full threat model and static-analysis results live in
 [specs/security-check.md](specs/security-check.md). To report a vulnerability,
 see [SECURITY.md](SECURITY.md).
+
+Need to reach it from another network? See
+[Hosted mode](README.HOSTED.md) ([日本語](README.HOSTED.ja.md)).
 
 ## Local development (without Docker)
 

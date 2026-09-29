@@ -9,7 +9,9 @@ considerably: cli2ui is a trusted local tool sitting next to your database, not 
 multi-tenant service exposed to the internet.
 
 **Do not expose cli2ui to an untrusted network.** It has no user accounts and is
-not designed to be a public endpoint.
+not designed to be a public endpoint. If you must reach it remotely, use
+[hosted mode](README.HOSTED.md) and a network-level
+restriction (VPN, allowlisted IPs) in front.
 
 ## What's already hardened
 
@@ -32,6 +34,16 @@ Even as a local tool, the destructive surface is taken seriously:
 The full threat model and static-analysis results (bandit / pip-audit /
 `check --deploy`) are documented in [specs/security-check.md](specs/security-check.md).
 
+## Hosted mode (exposing it beyond your machine)
+
+`CLI2UI_HOSTED=1` makes cli2ui refuse to start on an unsafe configuration
+(`DEBUG`, default `SECRET_KEY`, `ALLOWED_HOSTS=*`, no public CSRF origin, no
+declared access control) and turns dangerous operations off until each is named
+in `CLI2UI_HOSTED_ALLOW`. It guards against misconfiguration; it is **not** a
+promise that cli2ui is safe on the public internet — there are still no user
+accounts. Details: [README.HOSTED.md](README.HOSTED.md)
+([日本語](README.HOSTED.ja.md)).
+
 ## Reporting a vulnerability
 
 Please report security issues **privately**, not via a public issue:
@@ -53,4 +65,5 @@ credentials.
 
 Out of scope: the SQL runner executing arbitrary SQL you typed (that's the
 feature), and any scenario that assumes cli2ui is deployed as a public,
-multi-user service — that's explicitly unsupported.
+multi-user service — that's explicitly unsupported. Hosted mode reduces
+misconfiguration; it does not change that.

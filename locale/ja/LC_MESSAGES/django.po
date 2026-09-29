@@ -3179,3 +3179,44 @@ msgstr "接続一覧に戻る"
 
 #~ msgid "⚠ No primary key — row order is not guaranteed between pages"
 #~ msgstr "⚠ 主キーが無いため、ページ間で行の順序は保証されません"
+
+#: core/hosted.py
+#, python-format
+msgid ""
+"Disabled in hosted mode: %(what)s. Enable with CLI2UI_HOSTED_ALLOW=%(cap)s if "
+"you accept the risk."
+msgstr ""
+"hosted モードでは無効です: %(what)s。リスクを承知のうえで使うなら "
+"CLI2UI_HOSTED_ALLOW=%(cap)s を設定してください。"
+
+#: core/hosted.py
+msgid "SQL runner write mode"
+msgstr "SQL ランナーの書込モード"
+
+#: core/hosted.py
+msgid "table / column / index / schema changes"
+msgstr "テーブル / 列 / インデックス / スキーマの変更"
+
+#: core/hosted.py
+msgid "role create / alter / delete"
+msgstr "ロールの作成 / 変更 / 削除"
+
+#: core/hosted.py
+msgid "database create / drop / rename / restore, backup restore"
+msgstr "データベースの作成 / 削除 / 改名 / リストア、バックアップの復元"
+
+#: core/hosted.py
+msgid "server settings (ALTER SYSTEM)"
+msgstr "サーバ設定 (ALTER SYSTEM)"
+
+#: core/hosted.py
+msgid "cancel / kill sessions, replication slots"
+msgstr "セッションのキャンセル / kill、レプリケーションスロット"
+
+#: core/hosted.py
+msgid "import, dump and export of data"
+msgstr "データのインポート、ダンプ、エクスポート"
+
+#: core/hosted.py
+msgid "add / delete saved connections"
+msgstr "保存済み接続の追加 / 削除"

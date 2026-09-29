@@ -4355,3 +4355,14 @@ class HostedUiTests(TestCase):
     def test_local_page_has_no_pruning_script(self):
         html = self.client.get("/").content.decode()
         self.assertNotIn("hosted-disabled-paths", html)
+
+
+class HostedGateTranslationTests(TestCase):
+    @override_settings(**_GOOD_HOSTED)
+    def test_403_message_is_japanese_for_ja(self):
+        r = self.client.post("/c/1/table/drop", HTTP_HOST="cli2ui.example.com",
+                             HTTP_ACCEPT_LANGUAGE="ja")
+        self.assertEqual(r.status_code, 403)
+        body = r.content.decode()
+        self.assertIn("hosted モードでは無効", body)
+        self.assertIn("CLI2UI_HOSTED_ALLOW=ddl", body)
