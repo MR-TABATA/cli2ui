@@ -17,6 +17,8 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-01
+
 ### Added
 
 - **Hosted mode: a guard for the day cli2ui is reached from outside your own
@@ -697,7 +699,8 @@ reserved for multi-DB support).
 - Internationalisation (English / Japanese).
 - Workspace overview dashboard and unified UI (design system).
 
-[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.7.0...v1.8.0
