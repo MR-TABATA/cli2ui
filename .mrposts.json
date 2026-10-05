@@ -1,0 +1,9 @@
+{
+  "name": "cli2ui",
+  "files": [
+    {
+      "label": "README",
+      "path": "README.md"
+    }
+  ]
+}
