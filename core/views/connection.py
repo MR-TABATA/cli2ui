@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils import timezone
 
+from .. import hosted
 from ..engines import EngineError, get_engine
 from ..forms import ConnectionForm
 from ..models import Connection
@@ -35,7 +36,7 @@ def index(request):
         "index.html",
         {
             "form": ConnectionForm(initial=SAMPLE_INITIAL),
-            "connections": Connection.objects.all(),
+            "connections": hosted.scope_connections(request, Connection.objects.all()),
         },
     )
 
@@ -91,7 +92,9 @@ def clear_connections(request):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
     keep_pk = request.POST.get("keep")
-    qs = Connection.objects.all()
+    # Only what this request may see: clearing the list must not reach connections
+    # the caller cannot even list.
+    qs = hosted.scope_connections(request, Connection.objects.all())
     if keep_pk:
         qs = qs.exclude(pk=keep_pk)
     qs.delete()
@@ -119,7 +122,7 @@ def workspace(request, pk):
             request,
             "workspace.html",
             {"connection": connection, "tables": [], "error": str(exc),
-             "connections": Connection.objects.all(),
+             "connections": hosted.scope_connections(request, Connection.objects.all()),
              "summary": {}, "commands": 0,
              "snapshots_count": 0, "backups_count": 0},
         )
@@ -127,7 +130,7 @@ def workspace(request, pk):
         request,
         "workspace.html",
         {"connection": connection, "tables": tables,
-         "connections": Connection.objects.all(),
+         "connections": hosted.scope_connections(request, Connection.objects.all()),
          **_overview_context(connection)},
     )
 

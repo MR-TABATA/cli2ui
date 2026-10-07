@@ -4392,6 +4392,204 @@ class HostedGateTests(TestCase):
                                          HTTP_AUTHORIZATION="Basic " + ok).status_code, 200)
 
 
+class HostedExtensionAuthTests(TestCase):
+    """CLI2UI_HOSTED_AUTH=extension: an installed app supplies the login. The
+    gate must fail closed — no authenticator, no access — and an authenticator's
+    own routes may be opened without opening anything else."""
+
+    def setUp(self):
+        from core import hosted
+        self._saved = (hosted._AUTHENTICATOR, set(hosted._OPEN_ROUTES))
+        hosted._AUTHENTICATOR = None
+        self.addCleanup(self._restore)
+
+    def _restore(self):
+        from core import hosted
+        hosted._AUTHENTICATOR, opens = self._saved
+        hosted._OPEN_ROUTES.clear()
+        hosted._OPEN_ROUTES.update(opens)
+
+    def _get(self, path="/"):
+        return self.client.get(path, HTTP_HOST="cli2ui.example.com")
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_AUTH": "extension"})
+    def test_preflight_refuses_extension_auth_without_an_authenticator(self):
+        from core import hosted
+        self.assertIn("AUTH", {x.id for x in hosted.preflight() if x.level == "error"})
+        hosted.register_authenticator(lambda request: None)
+        self.assertNotIn("AUTH", {x.id for x in hosted.preflight() if x.level == "error"})
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_AUTH": "extension"})
+    def test_without_an_authenticator_nothing_is_served(self):
+        self.assertEqual(self._get().status_code, 503)
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_AUTH": "extension"})
+    def test_the_authenticator_decides_every_request(self):
+        from django.http import HttpResponse
+        from core import hosted
+        calls = []
+
+        def gate(request):
+            calls.append(request.path)
+            return None if request.headers.get("X-Let-Me-In") == "yes" else HttpResponse("no", status=401)
+
+        hosted.register_authenticator(gate)
+        self.assertEqual(self._get().status_code, 401)
+        self.assertEqual(self.client.get("/", HTTP_HOST="cli2ui.example.com",
+                                         HTTP_X_LET_ME_IN="yes").status_code, 200)
+        self.assertEqual(calls, ["/", "/"])
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_AUTH": "extension"})
+    def test_an_authenticator_that_raises_stops_the_request(self):
+        from core import hosted
+
+        def broken(request):
+            raise RuntimeError("boom")
+
+        hosted.register_authenticator(broken)
+        with self.assertRaises(RuntimeError):
+            self._get()
+
+    def test_a_second_authenticator_is_an_error_not_a_replacement(self):
+        from django.core.exceptions import ImproperlyConfigured
+        from core import hosted
+        hosted.register_authenticator(lambda request: None)
+        with self.assertRaises(ImproperlyConfigured):
+            hosted.register_authenticator(lambda request: None)
+
+    def test_a_core_route_cannot_be_opened(self):
+        from core import hosted
+        with self.assertRaises(ValueError):
+            hosted.declare_open_route("table_drop")
+
+    @override_settings(**_GOOD_HOSTED)
+    def test_opening_a_name_does_not_open_a_core_route(self):
+        # Even if a name leaked into the open set, only an extra app's route
+        # benefits: the core route stays behind its capability.
+        from core import hosted
+        hosted._OPEN_ROUTES.add("table_drop")
+        from core.models import Connection
+        c = Connection.objects.create(name="t", host="h", dbname="d", user="u")
+        from django.urls import reverse
+        r = self.client.post(reverse("table_drop", args=[c.pk]), {}, HTTP_HOST="cli2ui.example.com")
+        self.assertEqual(r.status_code, 403)
+
+
+class HostedAuthorizerTests(TestCase):
+    """The authorizer narrows what a signed-in caller may do to a saved connection;
+    the connection scope narrows what they may list. Neither can widen what the
+    deployment switched off."""
+
+    def setUp(self):
+        from core import hosted
+        from core.models import Connection
+        self._saved = (hosted._AUTHORIZER, hosted._CONNECTION_SCOPE)
+        hosted._AUTHORIZER = hosted._CONNECTION_SCOPE = None
+        self.addCleanup(self._restore)
+        self.a = Connection.objects.create(name="A", host="h", dbname="d", user="u")
+        self.b = Connection.objects.create(name="B", host="h", dbname="d", user="u")
+
+    def _restore(self):
+        from core import hosted
+        hosted._AUTHORIZER, hosted._CONNECTION_SCOPE = self._saved
+
+    def _install(self, answer=True):
+        from core import hosted
+        calls = []
+
+        def authorizer(request, capability, connection_pk):
+            calls.append((capability, connection_pk))
+            return answer(capability, connection_pk) if callable(answer) else answer
+
+        hosted.register_authorizer(authorizer)
+        return calls
+
+    def _get(self, path):
+        return self.client.get(path, HTTP_HOST="cli2ui.example.com")
+
+    @override_settings(**_GOOD_HOSTED)
+    def test_a_no_stops_a_connection_route_and_a_yes_lets_it_through(self):
+        calls = self._install(lambda cap, pk: pk == self.a.pk)
+        self.assertEqual(self._get(f"/c/{self.b.pk}/").status_code, 403)
+        self.assertNotEqual(self._get(f"/c/{self.a.pk}/").status_code, 403)
+        self.assertEqual(calls, [(None, self.b.pk), (None, self.a.pk)])
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_ALLOW": frozenset({"ddl"})})
+    def test_it_is_asked_with_the_routes_capability(self):
+        from django.urls import reverse
+        calls = self._install(True)
+        self.client.post(reverse("table_drop", args=[self.a.pk]), {}, HTTP_HOST="cli2ui.example.com")
+        self.assertEqual(calls, [("ddl", self.a.pk)])
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_ALLOW": frozenset({"connection_admin"})})
+    def test_a_route_about_no_connection_is_asked_with_none(self):
+        calls = self._install(True)
+        self.client.post("/connections/clear", {}, HTTP_HOST="cli2ui.example.com")
+        self.assertEqual(calls, [("connection_admin", None)])
+
+    @override_settings(**_GOOD_HOSTED)
+    def test_a_route_about_nothing_is_not_asked(self):
+        calls = self._install(False)
+        self.assertEqual(self._get("/").status_code, 200)
+        self.assertEqual(calls, [])
+
+    @override_settings(**_GOOD_HOSTED)
+    def test_it_never_widens_what_the_deployment_switched_off(self):
+        from django.urls import reverse
+        calls = self._install(True)              # says yes to everything
+        r = self.client.post(reverse("table_drop", args=[self.a.pk]), {}, HTTP_HOST="cli2ui.example.com")
+        self.assertEqual(r.status_code, 403)     # ddl is off here
+        self.assertEqual(calls, [])              # and it was never even asked
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED": False})
+    def test_outside_hosted_mode_nothing_is_asked(self):
+        calls = self._install(False)
+        self.assertNotEqual(self._get(f"/c/{self.a.pk}/").status_code, 403)
+        self.assertEqual(calls, [])
+
+    @override_settings(**_GOOD_HOSTED)
+    def test_an_authorizer_that_raises_stops_the_request(self):
+        def broken(cap, pk):
+            raise RuntimeError("boom")
+        self._install(broken)
+        with self.assertRaises(RuntimeError):
+            self._get(f"/c/{self.a.pk}/")
+
+    def test_a_second_authorizer_or_scope_is_an_error(self):
+        from django.core.exceptions import ImproperlyConfigured
+        from core import hosted
+        hosted.register_authorizer(lambda r, c, p: True)
+        with self.assertRaises(ImproperlyConfigured):
+            hosted.register_authorizer(lambda r, c, p: True)
+        hosted.register_connection_scope(lambda r, qs: qs)
+        with self.assertRaises(ImproperlyConfigured):
+            hosted.register_connection_scope(lambda r, qs: qs)
+
+    @override_settings(**_GOOD_HOSTED)
+    def test_the_landing_page_lists_only_the_scoped_connections(self):
+        from core import hosted
+        hosted.register_connection_scope(lambda request, qs: qs.filter(pk=self.a.pk))
+        body = self._get("/").content.decode()
+        self.assertIn(f"/c/{self.a.pk}/", body)
+        self.assertNotIn(f"/c/{self.b.pk}/", body)
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED": False})
+    def test_outside_hosted_mode_the_scope_is_not_applied(self):
+        from core import hosted
+        hosted.register_connection_scope(lambda request, qs: qs.none())
+        body = self._get("/").content.decode()
+        self.assertIn(f"/c/{self.a.pk}/", body)
+
+    @override_settings(**{**_GOOD_HOSTED, "CLI2UI_HOSTED_ALLOW": frozenset({"connection_admin"})})
+    def test_clearing_the_list_reaches_only_what_the_caller_may_see(self):
+        from core import hosted
+        from core.models import Connection
+        hosted.register_connection_scope(lambda request, qs: qs.filter(pk=self.a.pk))
+        self.client.post("/connections/clear", {}, HTTP_HOST="cli2ui.example.com")
+        self.assertFalse(Connection.objects.filter(pk=self.a.pk).exists())
+        self.assertTrue(Connection.objects.filter(pk=self.b.pk).exists())
+
+
 class HostedUiTests(TestCase):
     @override_settings(**_GOOD_HOSTED)
     def test_page_carries_disabled_paths(self):

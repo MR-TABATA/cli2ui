@@ -31,6 +31,7 @@ MIN_SECRET_KEY_LENGTH = 50
 MIN_BASIC_PASSWORD_LENGTH = 12
 AUTH_PROXY = "proxy"
 AUTH_BASIC = "basic"
+AUTH_EXTENSION = "extension"   # an installed app supplies the login (see register_authenticator)
 
 # Every capability that is off in hosted mode until CLI2UI_HOSTED_ALLOW names it.
 CAPABILITIES = {
@@ -90,6 +91,95 @@ def declare_capability(url_name: str, capability: str, description: str | None =
             raise ValueError(f"A new capability {capability!r} needs a description.")
         _EXTRA_CAPABILITIES[capability] = description
     _DECLARED_ROUTES[url_name] = capability
+
+
+# A route that must stay reachable without any capability being allowed — the
+# login page of an authenticator, which has to work before anyone is let in. Only
+# routes of apps in CLI2UI_EXTRA_APPS may be declared; a core route cannot be opened.
+_OPEN_ROUTES: set[str] = set()
+
+
+def declare_open_route(url_name: str) -> None:
+    """Exempt a route of an extra app from capability gating (and from the
+    default deny of undeclared state-changing routes). Call it from
+    ``AppConfig.ready()``. This does not exempt it from authentication."""
+    if url_name in ROUTE_CAPABILITY:
+        raise ValueError(f"{url_name!r} is a core route and cannot be opened.")
+    _OPEN_ROUTES.add(url_name)
+
+
+# The one function that decides who may use cli2ui when CLI2UI_HOSTED_AUTH=extension.
+# It receives the request and returns None to let it through, or a response
+# (a login redirect, a 401) to stop it. It runs before every route, including its
+# own login page — so it must let that page through itself. An exception stops the
+# request: access fails closed.
+_AUTHENTICATOR = None
+
+
+def register_authenticator(func) -> None:
+    """Install the request gate used by CLI2UI_HOSTED_AUTH=extension. Call it from
+    ``AppConfig.ready()``. One authenticator only: a second registration is an
+    error, not a silent replacement of the first."""
+    global _AUTHENTICATOR
+    if _AUTHENTICATOR is not None and _AUTHENTICATOR is not func:
+        raise ImproperlyConfigured("An authenticator is already registered.")
+    _AUTHENTICATOR = func
+
+
+def authenticator():
+    return _AUTHENTICATOR
+
+
+# Who may do what to which saved connection. Authentication says who is calling;
+# this says what they may touch. Two functions, both optional and both installed by
+# an app that knows the answer:
+#
+#   authorizer(request, capability, connection_pk) -> bool
+#       Asked after the hosted capability check passed (so it can only narrow, never
+#       widen: a capability that is off for the deployment stays off for everyone).
+#       ``capability`` is the route's capability name, or None for a plain read.
+#       ``connection_pk`` is the saved connection a /c/<pk>/... route is about, or
+#       None for a route that is not about one (creating a connection, clearing the list).
+#   connection_scope(request, queryset) -> queryset
+#       Narrows a list of saved connections to the ones this request may see.
+#
+# Not installed, or not hosted: nothing is narrowed. Installed: a False answer, or
+# an exception, stops the request.
+_AUTHORIZER = None
+_CONNECTION_SCOPE = None
+
+
+def register_authorizer(func) -> None:
+    global _AUTHORIZER
+    if _AUTHORIZER is not None and _AUTHORIZER is not func:
+        raise ImproperlyConfigured("An authorizer is already registered.")
+    _AUTHORIZER = func
+
+
+def register_connection_scope(func) -> None:
+    global _CONNECTION_SCOPE
+    if _CONNECTION_SCOPE is not None and _CONNECTION_SCOPE is not func:
+        raise ImproperlyConfigured("A connection scope is already registered.")
+    _CONNECTION_SCOPE = func
+
+
+def scope_connections(request, queryset):
+    """The saved connections this request may see (all of them unless an app
+    installed a scope and hosted mode is on)."""
+    if is_hosted() and _CONNECTION_SCOPE is not None:
+        return _CONNECTION_SCOPE(request, queryset)
+    return queryset
+
+
+def _connection_pk(request, view_kwargs):
+    """The saved connection a route is about: the ``pk`` of a /c/<int:pk>/... route.
+    (Every integer in the core's and the plug-ins' routes is that; any other route
+    with a ``pk`` is not taken to be one.)"""
+    match = request.resolver_match
+    route = getattr(match, "route", "") or ""
+    if route.startswith("c/<int:pk>") and "pk" in view_kwargs:
+        return view_kwargs["pk"]
+    return None
 
 
 def all_capabilities() -> dict:
@@ -178,10 +268,15 @@ def preflight() -> list:
             err("CSRF_TRUSTED_ORIGINS", f"Public origin {o} is not https://.")
 
     auth = getattr(settings, "CLI2UI_HOSTED_AUTH", "")
-    if auth not in (AUTH_PROXY, AUTH_BASIC):
+    if auth not in (AUTH_PROXY, AUTH_BASIC, AUTH_EXTENSION):
         err("AUTH", "cli2ui has no login of its own. Declare how access is protected: "
                     "CLI2UI_HOSTED_AUTH=proxy (a reverse proxy / VPN in front authenticates) or =basic "
-                    "(built-in HTTP Basic; also set CLI2UI_HOSTED_BASIC_USER / _PASSWORD).")
+                    "(built-in HTTP Basic; also set CLI2UI_HOSTED_BASIC_USER / _PASSWORD) or =extension "
+                    "(an installed app supplies the login).")
+    elif auth == AUTH_EXTENSION:
+        if _AUTHENTICATOR is None:
+            err("AUTH", "CLI2UI_HOSTED_AUTH=extension, but no installed app has registered a login. "
+                        "Add the app to CLI2UI_EXTRA_APPS (and enable its edition).")
     elif auth == AUTH_BASIC:
         if not getattr(settings, "CLI2UI_HOSTED_BASIC_USER", ""):
             err("AUTH", "CLI2UI_HOSTED_AUTH=basic needs CLI2UI_HOSTED_BASIC_USER.")
@@ -286,6 +381,8 @@ def _capability_for(request):
     match = request.resolver_match
     if match is None:
         return None
+    if match.url_name in _OPEN_ROUTES and _is_extra_route(match):
+        return None
     cap = _route_capabilities().get(match.url_name)
     if cap is None and match.url_name == "query_run" and request.POST.get("write"):
         cap = "write_sql"
@@ -304,6 +401,12 @@ class HostedGuardMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        if is_hosted() and getattr(settings, "CLI2UI_HOSTED_AUTH", "") == AUTH_EXTENSION:
+            if _AUTHENTICATOR is None:      # preflight refuses this; here it stays shut regardless
+                return HttpResponse("Authentication is not available.", status=503, content_type="text/plain")
+            denied = _AUTHENTICATOR(request)
+            if denied is not None:
+                return denied
         if is_hosted() and getattr(settings, "CLI2UI_HOSTED_AUTH", "") == AUTH_BASIC and not _basic_ok(request):
             resp = HttpResponse("Authentication required.", status=401, content_type="text/plain")
             resp["WWW-Authenticate"] = 'Basic realm="cli2ui", charset="UTF-8"'
@@ -325,6 +428,13 @@ class HostedGuardMiddleware:
                   "Enable with CLI2UI_HOSTED_ALLOW=%(cap)s if you accept the risk.")
                 % {"what": _(all_capabilities()[cap]), "cap": cap},
                 status=403, content_type="text/plain; charset=utf-8")
+        if _AUTHORIZER is not None:
+            pk = _connection_pk(request, view_kwargs)
+            # A route about no connection and needing no capability (the landing
+            # page, language switch) has nothing to ask about.
+            if (pk is not None or cap is not None) and not _AUTHORIZER(request, cap, pk):
+                return HttpResponse(_("You do not have access to this."),
+                                    status=403, content_type="text/plain; charset=utf-8")
         return None
 
 

@@ -32,6 +32,25 @@
 - 追加アプリのルートかどうかは、view のモジュール名と、申告済みのルート名の両方で判定する(デコレータが `__module__` を落としても漏れない)。
 - 忘れても「開く」ではなく「閉じる」側に倒れる。
 
+### ⑥ 認証の差し込み(`CLI2UI_HOSTED_AUTH=extension`) — 実装済(未コミット)
+- 追加アプリが `core.hosted.register_authenticator(func)` で関数を 1 つ登録する。`func(request)` は通すなら `None`、止めるなら応答を返す。
+  hosted で `CLI2UI_HOSTED_AUTH=extension` のとき、全リクエストの最初(HostedGuardMiddleware)で呼ぶ。例外は握りつぶさず、そのリクエストは通らない(閉じる側)。
+- 登録が無いまま `extension` を宣言すると、起動前の検査(`check_hosted` / `enforce`)が AUTH のエラーで止める。念のため、実行時も 503 で閉じる。
+- 登録は 1 つだけ。2 つ目は黙って置き換えず `ImproperlyConfigured`。
+- 追加アプリのログイン画面は、許可が要る機能(`CLI2UI_HOSTED_ALLOW`)に数えられない。`declare_open_route(url_name)` で、その追加アプリのルートだけを
+  能力判定から外せる(コアのルートは開けない)。認証そのものは外さない — 通すかどうかは認証関数が決める。
+- コアは差し込まれるものの名前を知らない。ユーザーの保管・セッション・画面は追加アプリ側にある。
+
+### ⑦ 認可の差し込み(接続ごとの権限) — 実装済(未コミット)
+- 追加アプリが `core.hosted.register_authorizer(func)` と `register_connection_scope(func)` を登録する。どちらも省略でき、1 つだけ。2 つ目は `ImproperlyConfigured`。
+  - `authorizer(request, capability, connection_pk) -> bool`: hosted の機能の判定(`CLI2UI_HOSTED_ALLOW`)に通った**あと**で呼ぶ。つまり**狭めることはできるが、広げることはできない**。
+    `capability` はルートの機能名(読み取りだけなら `None`)、`connection_pk` は `/c/<int:pk>/...` のルートの接続。接続に関係しないルート(接続の追加、一覧の消去)は `None`。
+    機能も接続も無いルート(トップページなど)は聞かない。False か例外で、そのリクエストは通らない。
+  - `connection_scope(request, queryset) -> queryset`: 保存済み接続の一覧(トップページ、ワークスペースの切り替え、「一覧を消す」)を、見てよいものだけに絞る。
+- hosted でなければ、どちらも使わない(手元の使い方は変わらない)。
+- 判定は URL で効く(ミドルウェアの `process_view`)。画面のボタンを消すだけの守りにはしていない。
+- コアは差し込まれるものの名前を知らない。誰に何を許すか(ユーザー・グループ・付与の表・管理画面)は追加アプリ側にある。
+
 ## 決定事項
 - 名前は `CLI2UI_EXTRA_APPS`。pip の自動発見(entry points)はしない。
 - `planner_lab` は今回は触らない(動いているものを載せ替えない)。
