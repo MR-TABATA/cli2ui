@@ -37,13 +37,24 @@ Versioning convention for this project:
   inactive slot is highlighted; a slot with no restart LSN shows "—", not 0. It
   is the usual measure, so a brand-new slot shows what was written since the last
   checkpoint (WAL the server keeps for crash recovery anyway). Postgres only.
-- **Saved connection passwords can be encrypted at rest.** Off by default (cli2ui is a
-  local, single-user tool and nothing changes for you). An app can install a codec
-  (`core/secret_store.py`); the password column is then written encrypted and read back
-  decrypted, and rows saved earlier stay readable and are encrypted the next time they are
-  saved. A stored password that cannot be decrypted is never handed out as if it were the
-  secret. Hosted mode now warns while passwords are still plain text. The column type
-  changes (migration 0008); no data is touched.
+- **Saved connection passwords are now encrypted at rest — always.** The password of a saved
+  connection was kept in plain text in the management database; it is now encrypted (Fernet)
+  when it is written and decrypted only when a connection is opened. The key comes from
+  `CLI2UI_SECRET_KEYS` if set (several keys, newest first, are how a key is rotated), otherwise
+  from a key file, `secret.key`, created next to the database the first time it is needed and
+  readable by its owner only (in Docker it lands in the `/data` volume). **Upgrading:** migration
+  0009 encrypts the passwords you already have and creates that file — back it up apart from the
+  database, because without it the saved passwords cannot be read and the connections have to be
+  entered again. A missing key file is never silently replaced while encrypted passwords depend
+  on it. A password found stored in plain text is refused when used (saving the connection, or
+  `manage.py encrypt_secrets`, writes it back encrypted). New commands: `generate_secret_key`,
+  `encrypt_secrets` (`--check` changes nothing and fails on plain text). Hosted mode warns while
+  the key is a file next to the database. An app can replace the encryption with its own.
+- **A saved connection's password can be a reference instead of the password.** Type
+  `secret://<scheme>/<name>`; it is looked up when the connection is used, by a resolver an
+  app registers for that scheme, so the database holds no password at all. References are
+  stored as typed, never resolved when saving, and one that cannot be resolved is never handed
+  out as the password. Which schemes exist is up to the app that registers them.
 - **Hosted mode: hooks for an app that supplies the login and per-connection permissions.**
   `CLI2UI_HOSTED_AUTH=extension` hands every request to a login function an installed app
   registers (nothing registered: the server refuses to start); an authorizer can narrow what a

@@ -249,6 +249,16 @@ default. The full threat model and static-analysis results live in
 [specs/security-check.md](specs/security-check.md). To report a vulnerability,
 see [SECURITY.md](SECURITY.md).
 
+**Saved passwords are encrypted.** The password of a saved connection is never stored in
+plain text: it is encrypted (Fernet) in the management database and decrypted only when a
+connection is opened. The key is a file, `secret.key`, created next to `db.sqlite3` the first
+time it is needed (in Docker, in the `/data` volume), readable by its owner only — or the keys
+you put in `CLI2UI_SECRET_KEYS` (`python manage.py generate_secret_key` makes one). A database
+file that leaks on its own does not give up the passwords; one that leaks together with its key
+file does, so keep them apart when you back up. Lose the key and the saved passwords are gone:
+the connections have to be entered again. `python manage.py encrypt_secrets` encrypts anything
+still in plain text and re-encrypts the rest with the newest key (how a key is rotated).
+
 Need to reach it from another network? See
 [Hosted mode](README.HOSTED.md) ([日本語](README.HOSTED.ja.md)).
 

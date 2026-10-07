@@ -15,3 +15,5 @@ venv/
 .claude/
 .continue/
 .playwright-mcp/
+
+secret.key

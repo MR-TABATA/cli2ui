@@ -4590,44 +4590,71 @@ class HostedAuthorizerTests(TestCase):
         self.assertTrue(Connection.objects.filter(pk=self.b.pk).exists())
 
 
-class SecretFieldTests(TestCase):
-    """Connection passwords: plain text until a codec is installed, then encrypted at
-    rest and decrypted on use — and never handed out when they cannot be decrypted."""
+class SecretStoreBase(TestCase):
+    """The secret store keeps its keys, codec and resolvers in module globals; give each test a
+    clean slate and put them back after."""
 
     def setUp(self):
+        import os
+        from unittest import mock
         from core import secret_store
-        self._saved = secret_store._CODEC
+        self._saved = (secret_store._CODEC, secret_store._BUILTIN, list(secret_store._EPHEMERAL),
+                       dict(secret_store._RESOLVERS), dict(secret_store._FILE_KEYS))
         secret_store._CODEC = None
+        secret_store._BUILTIN = None
+        secret_store._RESOLVERS.clear()
+        secret_store._FILE_KEYS.clear()
+        env = mock.patch.dict(os.environ)
+        env.start()
+        os.environ.pop(secret_store.KEYS_ENV, None)
+        os.environ.pop("CLI2UI_SECRET_KEY_FILE", None)
+        self.addCleanup(env.stop)
         self.addCleanup(self._restore)
+        import tempfile, shutil
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
 
     def _restore(self):
         from core import secret_store
-        secret_store._CODEC = self._saved
-
-    def _codec(self):
-        from core import secret_store
-        secret_store.register_codec(lambda s: s[::-1], lambda s: s[::-1])   # a toy, reversible
-
-    def _raw(self, pk):
-        from django.db import connection
-        with connection.cursor() as cur:
-            cur.execute("SELECT password FROM core_connection WHERE id = %s", [pk])
-            return cur.fetchone()[0]
+        (secret_store._CODEC, secret_store._BUILTIN, eph, res, files) = self._saved
+        secret_store._EPHEMERAL[:] = eph
+        secret_store._RESOLVERS.clear()
+        secret_store._RESOLVERS.update(res)
+        secret_store._FILE_KEYS.clear()
+        secret_store._FILE_KEYS.update(files)
 
     def _make(self, password="s3cret!"):
         from core.models import Connection
         return Connection.objects.create(name="t", host="h", dbname="d", user="u", password=password)
 
-    def test_without_a_codec_nothing_changes(self):
-        conn = self._make()
-        self.assertEqual(self._raw(conn.pk), "s3cret!")
+    def _raw(self, pk):
         from core.models import Connection
-        self.assertEqual(Connection.objects.get(pk=conn.pk).password, "s3cret!")
+        return str(dict(Connection.objects.values_list("pk", "password"))[pk])
 
-    def test_with_a_codec_the_database_holds_no_plain_text(self):
+    def _insert_plain(self, password="old-plain"):
+        """A row as an older version left it: written straight to the table, in plain text."""
+        from django.db import connection
+        from core.models import Connection
+        conn = self._make("")
+        with connection.cursor() as cur:
+            cur.execute("UPDATE core_connection SET password = %s WHERE id = %s", [password, conn.pk])
+        return conn
+
+    def _key_file(self, lines=None):
+        import os
+        path = os.path.join(self.tmp, "secret.key")
+        if lines is not None:
+            with open(path, "w") as handle:
+                handle.write("\n".join(lines) + "\n")
+        return path
+
+
+class SecretFieldTests(SecretStoreBase):
+    """A saved password is never stored in plain text."""
+
+    def test_the_database_holds_ciphertext_and_the_app_reads_plain_text(self):
         from core import secret_store
         from core.models import Connection
-        self._codec()
         conn = self._make()
         raw = self._raw(conn.pk)
         self.assertTrue(raw.startswith(secret_store.PREFIX))
@@ -4635,64 +4662,339 @@ class SecretFieldTests(TestCase):
         self.assertEqual(conn.password, "s3cret!")
         self.assertEqual(Connection.objects.get(pk=conn.pk).password, "s3cret!")
 
+    def test_the_same_password_is_stored_differently_each_time(self):
+        self.assertNotEqual(self._raw(self._make().pk), self._raw(self._make().pk))
+
     def test_an_empty_password_stays_empty(self):
-        self._codec()
-        conn = self._make(password="")
+        conn = self._make("")
         self.assertEqual(self._raw(conn.pk), "")
         self.assertEqual(conn.password, "")
 
-    def test_a_row_written_before_the_codec_is_still_read_and_encrypted_on_save(self):
+    def test_a_long_password_fits(self):
+        from core.models import Connection
+        conn = self._make("p" * 255)
+        self.assertEqual(Connection.objects.get(pk=conn.pk).password, "p" * 255)
+
+    def test_a_plain_text_row_is_not_used_but_is_encrypted_when_saved(self):
         from core import secret_store
         from core.models import Connection
-        conn = self._make("old-plain")
-        self._codec()
-        again = Connection.objects.get(pk=conn.pk)
-        self.assertEqual(again.password, "old-plain")
-        again.save()
+        conn = self._insert_plain()
+        row = Connection.objects.get(pk=conn.pk)
+        with self.assertRaises(secret_store.SecretUnavailable) as ctx:
+            row.password
+        self.assertNotIn("old-plain", str(ctx.exception))
+        row.name = "renamed"
+        row.save()
         self.assertTrue(self._raw(conn.pk).startswith(secret_store.PREFIX))
         self.assertEqual(Connection.objects.get(pk=conn.pk).password, "old-plain")
 
-    def test_an_encrypted_row_without_a_codec_is_not_handed_out(self):
-        from core import secret_store
+    def test_a_password_just_typed_in_is_usable_before_it_is_saved(self):
         from core.models import Connection
-        self._codec()
-        conn = self._make()
-        secret_store._CODEC = None                       # the key is gone
-        loaded = Connection.objects.get(pk=conn.pk)      # loading and listing still work
-        self.assertEqual(loaded.name, "t")
-        self.assertEqual(list(Connection.objects.values_list("name", flat=True)), ["t"])
-        with self.assertRaises(secret_store.SecretUnavailable):
-            loaded.password
-        Connection.objects.filter(pk=conn.pk).update(name="renamed")     # unrelated updates work
-        with self.assertRaises(secret_store.SecretUnavailable):
-            loaded.save()                                # but saving would have to re-encrypt it
+        conn = Connection(name="t", host="h", dbname="d", user="u", password="typed-in")
+        self.assertEqual(conn.password, "typed-in")        # e.g. to test the connection first
 
-    def test_a_damaged_value_or_a_wrong_key_is_not_handed_out_either(self):
+    def test_a_value_that_cannot_be_decrypted_is_not_handed_out(self):
         from core import secret_store
         from core.models import Connection
-        self._codec()
         conn = self._make()
-        Connection.objects.filter(pk=conn.pk).update(password=secret_store.PREFIX + "x")
-        # the toy codec reverses text and cannot fail; swap in one that does
-        secret_store._CODEC = (lambda s: s, lambda s: (_ for _ in ()).throw(ValueError("bad token")))
+        from cryptography.fernet import Fernet
+        from unittest import mock
+        import os
+        with mock.patch.dict(os.environ, {secret_store.KEYS_ENV: Fernet.generate_key().decode()}):
+            loaded = Connection.objects.get(pk=conn.pk)      # loading and listing still work
+            self.assertEqual(loaded.name, "t")
+            with self.assertRaises(secret_store.SecretUnavailable):
+                loaded.password
+            Connection.objects.filter(pk=conn.pk).update(name="renamed")
+            before = self._raw(conn.pk)
+            loaded.name = "again"
+            loaded.save()                                    # saving keeps the stored value as it is
+            self.assertEqual(self._raw(conn.pk), before)
+
+    def test_a_damaged_value_is_not_handed_out_either(self):
+        from core import secret_store
+        from core.models import Connection
+        conn = self._make()
+        Connection.objects.filter(pk=conn.pk).update(password=secret_store.PREFIX + "garbage")
         with self.assertRaises(secret_store.SecretUnavailable):
             Connection.objects.get(pk=conn.pk).password
 
-    def test_a_second_codec_is_an_error(self):
+
+class SecretKeySourceTests(SecretStoreBase):
+    def test_in_memory_database_uses_a_key_that_lives_as_long_as_the_process(self):
+        from core import secret_store
+        self.assertEqual(secret_store.key_source(), "memory")
+        conn = self._make()
+        secret_store._BUILTIN = None                      # rebuilt: still the same key
+        self.assertEqual(self._make("x").password, "x")
+        self.assertEqual(type(conn).objects.get(pk=conn.pk).password, "s3cret!")
+
+    def test_keys_from_the_environment_win_and_the_first_one_encrypts(self):
+        import os
+        from unittest import mock
+        from cryptography.fernet import Fernet
+        from core import secret_store
+        from core.models import Connection
+        old, new = Fernet.generate_key().decode(), Fernet.generate_key().decode()
+        with mock.patch.dict(os.environ, {secret_store.KEYS_ENV: old}):
+            self.assertEqual(secret_store.key_source(), "env")
+            conn = self._make()
+        with mock.patch.dict(os.environ, {secret_store.KEYS_ENV: f"{new}, {old}"}):     # rotated: new in front
+            self.assertEqual(Connection.objects.get(pk=conn.pk).password, "s3cret!")
+            fresh = self._make("another")
+        with mock.patch.dict(os.environ, {secret_store.KEYS_ENV: new}):                  # old retired
+            self.assertEqual(Connection.objects.get(pk=fresh.pk).password, "another")
+            with self.assertRaises(secret_store.SecretUnavailable):
+                Connection.objects.get(pk=conn.pk).password
+
+    def test_something_that_is_not_a_key_is_refused_with_a_hint(self):
+        import os
+        from unittest import mock
         from django.core.exceptions import ImproperlyConfigured
         from core import secret_store
-        self._codec()
-        secret_store.register_codec(*secret_store._CODEC)             # the same one again is fine
+        with mock.patch.dict(os.environ, {secret_store.KEYS_ENV: "not-a-key"}):
+            with self.assertRaisesMessage(ImproperlyConfigured, "generate_secret_key"):
+                secret_store.encrypt("x")
+
+    def test_a_key_file_is_created_once_for_its_owner_only_and_reused(self):
+        import os
+        from django.test import override_settings
+        from core import secret_store
+        path = self._key_file()
+        with override_settings(CLI2UI_SECRET_KEY_FILE=path):
+            self.assertEqual(secret_store.key_source(), "file")
+            conn = self._make()
+            self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
+            first = open(path).read()
+            secret_store._BUILTIN = None
+            secret_store._FILE_KEYS.clear()
+            self.assertEqual(type(conn).objects.get(pk=conn.pk).password, "s3cret!")
+            self.assertEqual(open(path).read(), first)       # never overwritten
+
+    def test_a_key_file_with_several_keys_encrypts_with_the_first_and_opens_with_all(self):
+        from cryptography.fernet import Fernet
+        from django.test import override_settings
+        from core import secret_store
+        from core.models import Connection
+        old, new = Fernet.generate_key().decode(), Fernet.generate_key().decode()
+        with override_settings(CLI2UI_SECRET_KEY_FILE=self._key_file(["# comment", old])):
+            conn = self._make()
+        secret_store._FILE_KEYS.clear()
+        with override_settings(CLI2UI_SECRET_KEY_FILE=self._key_file([new, old])):
+            self.assertEqual(Connection.objects.get(pk=conn.pk).password, "s3cret!")
+            fresh = self._make("another")
+        secret_store._FILE_KEYS.clear()
+        with override_settings(CLI2UI_SECRET_KEY_FILE=self._key_file([new])):
+            self.assertEqual(Connection.objects.get(pk=fresh.pk).password, "another")
+
+    def test_an_unusable_key_file_is_reported_not_worked_around(self):
+        import os
+        from django.core.exceptions import ImproperlyConfigured
+        from django.test import override_settings
+        from core import secret_store
+        with override_settings(CLI2UI_SECRET_KEY_FILE=self._key_file(["# only a comment"])):
+            with self.assertRaises(secret_store.SecretUnavailable):
+                secret_store.encrypt("x")
+        secret_store._FILE_KEYS.clear()
+        with override_settings(CLI2UI_SECRET_KEY_FILE=self._key_file(["garbage"])):
+            with self.assertRaises(ImproperlyConfigured):
+                secret_store.encrypt("x")
+        blocked = os.path.join(self._key_file(["# x"]), "nested", "secret.key")      # its parent is a file
+        with override_settings(CLI2UI_SECRET_KEY_FILE=blocked):
+            with self.assertRaises(secret_store.SecretUnavailable):
+                secret_store.encrypt("x")
+
+    def test_a_missing_key_file_is_not_replaced_while_passwords_depend_on_it(self):
+        import os
+        from django.test import override_settings
+        from core import secret_store
+        path = self._key_file()
+        with override_settings(CLI2UI_SECRET_KEY_FILE=path):
+            conn = self._make()                              # creates the key file
+            os.remove(path)
+            secret_store._FILE_KEYS.clear()
+            secret_store._BUILTIN = None
+            with self.assertRaisesMessage(secret_store.SecretUnavailable, "missing"):
+                secret_store.encrypt("another")              # asked to encrypt a new password
+            self.assertFalse(os.path.exists(path))           # no new key was made behind your back
+            with self.assertRaises(secret_store.SecretUnavailable):
+                type(conn).objects.get(pk=conn.pk).password
+
+    def test_an_app_can_replace_the_encryption_with_its_own(self):
+        from django.core.exceptions import ImproperlyConfigured
+        from core import secret_store
+        secret_store.register_codec(lambda s: s[::-1], lambda s: s[::-1])
+        self.assertEqual(secret_store.key_source(), "custom")
+        conn = self._make("abc")
+        self.assertEqual(self._raw(conn.pk), secret_store.PREFIX + "cba")
+        secret_store.register_codec(*secret_store._CODEC)             # the same again is fine
         with self.assertRaises(ImproperlyConfigured):
             secret_store.register_codec(lambda s: s, lambda s: s)
 
-    @override_settings(**_GOOD_HOSTED)
-    def test_hosted_preflight_warns_while_passwords_are_plain_text(self):
-        from core import hosted
+    def test_hosted_preflight_warns_while_the_key_sits_next_to_the_database(self):
+        import os
+        from unittest import mock
+        from cryptography.fernet import Fernet
+        from django.test import override_settings
+        from core import hosted, secret_store
         warned = lambda: {x.id for x in hosted.preflight() if x.level == "warning"}
-        self.assertIn("SECRETS", warned())
-        self._codec()
-        self.assertNotIn("SECRETS", warned())
+        with override_settings(**_GOOD_HOSTED):
+            self.assertIn("SECRET_KEY_LOCATION", warned())            # memory/file
+            with mock.patch.dict(os.environ, {secret_store.KEYS_ENV: Fernet.generate_key().decode()}):
+                self.assertNotIn("SECRET_KEY_LOCATION", warned())
+
+
+class SecretCommandTests(SecretStoreBase):
+    def _run(self, *args):
+        import io
+        from django.core.management import call_command
+        out, err = io.StringIO(), io.StringIO()
+        try:
+            call_command(*args, stdout=out, stderr=err)
+        finally:
+            self.out, self.err = out.getvalue(), err.getvalue()
+
+    def test_generate_prints_a_usable_key(self):
+        from cryptography.fernet import Fernet
+        self._run("generate_secret_key")
+        Fernet(self.out.strip().encode())
+
+    def test_encrypt_secrets_encrypts_what_is_plain_text_and_check_says_so(self):
+        from django.core.management import CommandError
+        from core import secret_store
+        from core.models import Connection
+        conn = self._insert_plain()
+        with self.assertRaises(CommandError):
+            self._run("encrypt_secrets", "--check")
+        self.assertEqual(self._raw(conn.pk), "old-plain")          # --check changed nothing
+        self._run("encrypt_secrets")
+        self.assertTrue(self._raw(conn.pk).startswith(secret_store.PREFIX))
+        self.assertEqual(Connection.objects.get(pk=conn.pk).password, "old-plain")
+        self._run("encrypt_secrets", "--check")
+        self.assertIn("encrypted and readable", self.out)
+
+    def test_encrypt_secrets_moves_everything_to_the_newest_key(self):
+        import os
+        from unittest import mock
+        from cryptography.fernet import Fernet
+        from core import secret_store
+        from core.models import Connection
+        old, new = Fernet.generate_key().decode(), Fernet.generate_key().decode()
+        with mock.patch.dict(os.environ, {secret_store.KEYS_ENV: old}):
+            conn = self._make()
+        with mock.patch.dict(os.environ, {secret_store.KEYS_ENV: f"{new},{old}"}):
+            self._run("encrypt_secrets")
+        with mock.patch.dict(os.environ, {secret_store.KEYS_ENV: new}):
+            self.assertEqual(Connection.objects.get(pk=conn.pk).password, "s3cret!")
+
+    def test_an_unreadable_password_is_reported_and_not_overwritten(self):
+        import os
+        from unittest import mock
+        from cryptography.fernet import Fernet
+        from django.core.management import CommandError
+        from core import secret_store
+        conn = self._make()
+        before = self._raw(conn.pk)
+        with mock.patch.dict(os.environ, {secret_store.KEYS_ENV: Fernet.generate_key().decode()}):
+            with self.assertRaises(CommandError):
+                self._run("encrypt_secrets")
+        self.assertIn("Cannot decrypt", self.err)
+        self.assertEqual(self._raw(conn.pk), before)
+
+    def test_references_and_empty_passwords_are_left_alone(self):
+        conn_ref = self._make("secret://env/X")
+        conn_empty = self._make("")
+        self._run("encrypt_secrets")
+        self.assertEqual(self._raw(conn_ref.pk), "secret://env/X")
+        self.assertEqual(self._raw(conn_empty.pk), "")
+
+
+class SecretMigrationTests(SecretStoreBase):
+    def _migration(self):
+        import importlib
+        return importlib.import_module("core.migrations.0009_encrypt_saved_passwords")
+
+    def test_existing_plain_passwords_are_encrypted_and_the_rest_left_alone(self):
+        from unittest import mock
+        from django.apps import apps
+        from core import secret_store
+        plain = self._insert_plain("old-plain")
+        already = self._make("fresh")
+        ref = self._make("secret://env/X")
+        schema_editor = mock.Mock()
+        schema_editor.connection.alias = "default"
+        self._migration().encrypt_existing(apps, schema_editor)
+        self.assertTrue(self._raw(plain.pk).startswith(secret_store.PREFIX))
+        from core.models import Connection
+        self.assertEqual(Connection.objects.get(pk=plain.pk).password, "old-plain")
+        self.assertEqual(Connection.objects.get(pk=already.pk).password, "fresh")
+        self.assertEqual(self._raw(ref.pk), "secret://env/X")
+
+    def test_reversing_writes_them_back_as_plain_text(self):
+        from django.apps import apps
+        from django.db import connection
+        conn = self._make("hello")
+        class Editor:
+            pass
+        editor = Editor()
+        editor.connection = connection
+        self._migration().decrypt_existing(apps, editor)
+        self.assertEqual(self._raw(conn.pk), "hello")
+
+
+class SecretReferenceTests(SecretStoreBase):
+    """A saved password may be a reference — secret://scheme/name — looked up when used,
+    so the database never holds the password."""
+
+    def test_a_reference_is_stored_as_typed(self):
+        conn = self._make("secret://vault/analytics")
+        self.assertEqual(self._raw(conn.pk), "secret://vault/analytics")
+
+    def test_it_is_looked_up_when_used_not_when_loaded(self):
+        from core import secret_store
+        from core.models import Connection
+        calls = []
+        secret_store.register_resolver("vault", lambda name: calls.append(name) or "pw-for-" + name)
+        conn = self._make("secret://vault/analytics")
+        loaded = Connection.objects.get(pk=conn.pk)
+        self.assertEqual(calls, [])
+        self.assertEqual(loaded.password, "pw-for-analytics")
+        self.assertEqual(calls, ["analytics"])
+
+    def test_a_reference_nobody_can_resolve_is_never_returned_as_the_password(self):
+        from core import secret_store
+        from core.models import Connection
+        conn = self._make("secret://vault/analytics")                 # no resolver for vault
+        with self.assertRaises(secret_store.SecretUnavailable):
+            Connection.objects.get(pk=conn.pk).password
+        secret_store.register_resolver("vault", lambda name: (_ for _ in ()).throw(KeyError(name)))
+        with self.assertRaises(secret_store.SecretUnavailable):        # the resolver said no
+            Connection.objects.get(pk=conn.pk).password
+        secret_store._RESOLVERS["vault"] = lambda name: None
+        with self.assertRaises(secret_store.SecretUnavailable):        # and "nothing" is not a password
+            Connection.objects.get(pk=conn.pk).password
+
+    def test_a_malformed_reference_is_unavailable(self):
+        from core import secret_store
+        from core.models import Connection
+        secret_store.register_resolver("vault", lambda name: "x")
+        for bad in ("secret://", "secret://vault", "secret://vault/", "secret:///name"):
+            with self.subTest(ref=bad):
+                conn = self._make(bad)
+                with self.assertRaises(secret_store.SecretUnavailable):
+                    Connection.objects.get(pk=conn.pk).password
+
+    def test_a_scheme_has_one_resolver(self):
+        from django.core.exceptions import ImproperlyConfigured
+        from core import secret_store
+        f = lambda name: "x"
+        secret_store.register_resolver("vault", f)
+        secret_store.register_resolver("vault", f)                    # the same again is fine
+        with self.assertRaises(ImproperlyConfigured):
+            secret_store.register_resolver("vault", lambda name: "y")
+        for bad in ("", "a/b", "a:b"):
+            with self.assertRaises(ValueError):
+                secret_store.register_resolver(bad, f)
 
 
 class HostedUiTests(TestCase):

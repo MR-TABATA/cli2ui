@@ -139,3 +139,9 @@ If you run more than one, also rate-limit at the proxy.
   (`CLI2UI_HOSTED_ALLOW=... scripts/run_hosted.sh` to compare).
 - `scripts/verify_hosted.sh` — end-to-end check of the behaviour above.
 - Design notes: [specs/hosted-mode.md](specs/hosted-mode.md).
+
+## Saved connection passwords
+
+They are encrypted at rest (see the README). For a hosted deployment keep the key out of the
+database's folder: set `CLI2UI_SECRET_KEYS` (make one with `python manage.py generate_secret_key`).
+Until you do, `check_hosted` warns that the key is a file next to the database.
