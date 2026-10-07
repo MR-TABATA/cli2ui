@@ -37,6 +37,18 @@ Versioning convention for this project:
   inactive slot is highlighted; a slot with no restart LSN shows "—", not 0. It
   is the usual measure, so a brand-new slot shows what was written since the last
   checkpoint (WAL the server keeps for crash recovery anyway). Postgres only.
+- **Saved connection passwords can be encrypted at rest.** Off by default (cli2ui is a
+  local, single-user tool and nothing changes for you). An app can install a codec
+  (`core/secret_store.py`); the password column is then written encrypted and read back
+  decrypted, and rows saved earlier stay readable and are encrypted the next time they are
+  saved. A stored password that cannot be decrypted is never handed out as if it were the
+  secret. Hosted mode now warns while passwords are still plain text. The column type
+  changes (migration 0008); no data is touched.
+- **Hosted mode: hooks for an app that supplies the login and per-connection permissions.**
+  `CLI2UI_HOSTED_AUTH=extension` hands every request to a login function an installed app
+  registers (nothing registered: the server refuses to start); an authorizer can narrow what a
+  caller may do to a saved connection, and a scope narrows which saved connections they see.
+  They can only narrow what the deployment allows. Outside hosted mode none of it applies.
 
 ## [1.11.0] - 2026-10-01
 

@@ -4590,6 +4590,111 @@ class HostedAuthorizerTests(TestCase):
         self.assertTrue(Connection.objects.filter(pk=self.b.pk).exists())
 
 
+class SecretFieldTests(TestCase):
+    """Connection passwords: plain text until a codec is installed, then encrypted at
+    rest and decrypted on use — and never handed out when they cannot be decrypted."""
+
+    def setUp(self):
+        from core import secret_store
+        self._saved = secret_store._CODEC
+        secret_store._CODEC = None
+        self.addCleanup(self._restore)
+
+    def _restore(self):
+        from core import secret_store
+        secret_store._CODEC = self._saved
+
+    def _codec(self):
+        from core import secret_store
+        secret_store.register_codec(lambda s: s[::-1], lambda s: s[::-1])   # a toy, reversible
+
+    def _raw(self, pk):
+        from django.db import connection
+        with connection.cursor() as cur:
+            cur.execute("SELECT password FROM core_connection WHERE id = %s", [pk])
+            return cur.fetchone()[0]
+
+    def _make(self, password="s3cret!"):
+        from core.models import Connection
+        return Connection.objects.create(name="t", host="h", dbname="d", user="u", password=password)
+
+    def test_without_a_codec_nothing_changes(self):
+        conn = self._make()
+        self.assertEqual(self._raw(conn.pk), "s3cret!")
+        from core.models import Connection
+        self.assertEqual(Connection.objects.get(pk=conn.pk).password, "s3cret!")
+
+    def test_with_a_codec_the_database_holds_no_plain_text(self):
+        from core import secret_store
+        from core.models import Connection
+        self._codec()
+        conn = self._make()
+        raw = self._raw(conn.pk)
+        self.assertTrue(raw.startswith(secret_store.PREFIX))
+        self.assertNotIn("s3cret!", raw)
+        self.assertEqual(conn.password, "s3cret!")
+        self.assertEqual(Connection.objects.get(pk=conn.pk).password, "s3cret!")
+
+    def test_an_empty_password_stays_empty(self):
+        self._codec()
+        conn = self._make(password="")
+        self.assertEqual(self._raw(conn.pk), "")
+        self.assertEqual(conn.password, "")
+
+    def test_a_row_written_before_the_codec_is_still_read_and_encrypted_on_save(self):
+        from core import secret_store
+        from core.models import Connection
+        conn = self._make("old-plain")
+        self._codec()
+        again = Connection.objects.get(pk=conn.pk)
+        self.assertEqual(again.password, "old-plain")
+        again.save()
+        self.assertTrue(self._raw(conn.pk).startswith(secret_store.PREFIX))
+        self.assertEqual(Connection.objects.get(pk=conn.pk).password, "old-plain")
+
+    def test_an_encrypted_row_without_a_codec_is_not_handed_out(self):
+        from core import secret_store
+        from core.models import Connection
+        self._codec()
+        conn = self._make()
+        secret_store._CODEC = None                       # the key is gone
+        loaded = Connection.objects.get(pk=conn.pk)      # loading and listing still work
+        self.assertEqual(loaded.name, "t")
+        self.assertEqual(list(Connection.objects.values_list("name", flat=True)), ["t"])
+        with self.assertRaises(secret_store.SecretUnavailable):
+            loaded.password
+        Connection.objects.filter(pk=conn.pk).update(name="renamed")     # unrelated updates work
+        with self.assertRaises(secret_store.SecretUnavailable):
+            loaded.save()                                # but saving would have to re-encrypt it
+
+    def test_a_damaged_value_or_a_wrong_key_is_not_handed_out_either(self):
+        from core import secret_store
+        from core.models import Connection
+        self._codec()
+        conn = self._make()
+        Connection.objects.filter(pk=conn.pk).update(password=secret_store.PREFIX + "x")
+        # the toy codec reverses text and cannot fail; swap in one that does
+        secret_store._CODEC = (lambda s: s, lambda s: (_ for _ in ()).throw(ValueError("bad token")))
+        with self.assertRaises(secret_store.SecretUnavailable):
+            Connection.objects.get(pk=conn.pk).password
+
+    def test_a_second_codec_is_an_error(self):
+        from django.core.exceptions import ImproperlyConfigured
+        from core import secret_store
+        self._codec()
+        secret_store.register_codec(*secret_store._CODEC)             # the same one again is fine
+        with self.assertRaises(ImproperlyConfigured):
+            secret_store.register_codec(lambda s: s, lambda s: s)
+
+    @override_settings(**_GOOD_HOSTED)
+    def test_hosted_preflight_warns_while_passwords_are_plain_text(self):
+        from core import hosted
+        warned = lambda: {x.id for x in hosted.preflight() if x.level == "warning"}
+        self.assertIn("SECRETS", warned())
+        self._codec()
+        self.assertNotIn("SECRETS", warned())
+
+
 class HostedUiTests(TestCase):
     @override_settings(**_GOOD_HOSTED)
     def test_page_carries_disabled_paths(self):

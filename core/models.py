@@ -1,4 +1,6 @@
 from django.db import models
+
+from .secret_store import SecretField
 from django.utils import timezone
 
 
@@ -6,8 +8,9 @@ class Connection(models.Model):
     """A saved database connection.
 
     Stored in the local SQLite management DB. Passwords are kept in plaintext
-    on purpose: this is a local-only, single-user tool (no SaaS, no shared
-    server). If that assumption ever changes, encrypt this field first.
+    unless a secret codec is installed (core/secret_store.py): this is a
+    local-only, single-user tool by default. A deployment shared by several
+    people should install one, so the password is encrypted at rest.
     """
 
     KIND_POSTGRES = "postgres"
@@ -36,7 +39,7 @@ class Connection(models.Model):
     port = models.IntegerField(default=5432)
     dbname = models.CharField(max_length=255)
     user = models.CharField(max_length=255)
-    password = models.CharField(max_length=255, blank=True)
+    password = SecretField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     # 「最後に切り替えた／開いた」時刻。workspace 表示のたびに更新する（views.connection.workspace）。
     # 作成時は created_at と同じ値で始め、以後は使うたびに繰り上がる——一番手を付けた接続が

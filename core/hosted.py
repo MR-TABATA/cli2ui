@@ -283,6 +283,11 @@ def preflight() -> list:
         if len(getattr(settings, "CLI2UI_HOSTED_BASIC_PASSWORD", "")) < MIN_BASIC_PASSWORD_LENGTH:
             err("AUTH", f"CLI2UI_HOSTED_BASIC_PASSWORD must be at least {MIN_BASIC_PASSWORD_LENGTH} chars.")
 
+    from . import secret_store
+    if not secret_store.codec_registered():
+        warn("SECRETS", "Saved connection passwords are stored as plain text in the management database. "
+                        "Install an app that encrypts them (see core/secret_store.py) before several people share this.")
+
     unknown = allowed() - set(all_capabilities())
     if unknown:
         err("ALLOW", "Unknown name(s) in CLI2UI_HOSTED_ALLOW: " + ", ".join(sorted(unknown))
