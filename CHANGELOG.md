@@ -30,6 +30,13 @@ Versioning convention for this project:
   view is marked, with a note that Cancel does nothing there and ending the
   session is what lets VACUUM clean up. (Postgres only; MySQL has no
   equivalent.)
+- **Replication slots: how much WAL each one is holding.** A new "Retained WAL"
+  column shows the distance from the slot's restart LSN to the current WAL
+  position, so a slot that has quietly been pinning gigabytes shows up from its
+  first byte — `wal_status` only changes once the slot is already in trouble. An
+  inactive slot is highlighted; a slot with no restart LSN shows "—", not 0. It
+  is the usual measure, so a brand-new slot shows what was written since the last
+  checkpoint (WAL the server keeps for crash recovery anyway). Postgres only.
 
 ## [1.11.0] - 2026-10-01
 

@@ -146,7 +146,8 @@ STANDBYS_SHOW_SQL = (
 
 
 SLOTS_SHOW_SQL = (
-    "SELECT slot_name, slot_type, database, active, restart_lsn, wal_status\n"
+    "SELECT slot_name, slot_type, database, active, restart_lsn, wal_status,\n"
+    "       pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) AS retained_bytes\n"
     "FROM pg_replication_slots ORDER BY slot_name;"
 )
 

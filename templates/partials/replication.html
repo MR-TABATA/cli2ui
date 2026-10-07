@@ -172,6 +172,7 @@
             <th class="px-5 py-2 font-medium">{% trans "Type" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Active" %}</th>
             <th class="px-5 py-2 font-medium">{% trans "Restart LSN" %}</th>
+            <th class="px-5 py-2 font-medium text-right" title="{% trans 'How much WAL the server has to keep because of this slot (from its restart LSN to now)' %}">{% trans "Retained WAL" %}</th>
             <th class="px-5 py-2 font-medium text-right">{% trans "Actions" %}</th>
           </tr>
         </thead>
@@ -191,6 +192,7 @@
                 {% endif %}
               </td>
               <td class="px-5 py-2 mono text-body">{{ sl.restart_lsn|default:"—" }}</td>
+              <td class="px-5 py-2 mono text-right tabular-nums {% if sl.retained_bytes is not None and not sl.active %}text-warn{% else %}text-body{% endif %}">{% if sl.retained_bytes is not None %}{{ sl.retained_bytes|filesizeformat }}{% else %}—{% endif %}</td>
               <td class="px-5 py-2 text-right whitespace-nowrap">
                 <button hx-post="{% url 'slot_drop' connection.pk %}" hx-vals='{"name": "{{ sl.name }}"}'
                         hx-target="#detail" hx-swap="innerHTML"

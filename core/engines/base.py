@@ -607,6 +607,7 @@ class ReplicationSlot:
     active: bool
     restart_lsn: str | None
     wal_status: str | None      # reserved | extended | unreserved | lost
+    retained_bytes: int | None = None   # WAL kept for this slot (restart_lsn → now); None if no restart_lsn
 
 
 @dataclass

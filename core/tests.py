@@ -36,7 +36,7 @@ from core.engines.base import (
     Activity, BlockNode, Blocker, Column, ConnectionHeadroom, DuplicateIndex,
     Extension,
     FKMissingIndex, ForeignKeyEdge, Index, InvalidIndex, JsonbKey, JsonbShape,
-    LockWait, OrphanCandidate, OrphanCount, PlanNode, QueryResult,
+    LockWait, OrphanCandidate, OrphanCount, PlanNode, QueryResult, ReplicationSlot,
     NullSlip,
     NullSlipCount,
     Setting, Standby, Table, build_block_forest, build_dependency_graph,
@@ -1735,6 +1735,17 @@ class DataclassPropertyTests(SimpleTestCase):
         self.assertEqual(oldest_xmin_holder(sessions).pid, 2)
         self.assertIsNone(oldest_xmin_holder([Activity(pid=4, xmin_age=None, **base)]))
         self.assertIsNone(oldest_xmin_holder([]))
+
+    def test_replication_slot_retained_wal_is_optional(self):
+        # No restart_lsn (a freshly created slot that reserved nothing) → unknown,
+        # not zero: "nothing held" and "can't tell" are different statements.
+        slot = ReplicationSlot(name="s", slot_type="physical", database=None,
+                               active=False, restart_lsn=None, wal_status=None)
+        self.assertIsNone(slot.retained_bytes)
+        held = ReplicationSlot(name="s", slot_type="physical", database=None,
+                               active=False, restart_lsn="0/1000", wal_status="reserved",
+                               retained_bytes=3 * 1024**3)
+        self.assertEqual(held.retained_bytes, 3 * 1024**3)
 
     def test_connection_headroom_pct_available_and_levels(self):
         h = ConnectionHeadroom(used=30, max=100, reserved=3)

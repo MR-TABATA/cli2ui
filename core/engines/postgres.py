@@ -885,6 +885,7 @@ class PostgresEngine(Engine):
                     ReplicationSlot(
                         name=row[0], slot_type=row[1], database=row[2],
                         active=row[3], restart_lsn=row[4], wal_status=row[5],
+                        retained_bytes=row[6],
                     )
                     for row in cur.fetchall()
                 ]

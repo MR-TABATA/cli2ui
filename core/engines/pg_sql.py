@@ -235,8 +235,18 @@ ORDER BY pid;
 
 # Replication slots. wal_status flags whether the WAL a slot needs is still
 # kept ('reserved') or has been lost — the headline "is this slot a problem?".
+#
+# retained_bytes is how much WAL the server must keep because of the slot: the
+# distance from the slot's restart_lsn to the current WAL position (the replay
+# position on a standby, where pg_current_wal_lsn() errors). wal_status only
+# changes once the slot is already in trouble; this grows from the first byte, so
+# a slot that has quietly been pinning 3 GB for a week shows up long before it.
 SLOTS_SQL = """
-SELECT slot_name, slot_type, database, active, restart_lsn::text, wal_status
+SELECT slot_name, slot_type, database, active, restart_lsn::text, wal_status,
+       pg_wal_lsn_diff(CASE WHEN pg_is_in_recovery()
+                            THEN pg_last_wal_replay_lsn()
+                            ELSE pg_current_wal_lsn() END,
+                       restart_lsn)::bigint AS retained_bytes
 FROM pg_replication_slots
 ORDER BY slot_name;
 """

@@ -3291,3 +3291,15 @@ msgid ""
 "was taken"
 msgstr ""
 "age(backend_xmin): このセッションが見ている姿が、何トランザクション前のものか"
+
+#: templates/partials/replication.html
+msgid ""
+"How much WAL the server has to keep because of this slot (from its restart "
+"LSN to now)"
+msgstr ""
+"このスロットのために、サーバーが捨てられずに持っている WAL の量"
+"（スロットの再開位置から現在まで）"
+
+#: templates/partials/replication.html
+msgid "Retained WAL"
+msgstr "保持している WAL"
