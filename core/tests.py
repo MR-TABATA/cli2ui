@@ -1714,6 +1714,28 @@ class DataclassPropertyTests(SimpleTestCase):
         self.assertTrue(Activity(blocked_by=[42], **base).blocked)
         self.assertFalse(Activity(blocked_by=[], **base).blocked)
 
+    def test_activity_pins_vacuum_only_when_idle_and_holding_a_snapshot(self):
+        # A running query holds a snapshot for as long as it runs — normal. An idle
+        # session holding one is the leaked-transaction signature, and looks the
+        # same as any other "idle in transaction" in the state column.
+        base = dict(pid=1, user="u", database="d", app=None, client=None,
+                    wait=None, blocked_by=[], query_secs=None, query="")
+        self.assertTrue(Activity(state="idle in transaction", xmin_age=500, **base).pins_vacuum)
+        self.assertFalse(Activity(state="idle in transaction", xmin_age=None, **base).pins_vacuum)
+        self.assertFalse(Activity(state="active", xmin_age=500, **base).pins_vacuum)
+        self.assertFalse(Activity(state="idle", **base).pins_vacuum)
+
+    def test_oldest_xmin_holder_is_the_largest_age(self):
+        from core.engines.base import oldest_xmin_holder
+        base = dict(user="u", database="d", app=None, client=None, state="active",
+                    wait=None, blocked_by=[], query_secs=None, query="")
+        sessions = [Activity(pid=1, xmin_age=10, **base),
+                    Activity(pid=2, xmin_age=9000, **base),
+                    Activity(pid=3, xmin_age=None, **base)]
+        self.assertEqual(oldest_xmin_holder(sessions).pid, 2)
+        self.assertIsNone(oldest_xmin_holder([Activity(pid=4, xmin_age=None, **base)]))
+        self.assertIsNone(oldest_xmin_holder([]))
+
     def test_connection_headroom_pct_available_and_levels(self):
         h = ConnectionHeadroom(used=30, max=100, reserved=3)
         self.assertEqual(h.pct, 30)

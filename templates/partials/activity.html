@@ -49,6 +49,24 @@
     </div>
   {% endif %}
 
+  {% if xmin_holder %}
+    <div class="bg-panel/60 border {% if xmin_holder.pins_vacuum %}border-warn/60{% else %}border-line{% endif %} rounded-xl px-4 py-3">
+      <p class="text-xs text-body">
+        {% trans "Oldest snapshot in use" %}
+        <span class="text-muted">{% trans "— rows updated or deleted since then can't be vacuumed" %}</span>
+      </p>
+      <p class="mt-1 text-xs mono {% if xmin_holder.pins_vacuum %}text-warn{% else %}text-strong{% endif %}">
+        {% blocktrans with pid=xmin_holder.pid user=xmin_holder.user|default:"—" age=xmin_holder.xmin_age %}PID {{ pid }} ({{ user }}) is looking at the database as it was {{ age }} transactions ago{% endblocktrans %}
+        <span class="text-muted">· {{ xmin_holder.state|default:"—" }}</span>
+      </p>
+      {% if xmin_holder.pins_vacuum %}
+        <p class="mt-1 text-[11px] text-body">
+          {% trans "It is not running a query, so nothing needs that old view. Cancel does nothing here; ending the session lets VACUUM clean up." %}
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
+
   {% if sessions %}
     <div class="bg-panel/60 border border-line rounded-xl overflow-hidden">
       <div>
@@ -57,8 +75,9 @@
             <tr class="border-b border-line">
               <th class="px-4 py-2 font-medium w-16">PID</th>
               <th class="px-4 py-2 font-medium w-24">{% trans "User" %}</th>
-              <th class="px-4 py-2 font-medium w-44">{% trans "State" %}</th>
-              <th class="px-4 py-2 font-medium w-20">{% trans "Running" %}</th>
+              <th class="px-4 py-2 font-medium w-56">{% trans "State" %}</th>
+              <th class="px-4 py-2 font-medium w-24">{% trans "Running" %}</th>
+              <th class="px-4 py-2 font-medium w-24" title="{% trans 'age(backend_xmin): how many transactions ago the view held by this session was taken' %}">xmin age</th>
               <th class="px-4 py-2 font-medium">{% trans "Query" %}</th>
               <th class="px-4 py-2 font-medium text-right w-28">{% trans "Actions" %}</th>
             </tr>
@@ -68,20 +87,21 @@
               <tr class="border-b border-line/60 align-top hover:bg-raised/30">
                 <td class="px-4 py-2 mono text-body">{{ s.pid }}</td>
                 <td class="px-4 py-2 mono text-strong whitespace-nowrap">{{ s.user|default:"—" }}</td>
-                <td class="px-4 py-2 whitespace-nowrap">
+                <td class="px-4 py-2">
                   {% if s.state == 'active' %}
-                    <span class="text-[11px] px-1.5 py-0.5 rounded bg-accent/50 text-accent border border-accent/60">{% trans "active" %}</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded whitespace-nowrap bg-accent/50 text-accent border border-accent/60">{% trans "active" %}</span>
                   {% elif s.state == 'idle in transaction' %}
-                    <span class="text-[11px] px-1.5 py-0.5 rounded bg-warn/50 text-warn border border-warn/60">{% trans "idle in txn" %}</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded whitespace-nowrap bg-warn/50 text-warn border border-warn/60">{% trans "idle in txn" %}</span>
                   {% else %}
-                    <span class="text-[11px] px-1.5 py-0.5 rounded bg-raised text-body">{{ s.state|default:"—" }}</span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded whitespace-nowrap bg-raised text-body">{{ s.state|default:"—" }}</span>
                   {% endif %}
                   {% if s.blocked %}
                     <span class="text-[11px] px-1.5 py-0.5 rounded bg-danger/50 text-danger border border-danger/60 whitespace-nowrap">{% blocktrans with pids=s.blocked_by|join:", " %}blocked by {{ pids }}{% endblocktrans %}</span>
                   {% endif %}
-                  {% if s.wait %}<span class="text-[11px] text-body mono">{{ s.wait }}</span>{% endif %}
+                  {% if s.wait %}<span class="block text-[11px] text-body mono">{{ s.wait }}</span>{% endif %}
                 </td>
                 <td class="px-4 py-2 mono text-body whitespace-nowrap">{% if s.state == 'active' and s.query_secs is not None %}{{ s.query_secs }}s{% else %}—{% endif %}</td>
+                <td class="px-4 py-2 mono whitespace-nowrap {% if s.pins_vacuum %}text-warn{% else %}text-body{% endif %}">{% if s.xmin_age is not None %}{{ s.xmin_age }}{% else %}—{% endif %}</td>
                 <td class="px-4 py-2 mono text-xs truncate" title="{{ s.query }}">
                   {% if s.is_self %}<span class="text-body">{% trans "— cli2ui (this request) —" %}</span>{% else %}<span class="text-strong">{{ s.query|default:"—" }}</span>{% endif %}
                 </td>

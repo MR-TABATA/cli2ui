@@ -17,6 +17,20 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Added
+
+- **Activity: which session is keeping VACUUM from cleaning up.** PostgreSQL
+  keeps the old version of an updated or deleted row until nothing can still be
+  looking at it; one session left holding an old view stops VACUUM from
+  reclaiming everything changed since, and the table keeps growing. In the state
+  column that session is just another "idle in transaction". The Activity panel
+  now reads `age(backend_xmin)` — how many transactions ago the view a session
+  holds was taken — into a new "xmin age" column, and a card above the table
+  names the oldest one. A session that is not running a query but still holds a
+  view is marked, with a note that Cancel does nothing there and ending the
+  session is what lets VACUUM clean up. (Postgres only; MySQL has no
+  equivalent.)
+
 ## [1.11.0] - 2026-10-01
 
 ### Added

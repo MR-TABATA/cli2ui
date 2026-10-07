@@ -136,13 +136,22 @@ ORDER BY (ae.installed_version IS NULL), ae.name;
 # running, how long, and whether they're blocked. Includes our own connection
 # (flagged is_self) so the list is never mysteriously empty; skips internal
 # backends (autovacuum, walwriter, …).
+#
+# xmin_age is age(backend_xmin): how many transactions old the snapshot this
+# session is holding is. VACUUM cannot remove a row version that was deleted after
+# the oldest such snapshot, so the oldest holder decides how much dead space can
+# be reclaimed. A session that is not running a query normally holds no snapshot
+# (NULL); one that does — a REPEATABLE READ transaction left open, an exported
+# snapshot, an open cursor — looks exactly like any other "idle in transaction"
+# in the state column, and this is the only place the difference shows.
 ACTIVITY_SQL = """
 SELECT pid, usename, datname, application_name, client_addr::text, state,
        NULLIF(concat_ws(': ', wait_event_type, wait_event), '') AS wait,
        pg_blocking_pids(pid) AS blocked_by,
        EXTRACT(EPOCH FROM (now() - query_start))::int AS query_secs,
        query,
-       (pid = pg_backend_pid()) AS is_self
+       (pid = pg_backend_pid()) AS is_self,
+       age(backend_xmin)::bigint AS xmin_age
 FROM pg_stat_activity
 WHERE backend_type = 'client backend'
 ORDER BY (pid = pg_backend_pid()) ASC, (state = 'active') DESC, query_start ASC NULLS LAST;

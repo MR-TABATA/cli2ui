@@ -3260,3 +3260,34 @@ msgid ""
 msgstr ""
 "hosted モードでは無効です: このルートは追加アプリのもので、必要な権限を申告して"
 "いないため閉じています。"
+
+#: templates/partials/activity.html
+msgid "Oldest snapshot in use"
+msgstr "使われている最古のスナップショット"
+
+#: templates/partials/activity.html
+msgid "— rows updated or deleted since then can't be vacuumed"
+msgstr "— これ以降の更新・削除で残った古い行は、VACUUM で回収できません"
+
+#: templates/partials/activity.html
+#, python-format
+msgid ""
+"PID %(pid)s (%(user)s) is looking at the database as it was %(age)s "
+"transactions ago"
+msgstr ""
+"PID %(pid)s (%(user)s) は、%(age)s トランザクション前の姿を見たままです"
+
+#: templates/partials/activity.html
+msgid ""
+"It is not running a query, so nothing needs that old view. Cancel does "
+"nothing here; ending the session lets VACUUM clean up."
+msgstr ""
+"クエリは実行していないので、その古い姿は使われていません。ここでキャンセルしても"
+"何も変わりません。セッションを終了すると、VACUUM が掃除できるようになります。"
+
+#: templates/partials/activity.html
+msgid ""
+"age(backend_xmin): how many transactions ago the view held by this session "
+"was taken"
+msgstr ""
+"age(backend_xmin): このセッションが見ている姿が、何トランザクション前のものか"

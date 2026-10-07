@@ -3,14 +3,15 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext as _
 
 from ..engines import EngineError, get_engine
-from ..engines.base import build_block_forest
+from ..engines.base import build_block_forest, oldest_xmin_holder
 from ..models import Connection
 
 
 # A readable version of pg_stat_activity for the "open in SQL" link.
 ACTIVITY_SHOW_SQL = (
     "SELECT pid, usename, state, wait_event_type, query,\n"
-    "       now() - query_start AS running_for, pg_blocking_pids(pid) AS blocked_by\n"
+    "       now() - query_start AS running_for, pg_blocking_pids(pid) AS blocked_by,\n"
+    "       age(backend_xmin) AS xmin_age\n"
     "FROM pg_stat_activity\n"
     "WHERE backend_type = 'client backend'\n"
     "ORDER BY state = 'active' DESC, query_start;"
@@ -65,6 +66,7 @@ def _render_activity(request, connection, error=None):
         request,
         "partials/activity.html",
         {"connection": connection, "sessions": sessions, "headroom": headroom,
+         "xmin_holder": oldest_xmin_holder(sessions),
          "query_sql": ACTIVITY_SHOW_SQL, "error": error},
     )
 

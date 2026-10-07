@@ -787,7 +787,7 @@ class PostgresEngine(Engine):
                         pid=row[0], user=row[1], database=row[2], app=row[3],
                         client=row[4], state=row[5], wait=row[6],
                         blocked_by=row[7] or [], query_secs=row[8], query=row[9],
-                        is_self=row[10],
+                        is_self=row[10], xmin_age=row[11],
                     )
                     for row in cur.fetchall()
                 ]

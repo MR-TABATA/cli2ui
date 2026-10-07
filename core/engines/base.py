@@ -328,10 +328,20 @@ class Activity:
     query_secs: int | None      # how long the current query has run
     query: str
     is_self: bool = False       # this is cli2ui's own connection
+    xmin_age: int | None = None  # age(backend_xmin): how old a snapshot it holds (Postgres only)
 
     @property
     def blocked(self) -> bool:
         return bool(self.blocked_by)
+
+    @property
+    def pins_vacuum(self) -> bool:
+        """Holding a snapshot while *not* running a query — the leaked-transaction
+        signature. A running query legitimately holds one for as long as it runs;
+        a session that is idle (in a transaction) normally holds none, so one that
+        does keeps VACUUM from reclaiming rows deleted since, and every such
+        session looks the same in the state column."""
+        return self.xmin_age is not None and self.state != "active"
 
     @property
     def cancellable(self) -> bool:
@@ -377,6 +387,13 @@ class ConnectionHeadroom:
         if p >= 75:
             return "warn"
         return "ok"
+
+
+def oldest_xmin_holder(sessions):
+    """The session holding the oldest snapshot (largest `xmin_age`), or None.
+    It sets how far back VACUUM must keep dead rows, so it is the one to look at."""
+    held = [s for s in sessions if s.xmin_age is not None]
+    return max(held, key=lambda s: s.xmin_age) if held else None
 
 
 @dataclass
