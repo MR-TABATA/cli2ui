@@ -101,9 +101,9 @@
 <h1>ここまでに何をしてきたか</h1>
 <p>全コミットを時系列で並べたもの。プルリクエストだけを見ると、main へ直接積んだ変更が抜け落ちる ── 日付・行数・件数は毎回 git から測り直しており、手で足していない。</p>
 <div class="stats">
-<div class="stat"><div class="stat-value">119</div><div class="stat-label">開発日数</div></div>
-<div class="stat"><div class="stat-value">186</div><div class="stat-label">コミット</div></div>
-<div class="stat"><div class="stat-value">15</div><div class="stat-label">リリース</div></div>
+<div class="stat"><div class="stat-value">122</div><div class="stat-label">開発日数</div></div>
+<div class="stat"><div class="stat-value">193</div><div class="stat-label">コミット</div></div>
+<div class="stat"><div class="stat-value">16</div><div class="stat-label">リリース</div></div>
 </div></div></header>
 <section><div class="container"><div class="chart-wrap">
 <div class="chart-title">週ごとのコミット数</div>
@@ -124,12 +124,55 @@
 <div class="bar-col"><div class="bar" style="height:7%"></div></div>
 <div class="bar-col"><div class="bar" style="height:25%"></div></div>
 <div class="bar-col"><div class="bar" style="height:8%"></div></div>
-<div class="bar-col"><div class="bar" style="height:22%"></div></div>
+<div class="bar-col"><div class="bar" style="height:24%"></div></div>
+<div class="bar-col"><div class="bar" style="height:8%"></div></div>
 </div></div></div></section>
 <section><div class="container">
-<div class="version" id="unreleased"><div class="version-head">
-<div class="version-tag">2026-10-01 – 2026-10-05</div><h2>未リリース</h2>
+<div class="version" id="v1.12.0"><div class="version-head">
+<div class="version-tag">2026-10-01 – 2026-10-08</div><h2>v1.12.0</h2>
 </div><div class="entries">
+<div class="entry">
+<div class="entry-date">2026-10-08
+</div>
+<div class="entry-text">Release v1.12.0</div>
+<div class="entry-diff"><span class="add">+6</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-10-08
+</div>
+<div class="entry-text">Always encrypt saved connection passwords; references; key file</div>
+<div class="entry-diff"><span class="add">+739</span> <span class="del">-93</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-10-08
+</div>
+<div class="entry-text">Saved connection passwords can be encrypted at rest</div>
+<div class="entry-diff"><span class="add">+233</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-10-07
+</div>
+<div class="entry-text">Hosted mode: let an installed app supply the login and per-connection permissions</div>
+<div class="entry-diff"><span class="add">+336</span> <span class="del">-6</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-10-07
+</div>
+<div class="entry-text">Replication: show how much WAL each slot is holding</div>
+<div class="entry-diff"><span class="add">+48</span> <span class="del">-3</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-10-07
+</div>
+<div class="entry-text">Activity: show which session is keeping VACUUM from cleaning up</div>
+<div class="entry-diff"><span class="add">+126</span> <span class="del">-11</span></div>
+</div>
+<div class="entry">
+<div class="entry-date">2026-10-05
+</div>
+<div class="entry-text">docs: rebuild the development-history page [skip ci]</div>
+<div class="entry-diff"><span class="add">+38</span> <span class="del">-6</span></div>
+</div>
 <div class="entry">
 <div class="entry-date">2026-10-05
 </div>
