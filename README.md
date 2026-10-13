@@ -47,6 +47,17 @@ docker compose up
 
 The `git clone` fetches the `docker-compose.yml` (and the sample database) that `docker compose up` runs.
 
+**Docker only, no clone:** the image runs by itself. You get the app without the bundled sample database,
+so connect it to your own PostgreSQL or MySQL in the connection form:
+
+```bash
+docker run --rm -p 8000:8000 jiniie/cli2ui
+```
+
+To reach a database on your own machine from inside the container, use the host `host.docker.internal`
+(on Linux, add `--add-host=host.docker.internal:host-gateway`). See also the
+[Docker Hub page](https://hub.docker.com/r/jiniie/cli2ui).
+
 This pulls the published image
 ([`jiniie/cli2ui`](https://hub.docker.com/r/jiniie/cli2ui), amd64 and arm64) —
 there is nothing to build and nothing to compile.
