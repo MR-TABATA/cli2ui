@@ -40,8 +40,12 @@ stays in your browser — it is never sent to the server.
 ## Quick start
 
 ```bash
+git clone https://github.com/MR-TABATA/cli2ui
+cd cli2ui
 docker compose up
 ```
+
+The `git clone` fetches the `docker-compose.yml` (and the sample database) that `docker compose up` runs.
 
 This pulls the published image
 ([`jiniie/cli2ui`](https://hub.docker.com/r/jiniie/cli2ui), amd64 and arm64) —
