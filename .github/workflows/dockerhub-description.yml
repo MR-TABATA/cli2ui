@@ -1,11 +1,13 @@
 # Docker Hub の説明（Overview と短い説明）を、リポジトリの DOCKERHUB.md から自動で反映する。
 #
 # 手で貼ったものは、いつか古くなる。DOCKERHUB.md を直して main へ push すれば、Docker Hub も追従する。
-# 使うシークレットは、イメージの公開（docker-publish.yml）と同じ DOCKERHUB_USERNAME / DOCKERHUB_TOKEN。
+# 使うシークレット:
+#   DOCKERHUB_USERNAME            Docker Hub のユーザー名（イメージの公開と同じ）
+#   DOCKERHUB_DESCRIPTION_TOKEN   説明を更新するための Access Token。権限は「Read, Write, Delete」が要る。
+#                                 イメージを送る DOCKERHUB_TOKEN（Read & Write）では、説明は書き換えられない（403）。
+#                                 権限の広いトークンを、イメージの公開に使い回さないよう、別のシークレットにしてある。
+# 未設定なら、失敗にせず「未設定」と表示して飛ばす。設定したあとに失敗したら、赤くする（黙って古くならないように）。
 # 外部のアクションは使わず、Docker Hub の API を curl で呼ぶ（トークンを第三者のコードに渡さないため）。
-#
-# 失敗する場合の多くは、トークンの権限。Docker Hub の Access Token は「Read, Write, Delete」の権限が要る
-# （説明の更新は、Read & Write だけでは通らないことがある）。
 name: Docker Hub description
 
 on:
@@ -29,12 +31,16 @@ jobs:
       - name: Update the repository description
         env:
           DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
-          DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DH_TOKEN: ${{ secrets.DOCKERHUB_DESCRIPTION_TOKEN }}
           IMAGE: cli2ui
           SHORT: "Local-only web UI that turns psql / mysql operations into buttons. Runs with a single docker run."
         run: |
           set -euo pipefail
-          test -n "$DH_USER" && test -n "$DH_TOKEN" || { echo "DOCKERHUB_USERNAME / DOCKERHUB_TOKEN are not set."; exit 1; }
+          if [ -z "$DH_USER" ] || [ -z "$DH_TOKEN" ]; then
+            echo "::warning::Skipped: DOCKERHUB_DESCRIPTION_TOKEN is not set. Create a Docker Hub Access Token with Read, Write, Delete and add it as that secret."
+            echo "Skipped: DOCKERHUB_DESCRIPTION_TOKEN is not set." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
 
           code=$(jq -n --arg u "$DH_USER" --arg p "$DH_TOKEN" '{username:$u,password:$p}' \
             | curl -sS -o login.json -w '%{http_code}' -H 'Content-Type: application/json' -d @- https://hub.docker.com/v2/users/login)
@@ -47,7 +53,7 @@ jobs:
             | curl -sS -o patch.json -w '%{http_code}' -X PATCH -H "Authorization: JWT $JWT" -H 'Content-Type: application/json' \
                 -d @- "https://hub.docker.com/v2/repositories/$DH_USER/$IMAGE/")
           if [ "$code" != 200 ]; then
-            echo "Updating the description failed (HTTP $code). Check that the Access Token has Read, Write, Delete."
+            echo "Updating the description failed (HTTP $code). Check that DOCKERHUB_DESCRIPTION_TOKEN has Read, Write, Delete."
             jq -r '.detail // .message // empty' patch.json || true
             exit 1
           fi
