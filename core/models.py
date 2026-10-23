@@ -7,10 +7,9 @@ from django.utils import timezone
 class Connection(models.Model):
     """A saved database connection.
 
-    Stored in the local SQLite management DB. Passwords are kept in plaintext
-    unless a secret codec is installed (core/secret_store.py): this is a
-    local-only, single-user tool by default. A deployment shared by several
-    people should install one, so the password is encrypted at rest.
+    Stored in the local SQLite management DB. Passwords are encrypted at rest
+    via SecretField (using Fernet with secret.key or CLI2UI_SECRET_KEYS, see
+    core/secret_store.py).
     """
 
     KIND_POSTGRES = "postgres"

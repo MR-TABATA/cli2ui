@@ -27,7 +27,7 @@ from django.urls import Resolver404, resolve
 from django.utils import translation
 from django.utils.translation import gettext as _, gettext_noop
 
-DEFAULT_SECRET_KEY = "dev-insecure-key-change-me-for-anything-public"
+DEFAULT_SECRET_KEY = "dev-insecure-key-change-me-for-anything-public"  # nosec B105 — detection-only default key used to reject insecure setups in hosted mode; never used for encryption
 MIN_SECRET_KEY_LENGTH = 50
 MIN_BASIC_PASSWORD_LENGTH = 12
 AUTH_PROXY = "proxy"

@@ -17,6 +17,14 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Fixed
+
+- **Static security analysis & documentation drift resolution.**
+  - Added `# nosec B105` annotation to `DEFAULT_SECRET_KEY` in `core/hosted.py`, achieving 0 security findings across bandit (Low/Medium/High = 0).
+  - Updated `Connection` model docstring in `core/models.py` to accurately reflect default `SecretField` encryption at rest.
+  - Clarified `preview_index` docstring in `planner_lab/whatif.py` regarding `EXPLAIN ANALYZE` execution and rollback guarantees.
+  - Added debug logging to best-effort command history recorder in `core/views/runner.py`.
+
 ## [1.12.1] - 2026-10-23
 
 ### Fixed

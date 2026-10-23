@@ -108,7 +108,11 @@ def preview_index(engine, sql_text: str, schema: str, table: str,
                   columns: list[str], *, method: str = "btree",
                   unique: bool = False, timeout_ms: int = 15000) -> IndexPreview:
     """EXPLAIN ANALYZE the query without, then with, a hypothetical index built
-    inside the always-rolled-back transaction. Real timing, zero persistence."""
+    inside the always-rolled-back transaction. Real timing, zero persistence.
+
+    ANALYZE executes the statement for real timing under whatif_cursor's
+    unconditional rollback, statement_timeout, and lock_timeout.
+    """
     valid = {c.name for c in engine.list_columns(schema, table)}
     unknown = [c for c in columns if c not in valid]
     if unknown:

@@ -3,6 +3,9 @@ The planner what-if tools (scale simulation, index lab) live in the planner_lab
 app."""
 import csv
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 from django.http import HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, render
@@ -169,8 +172,8 @@ def _log_command(connection, sql_text, *, read_only, result=None, error=None):
             duration_ms=result.duration_ms if result else None,
             error=error or "",
         )
-    except Exception:  # noqa: BLE001  # nosec B110 — logging is best-effort; a failed history write must never break the user's query
-        pass
+    except Exception as exc:  # noqa: BLE001  # nosec B110 — logging is best-effort; a failed history write must never break the user's query
+        logger.debug("Failed to record command history: %s", exc)
 
 
 def history(request, pk):
