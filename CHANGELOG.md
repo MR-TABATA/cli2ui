@@ -17,6 +17,29 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-10-23
+
+### Fixed
+
+- **Hosted mode preflight is strictly read-only.** `check_hosted` and startup
+  preflight checks no longer create `secret.key` on disk when it is missing,
+  and verify parent folder write permissions safely without side effects.
+  Exceptions (`SecretUnavailable`, `ImproperlyConfigured`, `OSError`) are cleanly
+  caught and reported as findings instead of crashing startup.
+- **Secret store: side-effect-free key source inspection.** `key_source()` no
+  longer creates a key file when inspecting the active source, and rejects
+  environment values containing only comments or whitespace.
+- **Docker Hub description workflow cleanup.** Temporary authentication and
+  patch response files (`login.json`, `patch.json`) are guaranteed to be cleaned
+  up on exit via trap handler.
+
+### Added
+
+- **Docker Hub automatic description sync.** `DOCKERHUB.md` automatically syncs
+  to the Docker Hub repository overview on main pushes.
+- **Docker standalone quickstart.** Documented `docker run` one-liner to launch
+  cli2ui without cloning the repository.
+
 ## [1.12.0] - 2026-10-08
 
 ### Added
@@ -745,7 +768,8 @@ reserved for multi-DB support).
 - Internationalisation (English / Japanese).
 - Workspace overview dashboard and unified UI (design system).
 
-[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.12.1...HEAD
+[1.12.1]: https://github.com/MR-TABATA/cli2ui/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.9.0...v1.10.0

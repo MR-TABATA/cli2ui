@@ -153,7 +153,10 @@ def _keys():
     """(keys, key source name, a signature that changes when the source does)."""
     raw = os.environ.get(KEYS_ENV, "").strip()
     if raw:
-        return parse_keys(raw, source=KEYS_ENV), "env", ("env", raw)
+        keys = parse_keys(raw, source=KEYS_ENV)
+        if not keys:
+            raise SecretUnavailable(f"{KEYS_ENV} holds no key.")
+        return keys, "env", ("env", raw)
     path = key_file_path()
     if path is None:
         if not _EPHEMERAL:
@@ -164,7 +167,17 @@ def _keys():
 
 def key_source() -> str:
     """Where the key comes from right now: custom, env, file or memory."""
-    return "custom" if _CODEC is not None else _keys()[1]
+    if _CODEC is not None:
+        return "custom"
+    raw = os.environ.get(KEYS_ENV, "").strip()
+    if raw:
+        keys = parse_keys(raw, source=KEYS_ENV)
+        if not keys:
+            raise SecretUnavailable(f"{KEYS_ENV} holds no key.")
+        return "env"
+    if key_file_path() is None:
+        return "memory"
+    return "file"
 
 
 def _fernet_codec(keys):

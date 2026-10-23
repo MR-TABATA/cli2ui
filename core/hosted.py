@@ -13,6 +13,7 @@ import binascii
 import hmac
 import ipaddress
 import math
+import os
 import time
 from dataclasses import dataclass
 from urllib.parse import urlparse
@@ -284,10 +285,39 @@ def preflight() -> list:
             err("AUTH", f"CLI2UI_HOSTED_BASIC_PASSWORD must be at least {MIN_BASIC_PASSWORD_LENGTH} chars.")
 
     from . import secret_store
-    if secret_store.key_source() in ("file", "memory"):
-        warn("SECRET_KEY_LOCATION", "The key that encrypts saved connection passwords is a file next to the "
-                                    "management database. Set CLI2UI_SECRET_KEYS (make a key with "
-                                    "`manage.py generate_secret_key`) so the key lives outside it.")
+    try:
+        source = secret_store.key_source()
+        if source == "env":
+            keys = secret_store.parse_keys(os.environ.get(secret_store.KEYS_ENV, "").strip(), source=secret_store.KEYS_ENV)
+            if not keys:
+                raise secret_store.SecretUnavailable(f"{secret_store.KEYS_ENV} holds no key.")
+        elif source == "file":
+            path = secret_store.key_file_path()
+            if path and path.exists():
+                text = path.read_text(encoding="utf-8")
+                keys = secret_store.parse_keys(text, source=str(path))
+                if not keys:
+                    raise secret_store.SecretUnavailable(f"The secret key file {path} holds no key.")
+            elif path:
+                if secret_store._encrypted_rows_exist():
+                    raise secret_store.SecretUnavailable(
+                        f"The secret key file {path} is missing, but saved passwords are "
+                        "encrypted with the key that was in it."
+                    )
+                target_dir = path.parent
+                while not target_dir.exists() and target_dir.parent != target_dir:
+                    target_dir = target_dir.parent
+                if not os.access(target_dir, os.W_OK | os.X_OK):
+                    raise secret_store.SecretUnavailable(
+                        f"Cannot create the secret key file {path}: folder {path.parent} is not writable."
+                    )
+    except (secret_store.SecretUnavailable, ImproperlyConfigured, OSError) as exc:
+        err("SECRET_KEY_LOCATION", f"The key for saved connection passwords is unusable: {exc}")
+    else:
+        if source in ("file", "memory"):
+            warn("SECRET_KEY_LOCATION", "The key that encrypts saved connection passwords is a file next to the "
+                                        "management database. Set CLI2UI_SECRET_KEYS (make a key with "
+                                        "`manage.py generate_secret_key`) so the key lives outside it.")
 
     unknown = allowed() - set(all_capabilities())
     if unknown:

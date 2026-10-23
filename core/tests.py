@@ -4843,6 +4843,36 @@ class SecretKeySourceTests(SecretStoreBase):
             with mock.patch.dict(os.environ, {secret_store.KEYS_ENV: Fernet.generate_key().decode()}):
                 self.assertNotIn("SECRET_KEY_LOCATION", warned())
 
+    def test_hosted_preflight_reports_error_when_keys_are_invalid_and_does_not_create_file(self):
+        import os
+        from unittest import mock
+        from django.test import override_settings
+        from core import hosted, secret_store
+        def erred():
+            return {x.id for x in hosted.preflight() if x.level == "error"}
+        # Invalid env keys report error rather than raising exception
+        with override_settings(**_GOOD_HOSTED):
+            with mock.patch.dict(os.environ, {secret_store.KEYS_ENV: "invalid-key"}):
+                self.assertIn("SECRET_KEY_LOCATION", erred())
+            with mock.patch.dict(os.environ, {secret_store.KEYS_ENV: "# only a comment"}):
+                self.assertIn("SECRET_KEY_LOCATION", erred())
+        # Preflight does not create the secret.key file
+        path = self._key_file()
+        if os.path.exists(path):
+            os.remove(path)
+        with override_settings(**_GOOD_HOSTED, CLI2UI_SECRET_KEY_FILE=path):
+            hosted.preflight()
+            self.assertFalse(os.path.exists(path))
+        # Unwritable key folder reports error even when no encrypted rows exist
+        with override_settings(**_GOOD_HOSTED, CLI2UI_SECRET_KEY_FILE=path):
+            with mock.patch("os.access", return_value=False):
+                self.assertIn("SECRET_KEY_LOCATION", erred())
+        # Unreadable key file reports error rather than raising OSError
+        with override_settings(**_GOOD_HOSTED, CLI2UI_SECRET_KEY_FILE=path):
+            with mock.patch.object(secret_store.Path, "exists", return_value=True):
+                with mock.patch.object(secret_store.Path, "read_text", side_effect=PermissionError("denied")):
+                    self.assertIn("SECRET_KEY_LOCATION", erred())
+
 
 class SecretCommandTests(SecretStoreBase):
     def _run(self, *args):

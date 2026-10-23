@@ -36,6 +36,7 @@ jobs:
           SHORT: "Local-only web UI that turns psql / mysql operations into buttons. Runs with a single docker run."
         run: |
           set -euo pipefail
+          trap 'rm -f login.json patch.json' EXIT
           if [ -z "$DH_USER" ] || [ -z "$DH_TOKEN" ]; then
             echo "::warning::Skipped: DOCKERHUB_DESCRIPTION_TOKEN is not set. Create a Docker Hub Access Token with Read, Write, Delete and add it as that secret."
             echo "Skipped: DOCKERHUB_DESCRIPTION_TOKEN is not set." >> "$GITHUB_STEP_SUMMARY"
