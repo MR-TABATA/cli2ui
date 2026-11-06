@@ -1,5 +1,6 @@
 """Table and column operations, plus the table-detail panel (columns, indexes,
 row preview) they re-render into."""
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.utils.translation import gettext as _
@@ -7,6 +8,7 @@ from django.utils.translation import gettext as _
 from ..engines import EngineError, get_engine
 from ..engines.postgres import COLUMN_TYPES, INDEX_METHODS
 from ..models import Backup, Connection
+from ..reconcile import parse_source, ReconcileParseError
 from ._shared import _auto_backup
 from .connection import overview
 
@@ -436,3 +438,71 @@ def column_set_default(request, pk):
     except EngineError as exc:
         return _render_detail(request, connection, schema, table, error=str(exc))
     return _render_detail(request, connection, schema, table, notice=notice)
+
+
+def table_reconcile(request, pk):
+    """Reconcile input values (file upload or pasted text) against a table column.
+
+    Runs read-only queries with parameter binding in chunks.
+    Renders partials/reconcile_result.html or streams a CSV export if requested.
+    """
+    connection = get_object_or_404(Connection, pk=pk)
+    schema = request.POST.get("schema", "")
+    table = request.POST.get("table", "")
+    column = request.POST.get("column", "")
+    fmt = request.POST.get("format", "auto")
+    key = request.POST.get("key", "").strip() or None
+    export_kind = request.POST.get("export", "")
+
+    upload = request.FILES.get("file")
+    paste_text = request.POST.get("paste_text", "").strip()
+
+    if upload:
+        content = upload.read()
+    elif paste_text:
+        content = paste_text
+    else:
+        return render(request, "partials/reconcile_result.html", {
+            "error": _("Please select a file or paste text to match."),
+            "schema": schema, "table": table, "column": column,
+        })
+
+    try:
+        parsed = parse_source(content, fmt=fmt, key=key)
+    except ReconcileParseError as exc:
+        return render(request, "partials/reconcile_result.html", {
+            "error": str(exc),
+            "schema": schema, "table": table, "column": column,
+        })
+
+    if not parsed.values:
+        return render(request, "partials/reconcile_result.html", {
+            "error": _("No values found in the provided input."),
+            "schema": schema, "table": table, "column": column,
+        })
+
+    try:
+        result = get_engine(connection).reconcile_column(
+            schema, table, column, parsed.values
+        )
+    except EngineError as exc:
+        return render(request, "partials/reconcile_result.html", {
+            "error": str(exc),
+            "schema": schema, "table": table, "column": column,
+        })
+
+    if export_kind in ("missing", "matched"):
+        values_to_export = result.missing_values if export_kind == "missing" else result.matched_values
+        filename = f"{table}_{column}_{export_kind}.csv"
+        csv_data = "\n".join([f'"{v}"' if "," in v else v for v in values_to_export])
+        resp = HttpResponse(csv_data, content_type="text/csv; charset=utf-8")
+        resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return resp
+
+    return render(request, "partials/reconcile_result.html", {
+        "result": result,
+        "parsed": parsed,
+        "schema": schema,
+        "table": table,
+        "column": column,
+    })

@@ -1,0 +1,128 @@
+{% load i18n humanize %}
+{% if error %}
+  <div class="bg-danger/20 border border-danger/50 text-danger rounded-xl px-4 py-3 text-sm">
+    <div class="font-medium mb-0.5">{% trans "Reconciliation error" %}</div>
+    <div class="mono text-xs opacity-90 whitespace-pre-wrap">{{ error }}</div>
+  </div>
+{% else %}
+  <div x-data="{
+    tab: 'missing',
+    copied: false,
+    copy(mode) {
+      const list = this.tab === 'missing' ? missingList : matchedList;
+      let text = '';
+      if (mode === 'newline') {
+        text = list.join('\n');
+      } else if (mode === 'comma') {
+        text = list.join(', ');
+      } else if (mode === 'sql') {
+        text = list.map(v => `'${v.replace(/'/g, '\'\'')}'`).join(', ');
+      }
+      navigator.clipboard.writeText(text).then(() => {
+        this.copied = true;
+        setTimeout(() => { this.copied = false; }, 2000);
+      });
+    }
+  }" class="space-y-4">
+    <script>
+      var missingList = {{ result.missing_values|json_script:"missing-data" }};
+      var matchedList = {{ result.matched_values|json_script:"matched-data" }};
+      missingList = JSON.parse(document.getElementById('missing-data').textContent);
+      matchedList = JSON.parse(document.getElementById('matched-data').textContent);
+    </script>
+
+    <!-- Summary cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div class="bg-raised border border-line rounded-lg p-3">
+        <div class="text-xs text-body mb-0.5">{% trans "Total input" %}</div>
+        <div class="text-lg font-semibold text-heading mono">{{ result.total_input|intcomma }}</div>
+        <div class="text-xs text-muted">{% blocktrans with u=result.unique_input|intcomma %}{{ u }} unique{% endblocktrans %}</div>
+      </div>
+      <div class="bg-raised border border-line rounded-lg p-3">
+        <div class="text-xs text-warn mb-0.5">{% trans "Missing in DB" %}</div>
+        <div class="text-lg font-semibold text-warn mono">{{ result.missing_count|intcomma }}</div>
+        <div class="text-xs text-body">{{ result.missing_pct }}%</div>
+      </div>
+      <div class="bg-raised border border-line rounded-lg p-3">
+        <div class="text-xs text-accent mb-0.5">{% trans "Found in DB" %}</div>
+        <div class="text-lg font-semibold text-accent mono">{{ result.matched_count|intcomma }}</div>
+        <div class="text-xs text-body">{{ result.matched_pct }}%</div>
+      </div>
+      <div class="bg-raised border border-line rounded-lg p-3">
+        <div class="text-xs text-body mb-0.5">{% trans "Duration" %}</div>
+        <div class="text-lg font-semibold text-heading mono">{{ result.duration_ms }} ms</div>
+        <div class="text-xs text-muted mono truncate" title="{{ schema }}.{{ table }}.{{ column }}">{{ column }}</div>
+      </div>
+    </div>
+
+    <!-- Tab navigation & actions -->
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-2">
+      <div class="flex items-center gap-1">
+        <button type="button" @click="tab = 'missing'"
+                :class="tab === 'missing' ? 'bg-raised text-heading font-medium border-line shadow-sm' : 'text-body hover:text-heading'"
+                class="px-3 py-1.5 rounded-md text-xs border border-transparent transition flex items-center gap-1.5">
+          <span class="inline-block w-2 h-2 rounded-full bg-warn"></span>
+          <span>{% trans "Missing in DB" %}</span>
+          <span class="mono text-faint">({{ result.missing_count }})</span>
+        </button>
+        <button type="button" @click="tab = 'matched'"
+                :class="tab === 'matched' ? 'bg-raised text-heading font-medium border-line shadow-sm' : 'text-body hover:text-heading'"
+                class="px-3 py-1.5 rounded-md text-xs border border-transparent transition flex items-center gap-1.5">
+          <span class="inline-block w-2 h-2 rounded-full bg-accent"></span>
+          <span>{% trans "Found in DB" %}</span>
+          <span class="mono text-faint">({{ result.matched_count }})</span>
+        </button>
+      </div>
+
+      <!-- Copy & Export actions -->
+      <div class="flex items-center gap-1 text-xs">
+        <span x-show="copied" x-cloak class="text-accent text-xs font-medium mr-1">{% trans "Copied!" %}</span>
+        <div class="inline-flex rounded-md shadow-sm border border-line overflow-hidden">
+          <button type="button" @click="copy('newline')" title="{% trans 'Copy as newline-separated list' %}"
+                  class="px-2 py-1 bg-panel hover:bg-raised text-body hover:text-heading border-r border-line transition">
+            {% trans "Copy lines" %}
+          </button>
+          <button type="button" @click="copy('comma')" title="{% trans 'Copy as comma-separated list' %}"
+                  class="px-2 py-1 bg-panel hover:bg-raised text-body hover:text-heading border-r border-line transition">
+            {% trans "CSV" %}
+          </button>
+          <button type="button" @click="copy('sql')" title="{% trans 'Copy formatted for SQL IN clause' %}"
+                  class="px-2 py-1 bg-panel hover:bg-raised text-body hover:text-heading transition">
+            {% trans "SQL 'a','b'" %}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Value list container -->
+    <div class="bg-canvas border border-line rounded-xl overflow-hidden">
+      <!-- Missing values -->
+      <div x-show="tab === 'missing'" class="max-h-72 overflow-y-auto p-2 mono text-xs divide-y divide-line/40">
+        {% for v in result.missing_values %}
+          <div class="px-2 py-1 text-warn/90 hover:bg-raised/60 flex items-center justify-between">
+            <span class="select-all">{{ v }}</span>
+            <span class="text-[10px] text-faint tracking-wider uppercase">{% trans "missing" %}</span>
+          </div>
+        {% empty %}
+          <div class="p-6 text-center text-muted">
+            {% trans "All input values exist in the database!" %}
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- Matched values -->
+      <div x-show="tab === 'matched'" x-cloak class="max-h-72 overflow-y-auto p-2 mono text-xs divide-y divide-line/40">
+        {% for v in result.matched_values %}
+          <div class="px-2 py-1 text-accent/90 hover:bg-raised/60 flex items-center justify-between">
+            <span class="select-all">{{ v }}</span>
+            <span class="text-[10px] text-faint tracking-wider uppercase">{% trans "found" %}</span>
+          </div>
+        {% empty %}
+          <div class="p-6 text-center text-muted">
+            {% trans "No input values were found in the database." %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endif %}

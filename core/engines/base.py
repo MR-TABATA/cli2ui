@@ -147,6 +147,39 @@ class JsonbShape:
 
 
 @dataclass
+class ReconcileResult:
+    """The result of reconciling a list of input values against a table column."""
+    schema: str
+    table: str
+    column: str
+    total_input: int
+    unique_input: int
+    matched_values: list[str]
+    missing_values: list[str]
+    duration_ms: int
+
+    @property
+    def matched_count(self) -> int:
+        return len(self.matched_values)
+
+    @property
+    def missing_count(self) -> int:
+        return len(self.missing_values)
+
+    @property
+    def matched_pct(self) -> float:
+        if not self.unique_input:
+            return 0.0
+        return round((self.matched_count / self.unique_input) * 100, 1)
+
+    @property
+    def missing_pct(self) -> float:
+        if not self.unique_input:
+            return 0.0
+        return round((self.missing_count / self.unique_input) * 100, 1)
+
+
+@dataclass
 class Preview:
     """テーブルの中身、1 ページぶん。
 
@@ -1180,6 +1213,13 @@ class Engine:
         """Stream a whole table's rows for a CSV/JSON export — the same as
         stream_query over `SELECT * FROM <table>`, with the identifiers quoted
         safely. Yields the column-name list, then one row tuple at a time."""
+        raise NotImplementedError
+
+    def reconcile_column(self, schema: str, table: str, column: str, values: list[str], *,
+                         chunk_size: int = 1000, timeout_ms: int = 30000) -> ReconcileResult:
+        """Check whether a list of input values exist in the specified table column.
+        Runs purely read-only queries with parameter binding in safe chunks.
+        Returns a ReconcileResult with matched and missing value lists."""
         raise NotImplementedError
 
     def whatif_cursor(self, *, timeout_ms: int = 15000, lock_timeout: str = "2s"):

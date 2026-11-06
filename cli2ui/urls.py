@@ -24,6 +24,7 @@ urlpatterns = [
     path("c/<int:pk>/table/export", views.table_export, name="table_export"),
     path("c/<int:pk>/table/filter", views.table_filter, name="table_filter"),
     path("c/<int:pk>/table/import", views.table_import, name="table_import"),
+    path("c/<int:pk>/table/reconcile", views.table_reconcile, name="table_reconcile"),
     path("c/<int:pk>/columns/add", views.column_add, name="column_add"),
     path("c/<int:pk>/columns/rename", views.column_rename, name="column_rename"),
     path("c/<int:pk>/columns/drop", views.column_drop, name="column_drop"),

@@ -43,6 +43,7 @@ from .base import (
     PlanNode,
     Preview,
     QueryResult,
+    ReconcileResult,
     ReplicationRecipe,
     ReplicationSlot,
     ReplicationStatus,
@@ -632,6 +633,62 @@ class PostgresEngine(Engine):
             conn.rollback()  # read-only: never persist
         return QueryResult(columns=columns, rows=rows, rowcount=len(rows),
                            truncated=truncated, duration_ms=duration_ms)
+
+    def reconcile_column(self, schema: str, table: str, column: str, values: list[str], *,
+                         chunk_size: int = 1000, timeout_ms: int = 30000) -> ReconcileResult:
+        """Check whether a list of input values exist in the specified table column."""
+        valid = {c.name for c in self.list_columns(schema, table)}
+        if column not in valid:
+            raise EngineError(_("No such column: %(name)s") % {"name": column})
+
+        unique_vals = list(dict.fromkeys(v for v in values if v is not None and str(v).strip()))
+        if not unique_vals:
+            return ReconcileResult(
+                schema=schema, table=table, column=column,
+                total_input=len(values), unique_input=0,
+                matched_values=[], missing_values=[], duration_ms=0,
+            )
+
+        found_set = set()
+        t0 = time.perf_counter()
+        with self._connect() as conn:
+            conn.autocommit = False
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SET TRANSACTION READ ONLY")
+                    cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
+                    for i in range(0, len(unique_vals), chunk_size):
+                        chunk = unique_vals[i : i + chunk_size]
+                        query = sql.SQL(
+                            "SELECT DISTINCT {}::text FROM {}.{} WHERE {}::text = ANY(%s)"
+                        ).format(
+                            sql.Identifier(column),
+                            sql.Identifier(schema),
+                            sql.Identifier(table),
+                            sql.Identifier(column),
+                        )
+                        cur.execute(query, [chunk])
+                        for row in cur.fetchall():
+                            if row[0] is not None:
+                                found_set.add(str(row[0]))
+            except psycopg2.Error as exc:
+                conn.rollback()
+                raise EngineError(_clean(exc)) from exc
+            conn.rollback()
+
+        duration_ms = int((time.perf_counter() - t0) * 1000)
+        matched = [v for v in unique_vals if v in found_set]
+        missing = [v for v in unique_vals if v not in found_set]
+        return ReconcileResult(
+            schema=schema,
+            table=table,
+            column=column,
+            total_input=len(values),
+            unique_input=len(unique_vals),
+            matched_values=matched,
+            missing_values=missing,
+            duration_ms=duration_ms,
+        )
 
     def import_csv(self, schema: str, table: str, fileobj, *,
                    encoding: str = "utf-8-sig") -> int:

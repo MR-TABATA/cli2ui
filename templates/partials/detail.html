@@ -161,15 +161,25 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
     {% comment %}絞り込みは既定で畳む。毎回使うものではないのに常に開いていると、
     その高さぶんグリッドが下へ押し出される。開いたかどうかはテーブルをまたいで
     覚える ── 一度使う人は続けて使う。{% endcomment %}
-    <button type="button" @click="toggle()" class="disclosure" :aria-expanded="open">
-      {% trans "Filter" %}
-      <span x-show="!open && rows.some(r => r.col)" x-cloak
-            class="px-1.5 py-0.5 rounded bg-accent/15 text-accent tabular-nums"
-            x-text="rows.filter(r => r.col).length"></span>
-      <svg class="w-3.5 h-3.5 shrink-0 transition-transform" :class="open && 'rotate-180'"
-           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-           stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-    </button>
+    <div class="flex items-center justify-between">
+      <button type="button" @click="toggle()" class="disclosure" :aria-expanded="open">
+        {% trans "Filter" %}
+        <span x-show="!open && rows.some(r => r.col)" x-cloak
+              class="px-1.5 py-0.5 rounded bg-accent/15 text-accent tabular-nums"
+              x-text="rows.filter(r => r.col).length"></span>
+        <svg class="w-3.5 h-3.5 shrink-0 transition-transform" :class="open && 'rotate-180'"
+             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <button type="button" @click="drawer = 'reconcile'"
+              class="btn btn-sm btn-neutral gap-1.5"
+              title="{% trans 'Match external file or pasted text against this table' %}">
+        <svg class="w-3.5 h-3.5 text-accent shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/>
+        </svg>
+        <span>{% trans "Reconcile" %}</span>
+      </button>
+    </div>
 
     <!-- Filter builder: column ▾ + operator ▾ + value rows, ANDed, run read-only. -->
     <form x-show="open" x-cloak
@@ -379,6 +389,8 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
       </span>
       <button @click="drawer = 'import-csv'" class="btn btn-sm btn-neutral"
               title="{% trans 'Append rows from a CSV file' %}">{% trans "import" %}</button>
+      <button @click="drawer = 'reconcile'" class="btn btn-sm btn-neutral"
+              title="{% trans 'Match external file or pasted text against this table' %}">{% trans "reconcile" %}</button>
       <button @click="drawer = 'rename'" class="btn btn-sm btn-neutral">{% trans "rename" %}</button>
         </div>
       </div>
@@ -391,7 +403,7 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
       <h3 class="font-medium text-sm" x-text="{
         'rename': '{% trans 'Rename table' %}', 'add-col': '{% trans 'Add column' %}',
         'col-edit': '{% trans 'Edit column' %}', 'create-index': '{% trans 'Create index' %}',
-        'import-csv': '{% trans 'Import CSV' %}'
+        'import-csv': '{% trans 'Import CSV' %}', 'reconcile': '{% trans 'Reconcile with file' %}'
       }[drawer] || ''"></h3>
       <button @click="drawer = null" class="text-body hover:text-heading text-lg leading-none">&times;</button>
     </div>
@@ -421,6 +433,84 @@ htmx で丸ごと差し替わるので、素朴に書くと列を 1 つ直すた
         </p>
         <button type="submit" class="btn btn-primary w-full justify-center">{% trans "Import CSV" %}</button>
       </form>
+
+      <!-- Reconcile: match an external file or pasted list against a table column -->
+      <div x-show="drawer === 'reconcile'" x-data="{ mode: 'paste' }" class="space-y-4">
+        <form hx-post="{% url 'table_reconcile' connection.pk %}"
+              hx-target="#reconcile-result" hx-swap="innerHTML" hx-encoding="multipart/form-data"
+              hx-indicator="#reconcile-spinner"
+              class="space-y-3">
+          <input type="hidden" name="schema" value="{{ schema }}">
+          <input type="hidden" name="table" value="{{ table }}">
+
+          <div>
+            <label class="block text-xs uppercase tracking-wide text-body mb-1">{% trans "Target column" %}</label>
+            <select name="column" required class="field mono text-xs w-full">
+              {% for c in columns %}
+                <option value="{{ c.name }}">{{ c.name }} ({{ c.type }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs uppercase tracking-wide text-body">{% trans "Input source" %}</label>
+              <div class="flex items-center text-xs gap-2">
+                <button type="button" @click="mode = 'paste'"
+                        :class="mode === 'paste' ? 'text-accent font-medium' : 'text-body hover:text-heading'">
+                  {% trans "Paste text" %}
+                </button>
+                <span class="text-muted">·</span>
+                <button type="button" @click="mode = 'file'"
+                        :class="mode === 'file' ? 'text-accent font-medium' : 'text-body hover:text-heading'">
+                  {% trans "Upload file" %}
+                </button>
+              </div>
+            </div>
+
+            <!-- Paste mode -->
+            <div x-show="mode === 'paste'">
+              <textarea name="paste_text" rows="5"
+                        class="field mono text-xs w-full leading-relaxed resize-y"
+                        placeholder="{% trans 'Paste IDs, emails, codes, CSV, or JSON...' %}"></textarea>
+            </div>
+
+            <!-- File mode -->
+            <div x-show="mode === 'file'" x-cloak>
+              <input type="file" name="file" accept=".csv,.tsv,.txt,.json,.jsonl,text/csv,text/plain,application/json"
+                     class="field w-full text-xs file:mr-2 file:rounded file:border-0 file:bg-line-strong file:px-2 file:py-1 file:text-heading">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs uppercase tracking-wide text-body mb-1">{% trans "Format" %}</label>
+              <select name="format" class="field text-xs w-full">
+                <option value="auto">{% trans "Auto detect" %}</option>
+                <option value="txt">{% trans "Lines (TXT)" %}</option>
+                <option value="csv">CSV</option>
+                <option value="tsv">TSV</option>
+                <option value="json">JSON</option>
+                <option value="jsonl">JSONL</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs uppercase tracking-wide text-body mb-1" title="{% trans 'Column name in CSV, or key in JSON object' %}">
+                {% trans "Key / Column" %} <span class="text-faint">({% trans "opt" %})</span>
+              </label>
+              <input type="text" name="key" placeholder="{% trans 'e.g. user_id' %}" class="field mono text-xs w-full">
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-full justify-center gap-2">
+            <span id="reconcile-spinner" class="spinner htmx-indicator"></span>
+            <span>{% trans "Reconcile with DB" %}</span>
+          </button>
+        </form>
+
+        <!-- Result container -->
+        <div id="reconcile-result"></div>
+      </div>
 
       <!-- Add column -->
       <form x-show="drawer === 'add-col'" hx-post="{% url 'column_add' connection.pk %}"

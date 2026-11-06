@@ -5440,3 +5440,141 @@ class HostedExtraAppRouteTests(SimpleTestCase):
             hosted.declare_capability("table_drop", "fake_write", "x")   # would weaken a core route
         with self.assertRaises(ValueError):
             hosted.declare_capability("fake_save", "brand_new")          # no description
+
+
+class ReconcileUnitTests(TestCase):
+    def test_parse_source_txt(self):
+        from core.reconcile import parse_source
+        text = "  user_1 \n user_2\nuser_1 \n\n user_3 "
+        res = parse_source(text, fmt="txt")
+        self.assertEqual(res.values, ["user_1", "user_2", "user_3"])
+        self.assertEqual(res.total_count, 4)
+        self.assertEqual(res.unique_count, 3)
+        self.assertEqual(res.format_detected, "txt")
+
+    def test_parse_source_csv(self):
+        from core.reconcile import parse_source
+        csv_text = "id,name,email\n101,Alice,alice@example.com\n102,Bob,bob@example.com\n"
+        res = parse_source(csv_text, fmt="csv")
+        self.assertEqual(res.values, ["101", "102"])
+        self.assertEqual(res.column_name, "id")
+        self.assertEqual(res.available_columns, ["id", "name", "email"])
+
+        res_email = parse_source(csv_text, fmt="csv", key="email")
+        self.assertEqual(res_email.values, ["alice@example.com", "bob@example.com"])
+
+    def test_parse_source_tsv_auto(self):
+        from core.reconcile import parse_source
+        tsv_text = "col1\tcol2\nval_a\t1\nval_b\t2"
+        res = parse_source(tsv_text, fmt="auto")
+        self.assertEqual(res.format_detected, "tsv")
+        self.assertEqual(res.values, ["val_a", "val_b"])
+
+    def test_parse_source_json_array(self):
+        from core.reconcile import parse_source
+        json_text = '["id_1", "id_2", "id_1", null, "id_3"]'
+        res = parse_source(json_text, fmt="json")
+        self.assertEqual(res.values, ["id_1", "id_2", "id_3"])
+
+    def test_parse_source_json_objects(self):
+        from core.reconcile import parse_source
+        json_text = '[{"uid": "u1", "role": "admin"}, {"uid": "u2", "role": "user"}]'
+        res = parse_source(json_text, fmt="json", key="uid")
+        self.assertEqual(res.values, ["u1", "u2"])
+        self.assertEqual(res.column_name, "uid")
+
+    def test_parse_source_jsonl(self):
+        from core.reconcile import parse_source
+        jsonl_text = '{"code": "C1"}\n{"code": "C2"}\n{"code": "C1"}\n'
+        res = parse_source(jsonl_text, fmt="jsonl", key="code")
+        self.assertEqual(res.values, ["C1", "C2"])
+
+    def test_parse_source_bytes_encoding(self):
+        from core.reconcile import parse_source
+        res = parse_source(b"\xef\xbb\xbfid\n1\n2\n", fmt="csv")
+        self.assertEqual(res.values, ["1", "2"])
+
+    def test_parse_source_errors(self):
+        from core.reconcile import parse_source, ReconcileParseError
+        with self.assertRaises(ReconcileParseError):
+            parse_source("not valid json", fmt="json")
+
+
+class ReconcileViewTests(TestCase):
+    def setUp(self):
+        from django.urls import reverse
+        self.reverse = reverse
+        self.conn = Connection.objects.create(
+            name="test-conn", kind=Connection.KIND_POSTGRES, host="localhost",
+            port=5432, dbname="testdb", user="testuser", password="secret"
+        )
+
+    @unittest.mock.patch("core.views.tables.get_engine")
+    def test_table_reconcile_paste_text(self, mock_get_engine):
+        from core.engines.base import ReconcileResult
+        mock_engine = unittest.mock.MagicMock()
+        mock_engine.reconcile_column.return_value = ReconcileResult(
+            schema="public", table="users", column="id",
+            total_input=3, unique_input=3,
+            matched_values=["u1", "u2"],
+            missing_values=["u3"],
+            duration_ms=12,
+        )
+        mock_get_engine.return_value = mock_engine
+
+        resp = self.client.post(
+            self.reverse("table_reconcile", args=[self.conn.pk]),
+            {
+                "schema": "public",
+                "table": "users",
+                "column": "id",
+                "paste_text": "u1\nu2\nu3",
+                "format": "txt",
+            }
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Missing in DB")
+        self.assertContains(resp, "u3")
+        self.assertContains(resp, "Found in DB")
+        self.assertContains(resp, "u1")
+
+    @unittest.mock.patch("core.views.tables.get_engine")
+    def test_table_reconcile_export_csv(self, mock_get_engine):
+        from core.engines.base import ReconcileResult
+        mock_engine = unittest.mock.MagicMock()
+        mock_engine.reconcile_column.return_value = ReconcileResult(
+            schema="public", table="users", column="id",
+            total_input=2, unique_input=2,
+            matched_values=["u1"],
+            missing_values=["u2"],
+            duration_ms=5,
+        )
+        mock_get_engine.return_value = mock_engine
+
+        resp = self.client.post(
+            self.reverse("table_reconcile", args=[self.conn.pk]),
+            {
+                "schema": "public",
+                "table": "users",
+                "column": "id",
+                "paste_text": "u1\nu2",
+                "export": "missing",
+            }
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("users_id_missing.csv", resp["Content-Disposition"])
+        self.assertEqual(resp.content.decode().strip(), "u2")
+
+    def test_table_reconcile_empty_input(self):
+        resp = self.client.post(
+            self.reverse("table_reconcile", args=[self.conn.pk]),
+            {
+                "schema": "public",
+                "table": "users",
+                "column": "id",
+            }
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Please select a file or paste text")
+
