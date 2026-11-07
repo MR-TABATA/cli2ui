@@ -5499,6 +5499,36 @@ class ReconcileUnitTests(TestCase):
         with self.assertRaises(ReconcileParseError):
             parse_source("not valid json", fmt="json")
 
+    def test_parse_source_csv_whitespace_and_missing_key(self):
+        from core.reconcile import parse_source, ReconcileParseError
+        csv_text = " id ,  name  \n1,Alice\n2,Bob"
+        res = parse_source(csv_text, fmt="csv", key="id")
+        self.assertEqual(res.values, ["1", "2"])
+
+        with self.assertRaises(ReconcileParseError):
+            parse_source(csv_text, fmt="csv", key="nonexistent_key")
+
+    def test_parse_source_json_null_handling(self):
+        from core.reconcile import parse_source
+        json_text = '[{"id": 1, "val": null}, {"id": 2, "val": "hello"}]'
+        res = parse_source(json_text, fmt="json", key="val")
+        self.assertEqual(res.values, ["hello"])  # null is not converted to "None"
+
+    def test_parse_source_jsonl_warning_and_skips(self):
+        from core.reconcile import parse_source
+        jsonl_text = '{"k": "v1"}\nnot a json\n{"k": "v2"}'
+        res = parse_source(jsonl_text, fmt="jsonl", key="k")
+        self.assertEqual(res.values, ["v1", "v2"])
+        self.assertIsNotNone(res.warning)
+        self.assertIn("Skipped 1 malformed JSONL line", res.warning)
+
+    def test_parse_source_max_values_truncated(self):
+        from core.reconcile import parse_source
+        lines = "\n".join(f"val_{i}" for i in range(15))
+        res = parse_source(lines, fmt="txt", max_values=10)
+        self.assertEqual(len(res.values), 10)
+        self.assertTrue(res.truncated)
+
 
 class ReconcileViewTests(TestCase):
     def setUp(self):
@@ -5577,4 +5607,56 @@ class ReconcileViewTests(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Please select a file or paste text")
+
+    def test_table_reconcile_require_post(self):
+        resp = self.client.get(
+            self.reverse("table_reconcile", args=[self.conn.pk]),
+        )
+        self.assertEqual(resp.status_code, 405)
+
+    @unittest.mock.patch("core.views.tables.get_engine")
+    def test_table_reconcile_csv_injection_sanitization(self, mock_get_engine):
+        from core.engines.base import ReconcileResult
+        mock_engine = unittest.mock.MagicMock()
+        mock_engine.reconcile_column.return_value = ReconcileResult(
+            schema="public", table="users", column="formula",
+            total_input=1, unique_input=1,
+            matched_values=[],
+            missing_values=["=cmd|' /C calc'!A0"],
+            duration_ms=5,
+        )
+        mock_get_engine.return_value = mock_engine
+
+        resp = self.client.post(
+            self.reverse("table_reconcile", args=[self.conn.pk]),
+            {
+                "schema": "public",
+                "table": "users",
+                "column": "formula",
+                "paste_text": "=cmd|' /C calc'!A0",
+                "export": "missing",
+            }
+        )
+        self.assertEqual(resp.status_code, 200)
+        # Verify leading single quote is prefixed to neutralize formula evaluation
+        self.assertIn("'=cmd|' /C calc'!A0", resp.content.decode("utf-8-sig"))
+
+    def test_table_reconcile_upload_size_limit(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from unittest.mock import patch
+
+        huge_file = SimpleUploadedFile("huge.txt", b"x" * 10, content_type="text/plain")
+
+        with patch("core.views.tables.MAX_RECONCILE_UPLOAD_BYTES", 5):
+            resp = self.client.post(
+                self.reverse("table_reconcile", args=[self.conn.pk]),
+                {
+                    "schema": "public",
+                    "table": "users",
+                    "column": "id",
+                    "file": huge_file,
+                }
+            )
+            self.assertEqual(resp.status_code, 200)
+            self.assertContains(resp, "Uploaded file exceeds 10 MB limit")
 

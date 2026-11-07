@@ -508,18 +508,19 @@ class MysqlEngine(Engine):
                 matched_values=[], missing_values=[], duration_ms=0,
             )
 
-        found_set = set()
+        found_set: set[str] = set()
         t0 = time.perf_counter()
         with self._connect() as conn:
             conn.autocommit = False
             try:
                 with conn.cursor() as cur:
+                    cur.execute("SET SESSION max_execution_time = %s", [timeout_ms])
                     cur.execute("START TRANSACTION READ ONLY")
                     for i in range(0, len(unique_vals), chunk_size):
                         chunk = unique_vals[i : i + chunk_size]
                         placeholders = ", ".join(["%s"] * len(chunk))
                         query = (
-                            f"SELECT DISTINCT CAST({_ident(column)} AS CHAR) "  # nosec B608 — schema/table/column safely quoted via _ident; chunk values bound as %s placeholders
+                            f"SELECT {_ident(column)} "  # nosec B608 — schema/table/column safely quoted via _ident; chunk values bound as %s placeholders
                             f"FROM {_ident(schema)}.{_ident(table)} WHERE {_ident(column)} IN ({placeholders})"
                         )
                         cur.execute(query, chunk)
@@ -527,13 +528,25 @@ class MysqlEngine(Engine):
                             if row[0] is not None:
                                 found_set.add(str(row[0]))
             except pymysql.Error as exc:
-                conn.rollback()
                 raise EngineError(_clean(exc)) from exc
-            conn.rollback()
+            finally:
+                try:
+                    conn.rollback()
+                except Exception:  # nosec B110 — best-effort rollback on connection cleanup
+                    pass
 
         duration_ms = int((time.perf_counter() - t0) * 1000)
-        matched = [v for v in unique_vals if v in found_set]
-        missing = [v for v in unique_vals if v not in found_set]
+        # MySQL collation may match case-insensitively or with space padding.
+        # Track both exact values and normalized (case-folded, rstrip) forms.
+        found_ci = {s.rstrip().lower() for s in found_set}
+        matched: list[str] = []
+        missing: list[str] = []
+        for v in unique_vals:
+            if v in found_set or v.rstrip().lower() in found_ci:
+                matched.append(v)
+            else:
+                missing.append(v)
+
         return ReconcileResult(
             schema=schema,
             table=table,

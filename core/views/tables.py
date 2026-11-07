@@ -1,9 +1,14 @@
 """Table and column operations, plus the table-detail panel (columns, indexes,
 row preview) they re-render into."""
+import csv
+import io
+import logging
+
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.utils.translation import gettext as _
+from django.views.decorators.http import require_POST
 
 from ..engines import EngineError, get_engine
 from ..engines.postgres import COLUMN_TYPES, INDEX_METHODS
@@ -11,6 +16,11 @@ from ..models import Backup, Connection
 from ..reconcile import parse_source, ReconcileParseError
 from ._shared import _auto_backup
 from .connection import overview
+
+logger = logging.getLogger(__name__)
+
+# Maximum file/text upload size for reconciliation (10 MB)
+MAX_RECONCILE_UPLOAD_BYTES = 10 * 1024 * 1024
 
 
 # 1 ページに出す行数。既定は 1000 ── テーブル名を押した人が見たいのは中身で、
@@ -440,26 +450,43 @@ def column_set_default(request, pk):
     return _render_detail(request, connection, schema, table, notice=notice)
 
 
+@require_POST
 def table_reconcile(request, pk):
     """Reconcile input values (file upload or pasted text) against a table column.
 
     Runs read-only queries with parameter binding in chunks.
-    Renders partials/reconcile_result.html or streams a CSV export if requested.
+    Renders partials/reconcile_result.html or streams a safe CSV export if requested.
     """
     connection = get_object_or_404(Connection, pk=pk)
-    schema = request.POST.get("schema", "")
-    table = request.POST.get("table", "")
-    column = request.POST.get("column", "")
+    schema = request.POST.get("schema", "").strip()
+    table = request.POST.get("table", "").strip()
+    column = request.POST.get("column", "").strip()
     fmt = request.POST.get("format", "auto")
     key = request.POST.get("key", "").strip() or None
     export_kind = request.POST.get("export", "")
+
+    if not schema or not table or not column:
+        return render(request, "partials/reconcile_result.html", {
+            "error": _("Schema, table, and column must be specified."),
+            "schema": schema, "table": table, "column": column,
+        })
 
     upload = request.FILES.get("file")
     paste_text = request.POST.get("paste_text", "").strip()
 
     if upload:
+        if upload.size > MAX_RECONCILE_UPLOAD_BYTES:
+            return render(request, "partials/reconcile_result.html", {
+                "error": _("Uploaded file exceeds 10 MB limit."),
+                "schema": schema, "table": table, "column": column,
+            })
         content = upload.read()
     elif paste_text:
+        if len(paste_text.encode("utf-8")) > MAX_RECONCILE_UPLOAD_BYTES:
+            return render(request, "partials/reconcile_result.html", {
+                "error": _("Pasted text exceeds 10 MB limit."),
+                "schema": schema, "table": table, "column": column,
+            })
         content = paste_text
     else:
         return render(request, "partials/reconcile_result.html", {
@@ -474,6 +501,12 @@ def table_reconcile(request, pk):
             "error": str(exc),
             "schema": schema, "table": table, "column": column,
         })
+    except Exception as exc:
+        logger.exception("Parse error in table_reconcile: %s", exc)
+        return render(request, "partials/reconcile_result.html", {
+            "error": str(exc),
+            "schema": schema, "table": table, "column": column,
+        })
 
     if not parsed.values:
         return render(request, "partials/reconcile_result.html", {
@@ -482,7 +515,20 @@ def table_reconcile(request, pk):
         })
 
     try:
-        result = get_engine(connection).reconcile_column(
+        engine = get_engine(connection)
+        # Catalog validation: ensure target table exists in schema
+        try:
+            table_list = engine.list_tables()
+            valid_tables = {t.name for t in table_list if t.schema == schema}
+            if valid_tables and table not in valid_tables:
+                return render(request, "partials/reconcile_result.html", {
+                    "error": _("No such table: %(schema)s.%(table)s") % {"schema": schema, "table": table},
+                    "schema": schema, "table": table, "column": column,
+                })
+        except EngineError:
+            pass  # If list_tables fails, reconcile_column will validate the target
+
+        result = engine.reconcile_column(
             schema, table, column, parsed.values
         )
     except EngineError as exc:
@@ -490,14 +536,34 @@ def table_reconcile(request, pk):
             "error": str(exc),
             "schema": schema, "table": table, "column": column,
         })
+    except Exception as exc:
+        logger.exception("Query execution failed in table_reconcile: %s", exc)
+        return render(request, "partials/reconcile_result.html", {
+            "error": str(exc),
+            "schema": schema, "table": table, "column": column,
+        })
+
+    # Propagate parser warning or truncated flag to result
+    if parsed.truncated:
+        result.truncated = True
+    if parsed.warning:
+        result.warning = parsed.warning
 
     if export_kind in ("missing", "matched"):
         values_to_export = result.missing_values if export_kind == "missing" else result.matched_values
         filename = f"{table}_{column}_{export_kind}.csv"
-        csv_data = "\n".join([f'"{v}"' if "," in v else v for v in values_to_export])
-        resp = HttpResponse(csv_data, content_type="text/csv; charset=utf-8")
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        for v in values_to_export:
+            s = str(v)
+            # Neutralise CSV formula injection for spreadsheet software
+            if s and s[0] in ("=", "+", "-", "@", "\t", "\r"):
+                s = "'" + s
+            writer.writerow([s])
+        resp = HttpResponse(buf.getvalue(), content_type="text/csv; charset=utf-8")
         resp["Content-Disposition"] = f'attachment; filename="{filename}"'
         return resp
+
 
     return render(request, "partials/reconcile_result.html", {
         "result": result,

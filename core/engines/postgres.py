@@ -637,9 +637,11 @@ class PostgresEngine(Engine):
     def reconcile_column(self, schema: str, table: str, column: str, values: list[str], *,
                          chunk_size: int = 1000, timeout_ms: int = 30000) -> ReconcileResult:
         """Check whether a list of input values exist in the specified table column."""
-        valid = {c.name for c in self.list_columns(schema, table)}
-        if column not in valid:
+        cols = {c.name: c for c in self.list_columns(schema, table)}
+        if column not in cols:
             raise EngineError(_("No such column: %(name)s") % {"name": column})
+
+        col_type = (cols[column].type or "").lower()
 
         unique_vals = list(dict.fromkeys(v for v in values if v is not None and str(v).strip()))
         if not unique_vals:
@@ -649,7 +651,34 @@ class PostgresEngine(Engine):
                 matched_values=[], missing_values=[], duration_ms=0,
             )
 
-        found_set = set()
+        # Detect column type category to query without LHS casts so B-tree indexes are used
+        is_int_col = any(t in col_type for t in ("int", "serial"))
+        is_uuid_col = "uuid" in col_type
+        is_str_col = any(t in col_type for t in ("char", "text", "varchar", "name"))
+
+        found_set: set[str] = set()
+        found_ints: set[int] = set()
+
+        # Pre-filter queryable values for typed columns
+        if is_int_col:
+            query_vals: list[int] = []
+            for v in unique_vals:
+                try:
+                    query_vals.append(int(v))
+                except (ValueError, TypeError):
+                    pass
+        elif is_uuid_col:
+            import uuid
+            query_vals_uuid: list[str] = []
+            for v in unique_vals:
+                try:
+                    uuid.UUID(str(v).strip())
+                    query_vals_uuid.append(str(v).strip())
+                except (ValueError, TypeError, AttributeError):
+                    pass
+        else:
+            query_vals = []
+
         t0 = time.perf_counter()
         with self._connect() as conn:
             conn.autocommit = False
@@ -657,28 +686,109 @@ class PostgresEngine(Engine):
                 with conn.cursor() as cur:
                     cur.execute("SET TRANSACTION READ ONLY")
                     cur.execute("SET LOCAL statement_timeout = %s", [timeout_ms])
-                    for i in range(0, len(unique_vals), chunk_size):
-                        chunk = unique_vals[i : i + chunk_size]
-                        query = sql.SQL(
-                            "SELECT DISTINCT {}::text FROM {}.{} WHERE {}::text = ANY(%s)"
-                        ).format(
-                            sql.Identifier(column),
-                            sql.Identifier(schema),
-                            sql.Identifier(table),
-                            sql.Identifier(column),
-                        )
-                        cur.execute(query, [chunk])
-                        for row in cur.fetchall():
-                            if row[0] is not None:
-                                found_set.add(str(row[0]))
+
+                    if is_int_col:
+                        # Query using integer array to hit integer B-tree index
+                        for i in range(0, len(query_vals), chunk_size):
+                            chunk = query_vals[i : i + chunk_size]
+                            query = sql.SQL(
+                                "SELECT DISTINCT {} FROM {}.{} WHERE {} = ANY(%s)"
+                            ).format(
+                                sql.Identifier(column),
+                                sql.Identifier(schema),
+                                sql.Identifier(table),
+                                sql.Identifier(column),
+                            )
+                            cur.execute(query, [chunk])
+                            for row in cur.fetchall():
+                                if row[0] is not None:
+                                    found_ints.add(row[0])
+                                    found_set.add(str(row[0]))
+
+                    elif is_uuid_col:
+                        # Query using uuid[] cast on the bound parameter to hit uuid index
+                        for i in range(0, len(query_vals_uuid), chunk_size):
+                            chunk = query_vals_uuid[i : i + chunk_size]
+                            query = sql.SQL(
+                                "SELECT DISTINCT {} FROM {}.{} WHERE {} = ANY(%s::uuid[])"
+                            ).format(
+                                sql.Identifier(column),
+                                sql.Identifier(schema),
+                                sql.Identifier(table),
+                                sql.Identifier(column),
+                            )
+                            cur.execute(query, [chunk])
+                            for row in cur.fetchall():
+                                if row[0] is not None:
+                                    found_set.add(str(row[0]).lower())
+
+                    elif is_str_col:
+                        # Text / varchar: column = ANY(%s) uses standard B-tree index
+                        for i in range(0, len(unique_vals), chunk_size):
+                            chunk = unique_vals[i : i + chunk_size]
+                            query = sql.SQL(
+                                "SELECT DISTINCT {} FROM {}.{} WHERE {} = ANY(%s)"
+                            ).format(
+                                sql.Identifier(column),
+                                sql.Identifier(schema),
+                                sql.Identifier(table),
+                                sql.Identifier(column),
+                            )
+                            cur.execute(query, [chunk])
+                            for row in cur.fetchall():
+                                if row[0] is not None:
+                                    found_set.add(str(row[0]))
+
+                    else:
+                        # Generic fallback: cast column to text
+                        for i in range(0, len(unique_vals), chunk_size):
+                            chunk = unique_vals[i : i + chunk_size]
+                            query = sql.SQL(
+                                "SELECT DISTINCT {}::text FROM {}.{} WHERE {}::text = ANY(%s)"
+                            ).format(
+                                sql.Identifier(column),
+                                sql.Identifier(schema),
+                                sql.Identifier(table),
+                                sql.Identifier(column),
+                            )
+                            cur.execute(query, [chunk])
+                            for row in cur.fetchall():
+                                if row[0] is not None:
+                                    found_set.add(str(row[0]))
+
             except psycopg2.Error as exc:
-                conn.rollback()
-                raise EngineError(_clean(exc)) from exc
-            conn.rollback()
+                raise EngineError(_clean(exc), sqlstate=exc.pgcode) from exc
+            finally:
+                try:
+                    conn.rollback()
+                except Exception:  # nosec B110 — best-effort rollback on connection cleanup
+                    pass
 
         duration_ms = int((time.perf_counter() - t0) * 1000)
-        matched = [v for v in unique_vals if v in found_set]
-        missing = [v for v in unique_vals if v not in found_set]
+
+        # Match results back against original inputs
+        matched: list[str] = []
+        missing: list[str] = []
+        for v in unique_vals:
+            is_match = False
+            if is_int_col:
+                try:
+                    if int(v) in found_ints:
+                        is_match = True
+                except (ValueError, TypeError):
+                    pass
+            elif is_uuid_col:
+                if str(v).strip().lower() in found_set:
+                    is_match = True
+            else:
+                if v in found_set:
+                    is_match = True
+
+            if is_match:
+                matched.append(v)
+            else:
+                missing.append(v)
+
         return ReconcileResult(
             schema=schema,
             table=table,

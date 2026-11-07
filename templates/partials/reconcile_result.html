@@ -5,18 +5,23 @@
     <div class="mono text-xs opacity-90 whitespace-pre-wrap">{{ error }}</div>
   </div>
 {% else %}
+  {{ result.missing_values|json_script:"reconcile-missing-data" }}
+  {{ result.matched_values|json_script:"reconcile-matched-data" }}
+
   <div x-data="{
     tab: 'missing',
     copied: false,
     copy(mode) {
-      const list = this.tab === 'missing' ? missingList : matchedList;
+      const id = this.tab === 'missing' ? 'reconcile-missing-data' : 'reconcile-matched-data';
+      const el = document.getElementById(id);
+      const list = el ? JSON.parse(el.textContent) : [];
       let text = '';
       if (mode === 'newline') {
         text = list.join('\n');
       } else if (mode === 'comma') {
         text = list.join(', ');
       } else if (mode === 'sql') {
-        text = list.map(v => `'${v.replace(/'/g, '\'\'')}'`).join(', ');
+        text = list.map(v => `'${String(v).replace(/\\/g, '\\\\').replace(/'/g, '\'\'')}'`).join(', ');
       }
       navigator.clipboard.writeText(text).then(() => {
         this.copied = true;
@@ -24,12 +29,22 @@
       });
     }
   }" class="space-y-4">
-    <script>
-      var missingList = {{ result.missing_values|json_script:"missing-data" }};
-      var matchedList = {{ result.matched_values|json_script:"matched-data" }};
-      missingList = JSON.parse(document.getElementById('missing-data').textContent);
-      matchedList = JSON.parse(document.getElementById('matched-data').textContent);
-    </script>
+
+    {% if result.truncated or result.warning %}
+      <div class="bg-warn/15 border border-warn/40 text-warn rounded-lg px-3 py-2 text-xs flex items-center gap-2">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <div>
+          {% if result.truncated %}
+            <span>{% trans "Input exceeded maximum limit (50,000 values) and was safely truncated." %}</span>
+          {% endif %}
+          {% if result.warning %}
+            <span class="ml-1">{{ result.warning }}</span>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
 
     <!-- Summary cards -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -94,11 +109,11 @@
       </div>
     </div>
 
-    <!-- Value list container -->
+    <!-- Value list container (capped at 200 DOM elements for responsive rendering) -->
     <div class="bg-canvas border border-line rounded-xl overflow-hidden">
       <!-- Missing values -->
       <div x-show="tab === 'missing'" class="max-h-72 overflow-y-auto p-2 mono text-xs divide-y divide-line/40">
-        {% for v in result.missing_values %}
+        {% for v in result.missing_values|slice:":200" %}
           <div class="px-2 py-1 text-warn/90 hover:bg-raised/60 flex items-center justify-between">
             <span class="select-all">{{ v }}</span>
             <span class="text-[10px] text-faint tracking-wider uppercase">{% trans "missing" %}</span>
@@ -108,11 +123,16 @@
             {% trans "All input values exist in the database!" %}
           </div>
         {% endfor %}
+        {% if result.missing_count > 200 %}
+          <div class="p-2 text-center text-xs text-muted bg-raised/30 border-t border-line">
+            {% blocktrans with c=result.missing_count|add:"-200"|intcomma %}... and {{ c }} more values (use Copy or Export for the full list){% endblocktrans %}
+          </div>
+        {% endif %}
       </div>
 
       <!-- Matched values -->
       <div x-show="tab === 'matched'" x-cloak class="max-h-72 overflow-y-auto p-2 mono text-xs divide-y divide-line/40">
-        {% for v in result.matched_values %}
+        {% for v in result.matched_values|slice:":200" %}
           <div class="px-2 py-1 text-accent/90 hover:bg-raised/60 flex items-center justify-between">
             <span class="select-all">{{ v }}</span>
             <span class="text-[10px] text-faint tracking-wider uppercase">{% trans "found" %}</span>
@@ -122,6 +142,11 @@
             {% trans "No input values were found in the database." %}
           </div>
         {% endfor %}
+        {% if result.matched_count > 200 %}
+          <div class="p-2 text-center text-xs text-muted bg-raised/30 border-t border-line">
+            {% blocktrans with c=result.matched_count|add:"-200"|intcomma %}... and {{ c }} more values (use Copy or Export for the full list){% endblocktrans %}
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>

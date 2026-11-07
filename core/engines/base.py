@@ -157,6 +157,8 @@ class ReconcileResult:
     matched_values: list[str]
     missing_values: list[str]
     duration_ms: int
+    truncated: bool = False
+    warning: str | None = None
 
     @property
     def matched_count(self) -> int:

@@ -29,6 +29,8 @@ class ParsedSource:
     format_detected: str
     column_name: str | None = None
     available_columns: list[str] = field(default_factory=list)
+    truncated: bool = False
+    warning: str | None = None
 
 
 def _detect_delimiter(sample: str) -> str:
@@ -103,10 +105,14 @@ def parse_source(
 
     raw_values: list[str] = []
     available_cols: list[str] = []
-    selected_col: str | None = key
+    selected_col: str | None = key.strip() if key else None
+    truncated = False
+    warning = None
 
     if detected_fmt == "inline_list":
         parts = [p.strip() for p in text.replace("\t", ",").split(",") if p.strip()]
+        if len(parts) > max_values:
+            truncated = True
         for p in parts[:max_values]:
             raw_values.append(p)
 
@@ -121,7 +127,7 @@ def parse_source(
                 format_detected=detected_fmt,
             )
 
-        if len(reader_rows) == 1 and not key:
+        if len(reader_rows) == 1 and not selected_col:
             # Only one line with multiple columns and no explicit key: treat all cells as values
             for val in reader_rows[0]:
                 v = val.strip()
@@ -129,18 +135,25 @@ def parse_source(
                     raw_values.append(v)
         else:
             header = reader_rows[0]
-            available_cols = [c.strip() for c in header if c.strip()]
+            clean_header = [c.strip() for c in header]
+            available_cols = [c for c in clean_header if c]
             col_idx = 0
-            if key and key in header:
-                col_idx = header.index(key)
-                selected_col = key
+            if selected_col:
+                if selected_col in clean_header:
+                    col_idx = clean_header.index(selected_col)
+                else:
+                    cols_desc = ", ".join(repr(c) for c in available_cols) or "(none)"
+                    raise ReconcileParseError(
+                        f"Specified key '{selected_col}' was not found in columns: {cols_desc}"
+                    )
             elif available_cols:
                 selected_col = available_cols[0]
-                col_idx = header.index(selected_col)
+                col_idx = clean_header.index(selected_col)
 
-            for i, row in enumerate(reader_rows[1:]):
-                if i >= max_values:
-                    break
+            data_rows = reader_rows[1:]
+            if len(data_rows) > max_values:
+                truncated = True
+            for row in data_rows[:max_values]:
                 if len(row) > col_idx:
                     val = row[col_idx].strip()
                     if val:
@@ -153,63 +166,110 @@ def parse_source(
             raise ReconcileParseError(f"Invalid JSON: {exc}") from exc
 
         if isinstance(data, list):
-            for i, item in enumerate(data):
-                if i >= max_values:
-                    break
+            if len(data) > max_values:
+                truncated = True
+            # Inspect first objects to gather available columns
+            seen_keys: set[str] = set()
+            for sample_item in data[:20]:
+                if isinstance(sample_item, dict):
+                    for k in sample_item.keys():
+                        if k not in seen_keys:
+                            seen_keys.add(k)
+                            available_cols.append(k)
+
+            target_key = selected_col or (available_cols[0] if available_cols else None)
+            selected_col = target_key
+            if selected_col and available_cols and selected_col not in available_cols:
+                cols_desc = ", ".join(repr(c) for c in available_cols)
+                raise ReconcileParseError(
+                    f"Specified key '{selected_col}' was not found in JSON properties: {cols_desc}"
+                )
+
+            missing_key_count = 0
+            for item in data[:max_values]:
                 if isinstance(item, dict):
-                    if not available_cols:
-                        available_cols = list(item.keys())
-                    target_key = key or (available_cols[0] if available_cols else None)
-                    selected_col = target_key
-                    if target_key and target_key in item:
-                        v = str(item[target_key]).strip()
-                        if v:
-                            raw_values.append(v)
+                    if target_key:
+                        if target_key in item:
+                            raw_val = item[target_key]
+                            if raw_val is not None:
+                                v = str(raw_val).strip()
+                                if v:
+                                    raw_values.append(v)
+                        else:
+                            missing_key_count += 1
                 elif item is not None:
                     v = str(item).strip()
                     if v:
                         raw_values.append(v)
+            if target_key and missing_key_count > 0 and not raw_values:
+                raise ReconcileParseError(
+                    f"Key '{target_key}' did not match any values in JSON objects."
+                )
+
         elif isinstance(data, dict):
             # If a dict is provided, check if it has a list field
             for k, val in data.items():
                 if isinstance(val, list):
                     available_cols.append(k)
-            target_key = key or (available_cols[0] if available_cols else None)
+            target_key = selected_col or (available_cols[0] if available_cols else None)
             selected_col = target_key
             if target_key and isinstance(data.get(target_key), list):
-                for i, item in enumerate(data[target_key]):
-                    if i >= max_values:
-                        break
-                    v = str(item).strip()
-                    if v:
-                        raw_values.append(v)
+                items = data[target_key]
+                if len(items) > max_values:
+                    truncated = True
+                for item in items[:max_values]:
+                    if item is not None:
+                        v = str(item).strip()
+                        if v:
+                            raw_values.append(v)
             else:
+                cols_desc = ", ".join(repr(c) for c in available_cols) or "(none)"
                 raise ReconcileParseError(
-                    "JSON must be an array of values, an array of objects, or contain a list field."
+                    f"JSON must contain an array or specify a valid array property. Available array keys: {cols_desc}"
                 )
         else:
             raise ReconcileParseError("JSON content must be an array or object.")
 
     elif detected_fmt == "jsonl":
-        for i, line in enumerate(text.splitlines()):
-            if i >= max_values:
-                break
-            line = line.strip()
-            if not line:
-                continue
+        all_lines = [l.strip() for l in text.splitlines() if l.strip()]
+        if len(all_lines) > max_values:
+            truncated = True
+        malformed_count = 0
+        parsed_items = []
+        for line in all_lines[:max_values]:
             try:
-                item = json.loads(line)
+                parsed_items.append(json.loads(line))
             except json.JSONDecodeError:
-                continue  # skip malformed line
+                malformed_count += 1
+
+        if malformed_count > 0:
+            warning = f"Skipped {malformed_count} malformed JSONL line(s)."
+
+        # Gather keys
+        seen_keys = set()
+        for sample_item in parsed_items[:20]:
+            if isinstance(sample_item, dict):
+                for k in sample_item.keys():
+                    if k not in seen_keys:
+                        seen_keys.add(k)
+                        available_cols.append(k)
+
+        target_key = selected_col or (available_cols[0] if available_cols else None)
+        selected_col = target_key
+        if selected_col and available_cols and selected_col not in available_cols:
+            cols_desc = ", ".join(repr(c) for c in available_cols)
+            raise ReconcileParseError(
+                f"Specified key '{selected_col}' was not found in JSONL properties: {cols_desc}"
+            )
+
+        for item in parsed_items:
             if isinstance(item, dict):
-                if not available_cols:
-                    available_cols = list(item.keys())
-                target_key = key or (available_cols[0] if available_cols else None)
-                selected_col = target_key
                 if target_key and target_key in item:
-                    v = str(item[target_key]).strip()
-                    if v:
-                        raw_values.append(v)
+                    raw_val = item[target_key]
+                    if raw_val is not None:
+                        v = str(raw_val).strip()
+                        if v:
+                            raw_values.append(v)
             elif item is not None:
                 v = str(item).strip()
                 if v:
@@ -217,19 +277,24 @@ def parse_source(
 
     else:  # 'txt' or fallback
         detected_fmt = "txt"
-        for i, line in enumerate(text.splitlines()):
-            if len(raw_values) >= max_values:
+        non_empty_lines = [l.strip() for l in text.splitlines() if l.strip()]
+        total_items = 0
+        for val in non_empty_lines:
+            if total_items >= max_values:
+                truncated = True
                 break
-            val = line.strip()
-            if not val:
-                continue
             if "," in val:
                 for sub in val.split(","):
+                    if total_items >= max_values:
+                        truncated = True
+                        break
                     s = sub.strip()
                     if s:
                         raw_values.append(s)
+                        total_items += 1
             else:
                 raw_values.append(val)
+                total_items += 1
 
     # Preserve order while finding unique elements
     seen = set()
@@ -246,4 +311,6 @@ def parse_source(
         format_detected=detected_fmt,
         column_name=selected_col,
         available_columns=available_cols,
+        truncated=truncated,
+        warning=warning,
     )

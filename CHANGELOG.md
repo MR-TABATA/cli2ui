@@ -17,6 +17,19 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Added
+
+- **Table reconciliation (Reconcile)**: Match local files (CSV, TSV, JSON, JSONL) or pasted values against database table columns using chunked read-only queries, one-click clipboard copying (lines, CSV, SQL IN clause), and safe CSV exports.
+
+### Fixed
+
+- **Reconciliation security, robustness & index performance**:
+  - Replaced LHS `::text` casting in PostgreSQL reconciliation queries with type-adapted parameters (integer, uuid, text) to fully utilize existing B-tree indexes.
+  - Added session `max_execution_time` and collation-normalized matching in MySQL to prevent hanging queries and false misses on case-insensitive collations.
+  - Neutralized spreadsheet formula injection (`=`, `+`, `-`, `@`) in CSV export using `csv.writer` and leading single-quote escaping.
+  - Added `@require_POST`, `hosted` capability gating (`data_transfer`), catalog schema/table verification, and 10 MB payload size limits.
+  - Isolated `json_script` outside inline scripts to eliminate nested script parsing errors, and capped table DOM preview at 200 items to keep browser responsive.
+
 ## [1.12.2] - 2026-10-23
 
 ### Fixed
