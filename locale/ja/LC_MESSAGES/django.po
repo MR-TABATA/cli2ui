@@ -3303,3 +3303,168 @@ msgstr ""
 #: templates/partials/replication.html
 msgid "Retained WAL"
 msgstr "保持している WAL"
+
+# --- Reconcile（手元のファイル・貼り付けと実DBの突き合わせ）---
+
+#: templates/partials/detail.html
+msgid "Reconcile"
+msgstr "突き合わせ"
+
+#: templates/partials/detail.html
+msgid "reconcile"
+msgstr "突き合わせ"
+
+#: templates/partials/detail.html
+msgid "Match external file or pasted text against this table"
+msgstr "外部ファイルや貼り付けたテキストを、このテーブルと突き合わせる"
+
+#: templates/partials/detail.html
+msgid "Reconcile with file"
+msgstr "ファイルと突き合わせ"
+
+#: templates/partials/detail.html
+msgid "Target column"
+msgstr "対象の列"
+
+#: templates/partials/detail.html
+msgid "Input source"
+msgstr "入力元"
+
+#: templates/partials/detail.html
+msgid "Paste text"
+msgstr "テキストを貼り付け"
+
+#: templates/partials/detail.html
+msgid "Upload file"
+msgstr "ファイルを選ぶ"
+
+#: templates/partials/detail.html
+msgid "Paste IDs, emails, codes, CSV, or JSON..."
+msgstr "ID・メール・コード・CSV・JSON を貼り付け…"
+
+#: templates/partials/detail.html
+msgid "Format"
+msgstr "形式"
+
+#: templates/partials/detail.html
+msgid "Auto detect"
+msgstr "自動判定"
+
+#: templates/partials/detail.html
+msgid "Lines (TXT)"
+msgstr "1行1値（TXT）"
+
+#: templates/partials/detail.html
+msgid "Key / Column"
+msgstr "キー／列"
+
+#: templates/partials/detail.html
+msgid "opt"
+msgstr "任意"
+
+#: templates/partials/detail.html
+msgid "Column name in CSV, or key in JSON object"
+msgstr "CSV の列名、または JSON オブジェクトのキー"
+
+#: templates/partials/detail.html
+msgid "e.g. user_id"
+msgstr "例: user_id"
+
+#: templates/partials/detail.html
+msgid "Reconcile with DB"
+msgstr "DB と突き合わせ"
+
+#: templates/partials/reconcile_result.html
+msgid "Reconciliation error"
+msgstr "突き合わせのエラー"
+
+#: templates/partials/reconcile_result.html
+msgid "Input exceeded maximum limit (50,000 values) and was safely truncated."
+msgstr "入力が上限（5万件）を超えたため、安全のため切り詰めました。"
+
+#: templates/partials/reconcile_result.html
+msgid "Total input"
+msgstr "入力の合計"
+
+#: templates/partials/reconcile_result.html
+msgid "Missing in DB"
+msgstr "DB にない"
+
+#: templates/partials/reconcile_result.html
+msgid "Found in DB"
+msgstr "DB にある"
+
+#: templates/partials/reconcile_result.html
+msgid "Duration"
+msgstr "所要時間"
+
+#: templates/partials/reconcile_result.html
+msgid "Copied!"
+msgstr "コピーしました"
+
+#: templates/partials/reconcile_result.html
+msgid "Copy as newline-separated list"
+msgstr "改行区切りでコピー"
+
+#: templates/partials/reconcile_result.html
+msgid "Copy lines"
+msgstr "行でコピー"
+
+#: templates/partials/reconcile_result.html
+msgid "Copy as comma-separated list"
+msgstr "カンマ区切りでコピー"
+
+#: templates/partials/reconcile_result.html
+msgid "Copy formatted for SQL IN clause"
+msgstr "SQL の IN 句の形でコピー"
+
+#: templates/partials/reconcile_result.html
+msgid "missing"
+msgstr "なし"
+
+#: templates/partials/reconcile_result.html
+msgid "found"
+msgstr "あり"
+
+#: templates/partials/reconcile_result.html
+msgid "All input values exist in the database!"
+msgstr "入力した値は、すべて DB にあります。"
+
+#: templates/partials/reconcile_result.html
+msgid "No input values were found in the database."
+msgstr "入力した値は、DB に1件もありません。"
+
+#: core/views/tables.py
+msgid "Schema, table, and column must be specified."
+msgstr "スキーマ・テーブル・列を指定してください。"
+
+#: core/views/tables.py
+msgid "Uploaded file exceeds 10 MB limit."
+msgstr "アップロードしたファイルが 10 MB の上限を超えています。"
+
+#: core/views/tables.py
+msgid "Pasted text exceeds 10 MB limit."
+msgstr "貼り付けたテキストが 10 MB の上限を超えています。"
+
+#: core/views/tables.py
+msgid "Please select a file or paste text to match."
+msgstr "ファイルを選ぶか、テキストを貼り付けてください。"
+
+#: core/views/tables.py
+msgid "No values found in the provided input."
+msgstr "入力から値が見つかりませんでした。"
+
+#: templates/partials/reconcile_result.html
+#, python-format
+msgid "%(u)s unique"
+msgstr "ユニーク %(u)s 件"
+
+#: templates/partials/reconcile_result.html
+#, python-format
+msgid "... and %(c)s more values (use Copy or Export for the full list)"
+msgstr "…ほか %(c)s 件（全件はコピーまたはエクスポートで）"
+
+#: core/views/tables.py
+#, python-format
+msgid "No such table: %(schema)s.%(table)s"
+msgstr "そのテーブルはありません: %(schema)s.%(table)s"
