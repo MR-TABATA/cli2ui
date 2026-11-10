@@ -39,6 +39,24 @@ stays in your browser — it is never sent to the server.
 
 ## Quick start
 
+### Instant start with uv / pipx (No Docker required)
+
+If you have [uv](https://docs.astral.sh/uv/) (recommended):
+
+```bash
+uvx cli2ui
+```
+
+Or with `pipx`:
+
+```bash
+pipx run cli2ui
+```
+
+This starts cli2ui locally and opens your browser at `http://127.0.0.1:8000/`. It connects directly to your host databases (`localhost:5432` / `localhost:3306`) with zero Docker networking friction.
+
+### With Docker Compose (includes sample database)
+
 ```bash
 git clone https://github.com/MR-TABATA/cli2ui
 cd cli2ui

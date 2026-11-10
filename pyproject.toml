@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cli2ui"
+dynamic = ["version"]
+description = "A local web UI over DB CLI commands (PostgreSQL & MySQL)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    { name = "Hitoshi Tabata" },
+]
+classifiers = [
+    "Framework :: Django",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+]
+dependencies = [
+    "Django>=5.1,<6.0",
+    "psycopg2-binary>=2.9.10",
+    "PyMySQL>=1.1.1",
+    "cryptography>=49.0.0",
+]
+
+[project.scripts]
+cli2ui = "cli2ui.cli:main"
+
+[tool.hatch.version]
+path = "cli2ui/__init__.py"
+
+[tool.hatch.build.targets.wheel.sources]
+"cli2ui" = "cli2ui"
+"core" = "cli2ui/core"
+"planner_lab" = "cli2ui/planner_lab"
+"templates" = "cli2ui/templates"
+"locale" = "cli2ui/locale"
+
+[tool.hatch.build.targets.wheel]
+only-include = [
+    "cli2ui",
+    "core",
+    "planner_lab",
+    "templates",
+    "locale",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "cli2ui",
+    "core",
+    "planner_lab",
+    "templates",
+    "locale",
+    "manage.py",
+    "README.md",
+    "LICENSE",
+]

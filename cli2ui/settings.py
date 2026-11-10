@@ -8,9 +8,43 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY", "dev-insecure-key-change-me-for-anything-public"
-)
+def _get_django_secret_key() -> str:
+    """Load or generate a secret key from environment or secret.key file."""
+    if "DJANGO_SECRET_KEY" in os.environ:
+        return os.environ["DJANGO_SECRET_KEY"]
+
+    key_path_str = os.environ.get("CLI2UI_SECRET_KEY_FILE")
+    if not key_path_str:
+        db_path_str = os.environ.get("CLI2UI_DB_PATH")
+        if db_path_str and not str(db_path_str).startswith(":memory:"):
+            key_path_str = str(Path(db_path_str).parent / "secret.key")
+        else:
+            key_path_str = str(BASE_DIR / "secret.key")
+
+    key_path = Path(key_path_str)
+    try:
+        if key_path.is_file():
+            for line in key_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    return f"django-managed-secure-key-{line}"
+
+        # If the file does not exist, create it with a valid Fernet key and secure permissions (0600)
+        from cryptography.fernet import Fernet
+        key_path.parent.mkdir(parents=True, exist_ok=True)
+        new_fernet_key = Fernet.generate_key().decode("ascii")
+        fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as h:
+            h.write("# cli2ui secret key (newest first). Back this up apart from the database.\n")
+            h.write(new_fernet_key + "\n")
+        return f"django-managed-secure-key-{new_fernet_key}"
+    except OSError:
+        pass
+
+    return "dev-insecure-key-change-me-for-anything-public"
+
+
+SECRET_KEY = _get_django_secret_key()
 # Off by default: a DEBUG error page leaks tracebacks, settings, and SQL — and
 # this tool sits right next to a database. Set DJANGO_DEBUG=1 when you're
 # developing and want the rich error pages.
@@ -63,10 +97,16 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "cli2ui.urls"
 
+# Locate templates and locale directories: prefer package-internal path if packaged,
+# otherwise fall back to repo root (BASE_DIR).
+_PKG_DIR = Path(__file__).resolve().parent
+_TEMPLATES_DIR = _PKG_DIR / "templates" if (_PKG_DIR / "templates").exists() else BASE_DIR / "templates"
+_LOCALE_DIR = _PKG_DIR / "locale" if (_PKG_DIR / "locale").exists() else BASE_DIR / "locale"
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
+        "DIRS": [_TEMPLATES_DIR],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -143,7 +183,7 @@ DATE_FORMAT = "Y-m-d"
 # get their browser's Accept-Language. Compiled catalogs live in locale/.
 LANGUAGE_CODE = "en"
 LANGUAGES = [("en", "English"), ("ja", "日本語")]
-LOCALE_PATHS = [BASE_DIR / "locale"]
+LOCALE_PATHS = [_LOCALE_DIR]
 USE_I18N = True
 
 # Local edition switch: gives optional apps one shared place to ask whether a

@@ -5660,3 +5660,156 @@ class ReconcileViewTests(TestCase):
             self.assertEqual(resp.status_code, 200)
             self.assertContains(resp, "Uploaded file exceeds 10 MB limit")
 
+
+class CliEntrypointTest(unittest.TestCase):
+    """Tests for the standalone CLI entrypoint (uvx / pipx support)."""
+
+    def test_default_data_dir(self):
+        from pathlib import Path
+        from cli2ui.cli import get_default_data_dir
+        with unittest.mock.patch("sys.platform", "darwin"):
+            d = get_default_data_dir()
+            self.assertTrue(str(d).endswith("Library/Application Support/cli2ui"))
+
+        with unittest.mock.patch("sys.platform", "win32"), \
+             unittest.mock.patch.dict(os.environ, {"APPDATA": "/fake/appdata"}):
+            d = get_default_data_dir()
+            self.assertEqual(d, Path("/fake/appdata/cli2ui"))
+
+        with unittest.mock.patch("sys.platform", "linux"), \
+             unittest.mock.patch.dict(os.environ, {"XDG_DATA_HOME": "/fake/xdg"}):
+            d = get_default_data_dir()
+            self.assertEqual(d, Path("/fake/xdg/cli2ui"))
+
+    def test_find_available_port(self):
+        from cli2ui.cli import find_available_port
+        port = find_available_port("127.0.0.1", 18000)
+        self.assertIsNotNone(port)
+        self.assertGreaterEqual(port, 18000)
+        self.assertLess(port, 18010)
+
+    def test_find_available_port_busy_and_exhausted(self):
+        import socket
+        from cli2ui.cli import find_available_port
+
+        # Bind 18050 to force searching next port
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind(("127.0.0.1", 18050))
+            except OSError:
+                self.skipTest("Port 18050 not bindable for test")
+
+            next_port = find_available_port("127.0.0.1", 18050, max_attempts=5)
+            self.assertIsNotNone(next_port)
+            self.assertGreater(next_port, 18050)
+
+        # When all attempts fail
+        with unittest.mock.patch("socket.socket") as mock_sock:
+            mock_inst = mock_sock.return_value.__enter__.return_value
+            mock_inst.bind.side_effect = OSError("Address in use")
+            exhausted = find_available_port("127.0.0.1", 18000, max_attempts=3)
+            self.assertIsNone(exhausted)
+
+    def test_cannot_create_data_dir(self):
+        from pathlib import Path
+        import tempfile
+        from cli2ui.cli import main
+
+        with tempfile.NamedTemporaryFile() as tf:
+            # Passing a file path as data-dir causes mkdir to fail
+            err_buf = io.StringIO()
+            with unittest.mock.patch("sys.stderr", err_buf):
+                code = main(["--data-dir", tf.name])
+            self.assertEqual(code, 1)
+            self.assertIn("failed to create data directory", err_buf.getvalue())
+
+    def test_env_vars_and_csrf_normalization(self):
+        import tempfile
+        from pathlib import Path
+        from cli2ui.cli import main, normalize_csrf_origins
+
+        # Verify normalize_csrf_origins preserves existing origins and formats IPv6/localhost
+        norm = normalize_csrf_origins("127.0.0.1", 8080, "http://example.com, http://test.org ")
+        self.assertIn("http://example.com", norm)
+        self.assertIn("http://test.org", norm)
+        self.assertIn("http://127.0.0.1:8080", norm)
+        self.assertIn("http://localhost:8080", norm)
+
+        ipv6_norm = normalize_csrf_origins("::1", 8080, "")
+        self.assertIn("http://[::1]:8080", ipv6_norm)
+
+        # Verify main sets environment variables correctly
+        with tempfile.TemporaryDirectory() as td:
+            td_path = Path(td)
+            with unittest.mock.patch("cli2ui.cli.find_available_port", return_value=8080), \
+                 unittest.mock.patch("django.setup"), \
+                 unittest.mock.patch("django.core.management.call_command") as mock_call, \
+                 unittest.mock.patch("sys.stdout", io.StringIO()):
+                # Simulate KeyboardInterrupt on runserver to finish main cleanly
+                mock_call.side_effect = [None, KeyboardInterrupt]
+                code = main(["--data-dir", str(td_path), "--port", "8080", "--no-browser", "--edition", "pro"])
+                self.assertEqual(code, 0)
+                self.assertEqual(os.environ["CLI2UI_DB_PATH"], str(td_path.resolve() / "db.sqlite3"))
+                self.assertEqual(os.environ["CLI2UI_SECRET_KEY_FILE"], str(td_path.resolve() / "secret.key"))
+                self.assertEqual(os.environ["CLI2UI_EDITION"], "pro")
+                self.assertIn("http://127.0.0.1:8080", os.environ["CLI2UI_EXTRA_CSRF_ORIGINS"])
+
+    def test_migrate_failure_handling(self):
+        import tempfile
+        from pathlib import Path
+        from cli2ui.cli import main
+
+        with tempfile.TemporaryDirectory() as td:
+            td_path = Path(td)
+            err_buf = io.StringIO()
+            with unittest.mock.patch("cli2ui.cli.find_available_port", return_value=8080), \
+                 unittest.mock.patch("django.setup"), \
+                 unittest.mock.patch("django.core.management.call_command", side_effect=Exception("DB locked")), \
+                 unittest.mock.patch("sys.stderr", err_buf), \
+                 unittest.mock.patch("sys.stdout", io.StringIO()):
+                code = main(["--data-dir", str(td_path), "--no-browser"])
+                self.assertEqual(code, 1)
+                self.assertIn("failed to initialize database", err_buf.getvalue())
+
+    def test_secret_key_file_resolution(self):
+        import tempfile
+        from pathlib import Path
+        from cli2ui.settings import _get_django_secret_key
+
+        with tempfile.TemporaryDirectory() as td:
+            key_file = Path(td) / "test_secret.key"
+            with unittest.mock.patch.dict(os.environ, {"CLI2UI_SECRET_KEY_FILE": str(key_file)}, clear=False):
+                # First call generates key file with 0600
+                k1 = _get_django_secret_key()
+                self.assertTrue(key_file.exists())
+                self.assertTrue(k1.startswith("django-"))
+
+                # Second call loads the exact same key
+                k2 = _get_django_secret_key()
+                self.assertEqual(k1, k2)
+
+    def test_template_and_locale_resolution(self):
+        from pathlib import Path
+        import tempfile
+        from cli2ui import settings
+
+        # Repo root fallback works
+        self.assertTrue(settings._TEMPLATES_DIR.exists())
+        self.assertTrue(settings._LOCALE_DIR.exists())
+
+    def test_cli_version_flag(self):
+        from cli2ui.cli import main
+        with self.assertRaises(SystemExit) as ctx, \
+             unittest.mock.patch("sys.stdout", new=io.StringIO()):
+            main(["--version"])
+        self.assertEqual(ctx.exception.code, 0)
+
+    def test_cli_help_flag(self):
+        from cli2ui.cli import main
+        with self.assertRaises(SystemExit) as ctx, \
+             unittest.mock.patch("sys.stdout", new=io.StringIO()):
+            main(["--help"])
+        self.assertEqual(ctx.exception.code, 0)
+
+

@@ -17,6 +17,21 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Added
+
+- **Standalone CLI execution via `uvx cli2ui` / `pipx run cli2ui`**:
+  - Run cli2ui without Docker using a single command, connecting directly to local databases (`localhost:5432` / `localhost:3306`) with zero networking friction.
+  - Automatically creates and manages isolated SQLite storage and secret keys in the standard OS application data directory (`~/Library/Application Support/cli2ui` on macOS, `$XDG_DATA_HOME/cli2ui` on Linux, `%APPDATA%/cli2ui` on Windows).
+  - Automatically applies database migrations on startup and opens the default browser once the server begins responding.
+  - Added PEP 621 `pyproject.toml` packaging core apps, templates, and locale catalogs under the `cli2ui` namespace.
+
+### Fixed
+
+- **CLI robustness and security enhancements**:
+  - Enhanced CLI entrypoint with robust error handling for port collision/exhaustion, IPv6/0.0.0.0 bind formatting, safe CSRF origin normalization, and database migration failure messages.
+  - Fixed Django `SECRET_KEY` resolution to dynamically generate and load a cryptographically secure key from `secret.key` with owner-only (0600) permissions.
+  - Added 6 new test cases covering directory creation failure, environment variable configuration, port search/exhaustion, IPv6/CSRF formatting, and template/locale resolution.
+
 ## [1.13.0] - 2026-11-07
 
 ### Added

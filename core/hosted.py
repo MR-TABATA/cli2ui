@@ -371,6 +371,8 @@ def enforce() -> None:
 
 @register(Tags.security)
 def hosted_check(app_configs, **kwargs):
+    if not is_hosted():
+        return []
     out = []
     for x in preflight():
         cls = Error if x.level == "error" else CheckWarning
