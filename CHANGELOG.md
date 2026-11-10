@@ -17,6 +17,8 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-11-10
+
 ### Fixed
 
 - **Documentation**: Updated screenshot URLs in README to absolute raw GitHub URLs so images render properly on PyPI.
@@ -814,7 +816,8 @@ reserved for multi-DB support).
 - Internationalisation (English / Japanese).
 - Workspace overview dashboard and unified UI (design system).
 
-[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.14.0...HEAD
+[Unreleased]: https://github.com/MR-TABATA/cli2ui/compare/v1.14.1...HEAD
+[1.14.1]: https://github.com/MR-TABATA/cli2ui/compare/v1.14.0...v1.14.1
 [1.14.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/MR-TABATA/cli2ui/compare/v1.12.2...v1.13.0
 [1.12.2]: https://github.com/MR-TABATA/cli2ui/compare/v1.12.1...v1.12.2
