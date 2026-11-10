@@ -4034,8 +4034,10 @@ class IndexLabSmokeE2E(_BrowserE2E):
         page.locator("#lab select[name=qualified]").select_option("public.orders")
 
         # Pick a column to index, then preview against the prefilled query.
+        col_btn = page.locator('form[hx-post*="lab/preview"]').get_by_role("button", name="customer_id", exact=True)
+        col_btn.wait_for()
+        col_btn.click()
         form = page.locator('form[hx-post*="lab/preview"]')
-        form.get_by_role("button", name="customer_id", exact=True).click()
         form.locator("textarea[name=sql]").fill(
             "SELECT * FROM orders WHERE customer_id = 1")
         form.get_by_role("button", name="Preview index ▸").click()
@@ -5692,11 +5694,12 @@ class CliEntrypointTest(unittest.TestCase):
         import socket
         from cli2ui.cli import find_available_port
 
-        # Bind 18050 to force searching next port
+        # Bind and listen on 18050 to force searching next port
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 s.bind(("127.0.0.1", 18050))
+                s.listen(1)
             except OSError:
                 self.skipTest("Port 18050 not bindable for test")
 

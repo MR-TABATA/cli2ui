@@ -44,7 +44,6 @@ def find_available_port(host: str, start_port: int, max_attempts: int = 10) -> O
         for family, socktype, proto, _, sockaddr in addrinfo:
             try:
                 with socket.socket(family, socktype, proto) as sock:
-                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                     sock.bind(sockaddr)
                     return port
             except OSError:
