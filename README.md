@@ -31,11 +31,11 @@ stays in your browser — it is never sent to the server.
 
 ## What it looks like
 
-![Workspace overview — every panel one click away, with live counts](docs/screenshots/overview.png)
+![Workspace overview — every panel one click away, with live counts](https://raw.githubusercontent.com/MR-TABATA/cli2ui/main/docs/screenshots/overview.png)
 
 | Table detail | SQL runner |
 | :----------: | :--------: |
-| ![Table detail](docs/screenshots/table-detail.png) | ![SQL runner](docs/screenshots/sql-runner.png) |
+| ![Table detail](https://raw.githubusercontent.com/MR-TABATA/cli2ui/main/docs/screenshots/table-detail.png) | ![SQL runner](https://raw.githubusercontent.com/MR-TABATA/cli2ui/main/docs/screenshots/sql-runner.png) |
 
 ## Quick start
 

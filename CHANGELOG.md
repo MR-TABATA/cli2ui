@@ -17,6 +17,10 @@ Versioning convention for this project:
 
 ## [Unreleased]
 
+### Fixed
+
+- **Documentation**: Updated screenshot URLs in README to absolute raw GitHub URLs so images render properly on PyPI.
+
 ## [1.14.0] - 2026-11-10
 
 ### Added
